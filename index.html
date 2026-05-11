@@ -938,7 +938,9 @@ document.addEventListener('DOMContentLoaded', () => {
             studentCountPresets: JSON.parse(localStorage.getItem('timerStudentCountPresets') || '[]'),
             timerHistory: JSON.parse(localStorage.getItem('timerHistory') || '[]'),
             cleaningTasks: JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || cleaningTasks,
-            cleanTargetTime: localStorage.getItem('cleanTargetTime') || '10:25'
+            cleanTargetTime: localStorage.getItem('cleanTargetTime') || '10:25',
+            cleaningBehaviorRecords: JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}'),
+            examInfo: JSON.parse(localStorage.getItem('examInfo') || '{}')
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -973,6 +975,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.cleanTargetTime) {
                 localStorage.setItem('cleanTargetTime', data.cleanTargetTime);
                 document.getElementById('clean-target-time').value = data.cleanTargetTime;
+            }
+            if (data.cleaningBehaviorRecords) {
+                localStorage.setItem('cleaningBehaviorRecords', JSON.stringify(data.cleaningBehaviorRecords));
+            }
+            if (data.examInfo) {
+                localStorage.setItem('examInfo', JSON.stringify(data.examInfo));
+                const fields = ['exam-subject','exam-start-time','exam-end-time','exam-expected','exam-actual','exam-notes'];
+                fields.forEach(id => { const el = document.getElementById(id); if (el && data.examInfo[id] !== undefined) el.value = data.examInfo[id]; });
+                updateExamStats();
             }
             alert('匯入成功！');
         };
