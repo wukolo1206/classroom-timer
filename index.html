@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級計時器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+        .time-up { animation: pulse 0.5s infinite; color: #ef4444 !important; }
+
+        .notification {
+            position: fixed; top: 20px; right: 20px;
+            padding: 15px 20px; background: white;
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(120%); transition: transform 0.3s ease; z-index: 200;
+        }
+        .notification.show { transform: translateX(0); }
+
+        .copy-feedback {
+            position: fixed; bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: rgba(0,0,0,0.75); color: white;
+            padding: 8px 20px; border-radius: 9999px;
+            font-size: 0.9rem; transition: transform 0.3s ease; z-index: 200;
+        }
+        .copy-feedback.show { transform: translateX(-50%) translateY(0); }
+
+        .sound-option { border: 2px solid transparent; cursor: pointer; transition: all 0.2s; }
+        .sound-option.selected { border-color: #0284c7; background-color: #e0f2fe; }
+        .sound-option:hover { background-color: #f0f9ff; }
+
+        .preset-option { position: relative; }
+        .preset-option.custom { padding-right: 2.5rem; }
+        .delete-preset {
+            position: absolute; right: 0.5rem; top: 50%;
+            transform: translateY(-50%); width: 1.5rem; height: 1.5rem;
+            background: rgba(0,0,0,0.08); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0.6; transition: all 0.2s;
+        }
+        .delete-preset:hover { opacity: 1; background: rgba(0,0,0,0.15); }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s;
+        }
+        .modal.show { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; border-radius: 1rem; padding: 2rem;
+            max-width: 420px; width: 90%;
+            transform: scale(0.9); transition: transform 0.3s;
+            max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal.show .modal-content { transform: scale(1); }
+
+        .student-number-btn {
+            width: 2.5rem; height: 2.5rem;
+            border: 2px solid #e2e8f0; background: #f1f5f9;
+            color: #475569; border-radius: 0.5rem; font-weight: bold;
+            transition: all 0.2s;
+        }
+        .student-number-btn:hover { background: #e2e8f0; }
+        .student-number-btn.selected { background: #ef4444; border-color: #ef4444; color: white; }
+
+        .history-record { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 0.75rem; padding: 1rem; }
+
+        /* ── Fullscreen (timer tab only) ── */
+        .fullscreen-mode #timer {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #0284c7; z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 2rem; overflow-y: auto;
+        }
+        .fullscreen-mode #event-display { color: white !important; }
+        .fullscreen-mode .time-num { color: white !important; }
+        .fullscreen-mode .timer-sub { color: rgba(255,255,255,0.7) !important; }
+        .fullscreen-mode .timer-inner-bg { background: rgba(255,255,255,0.1) !important; }
+        .fullscreen-mode .actions-card,
+        .fullscreen-mode .student-card { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.3) !important; }
+        .fullscreen-mode .actions-card *,
+        .fullscreen-mode .student-card * { color: white !important; }
+        .fullscreen-mode .student-number-btn { background: rgba(255,255,255,0.15) !important; border-color: rgba(255,255,255,0.3) !important; color: white !important; }
+        .fullscreen-mode .student-number-btn.selected { background: rgba(239,68,68,0.85) !important; border-color: #ef4444 !important; }
+        .fullscreen-mode .ctrl-btn { background: rgba(255,255,255,0.2) !important; color: white !important; }
+        .fullscreen-mode .progress-bg { stroke: rgba(255,255,255,0.2) !important; }
+
+        /* Tab underline */
+        .tab-active { border-bottom: 3px solid #0284c7; color: #0284c7; background: #f0f9ff; }
+        .tab-inactive { border-bottom: 3px solid transparent; color: #64748b; }
+        .tab-inactive:hover { color: #0284c7; background: #f8fafc; }
+
+        input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+    </style>
+</head>
+<body class="bg-sky-50 min-h-screen p-4 md:p-6">
+<div class="max-w-5xl mx-auto">
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+
+    <!-- Header -->
+    <div class="bg-sky-600 px-6 py-5 text-center">
+        <h1 class="text-3xl font-bold text-white">班級計時器</h1>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-sky-100">
+        <button id="tab-timer-btn" class="tab-btn tab-active flex-1 py-3 px-4 font-semibold transition-all">⏱ 倒數計時</button>
+        <button id="tab-cleaning-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🧹 打掃倒數</button>
+        <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
+    </div>
+
+    <!-- ══════════════ TIMER PANEL ══════════════ -->
+    <div id="panel-timer" class="p-6 md:p-8">
+
+        <!-- Setup view -->
+        <div id="setup">
+            <div class="flex flex-col gap-6">
+
+                <!-- 事項 + 常用選項 -->
+                <div>
+                    <label class="block text-slate-600 font-medium mb-2">等待事項:</label>
+                    <div class="mb-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                            <button type="button" class="preset-option px-3 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm hover:bg-sky-200 transition-all text-left" data-text="上課鐘響結束計時" data-minutes="2" data-actions="將該堂課書籍放在桌面|拿出自己的課外書，安靜的自己觀看|不離開座位，不發出聲音">
+                                上課鐘響結束計時 (2分鐘)
+                            </button>
+                            <button type="button" class="preset-option px-3 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm hover:bg-sky-200 transition-all text-left" data-text="午休鐘響計時" data-minutes="1">
+                                午休鐘響計時 (1分鐘)
+                            </button>
+                        </div>
+                        <div id="custom-presets" class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2"></div>
+                        <button id="add-preset-btn" class="w-full px-3 py-2 bg-sky-50 text-sky-600 rounded-lg text-sm border border-sky-200 hover:bg-sky-100 transition-all">+ 新增常用選項</button>
+                    </div>
+                    <input type="text" id="eventTitle" placeholder="或輸入自訂事項..."
+                        class="w-full px-4 py-3 rounded-lg text-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400">
+                </div>
+
+                <!-- 提醒事項 -->
+                <div>
+                    <label class="block text-slate-600 font-medium mb-2">提醒事項 (選填):</label>
+                    <textarea id="reminderActions" placeholder="例如：將該堂課書籍放在桌面" rows="3"
+                        class="w-full px-4 py-3 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400 resize-none"></textarea>
+                    <div class="text-slate-400 text-sm mt-1">多個提醒事項請用換行分隔</div>
+                </div>
+
+                <!-- 班級人數 -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-slate-600 font-medium">班級人數:</label>
+                        <button id="save-student-count-preset-btn" class="px-3 py-1 bg-sky-100 text-sky-700 rounded-lg text-sm hover:bg-sky-200 transition-all">+ 儲存此人數</button>
+                    </div>
+                    <div class="relative">
+                        <input type="number" id="studentCount" min="1" step="1" max="100" value="20"
+                            class="w-full pl-4 pr-56 py-3 rounded-lg text-xl bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                        <div id="student-count-presets" class="absolute inset-y-0 right-0 flex items-center pr-2 gap-1"></div>
+                    </div>
+                </div>
+
+                <!-- 分鐘 + 開始 -->
+                <div class="flex flex-col md:flex-row items-center gap-4">
+                    <div class="w-full md:w-1/2">
+                        <label class="block text-slate-600 font-medium mb-2">設定分鐘數:</label>
+                        <input type="number" id="minutes" min="1" step="1" max="999" value="5"
+                            class="w-full px-4 py-3 rounded-lg text-xl bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                    </div>
+                    <div class="w-full md:w-1/2 flex justify-center md:justify-start mt-4 md:mt-8">
+                        <button id="startBtn" class="px-8 py-3 bg-sky-600 text-white rounded-lg font-bold text-lg hover:bg-sky-700 transition-all shadow-md">開始計時</button>
+                    </div>
+                </div>
+
+                <!-- 聲音設定 -->
+                <div>
+                    <div class="flex items-center mb-3">
+                        <input type="checkbox" id="soundEnabled" checked class="w-5 h-5 mr-2 accent-sky-600">
+                        <label for="soundEnabled" class="text-slate-600 font-medium">啟用提醒鈴聲</label>
+                    </div>
+                    <div id="sound-options" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div class="sound-option selected rounded-lg p-3 flex justify-between items-center bg-sky-50 border border-sky-100" data-sound="時間到了" data-lang="zh-TW">
+                            <span class="text-slate-700 text-sm">人聲 (時間到了)</span>
+                            <button class="play-button bg-sky-100 text-sky-600 hover:bg-sky-200 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
+                        </div>
+                        <div class="sound-option rounded-lg p-3 flex justify-between items-center bg-sky-50 border border-sky-100" data-sound="Time is up" data-lang="en-US">
+                            <span class="text-slate-700 text-sm">人聲 (Time is up)</span>
+                            <button class="play-button bg-sky-100 text-sky-600 hover:bg-sky-200 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
+                        </div>
+                        <div class="sound-option rounded-lg p-3 flex justify-between items-center bg-sky-50 border border-sky-100" data-sound="請停止" data-lang="zh-TW">
+                            <span class="text-slate-700 text-sm">人聲 (請停止)</span>
+                            <button class="play-button bg-sky-100 text-sky-600 hover:bg-sky-200 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
+                        </div>
+                        <div class="sound-option rounded-lg p-3 flex justify-between items-center bg-sky-50 border border-sky-100" data-sound="Stop" data-lang="en-US">
+                            <span class="text-slate-700 text-sm">人聲 (Stop)</span>
+                            <button class="play-button bg-sky-100 text-sky-600 hover:bg-sky-200 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
+                        </div>
+                        <div class="sound-option rounded-lg p-3 flex justify-between items-center bg-sky-50 border border-sky-100" data-sound="Alarm" data-lang="en-US">
+                            <span class="text-slate-700 text-sm">人聲 (Alarm)</span>
+                            <button class="play-button bg-sky-100 text-sky-600 hover:bg-sky-200 rounded-full w-8 h-8 flex items-center justify-center">▶</button>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- end gap-6 -->
+
+            <!-- 登記紀錄 -->
+            <div class="mt-8 border-t border-sky-100 pt-6">
+                <div class="flex items-center justify-between mb-4 cursor-pointer select-none" id="history-toggle">
+                    <h2 class="text-slate-700 font-bold text-lg">登記紀錄</h2>
+                    <div class="flex items-center gap-3">
+                        <button id="clear-history-btn" class="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-all">清除全部</button>
+                        <span id="history-chevron" class="text-slate-500 text-lg font-bold">▲</span>
+                    </div>
+                </div>
+                <div id="history-panel">
+                    <div id="history-list" class="space-y-3"></div>
+                    <div id="history-empty" class="text-slate-400 text-center py-4 hidden">尚無登記紀錄</div>
+                </div>
+            </div>
+
+            <!-- 資料管理 -->
+            <div class="mt-6 border-t border-sky-100 pt-6">
+                <h2 class="text-slate-700 font-bold text-lg mb-3">資料管理</h2>
+                <div class="flex gap-3 flex-wrap">
+                    <button id="export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg hover:bg-sky-200 transition-all text-sm font-medium">↓ 匯出設定 .json</button>
+                    <label class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg hover:bg-sky-200 transition-all text-sm font-medium cursor-pointer">
+                        ↑ 匯入設定
+                        <input type="file" id="import-input" accept=".json" class="hidden">
+                    </label>
+                </div>
+                <div class="text-slate-400 text-sm mt-2">匯出後可在其他電腦匯入，還原常用選項與登記紀錄</div>
+            </div>
+        </div><!-- end #setup -->
+
+        <!-- Timer running view -->
+        <div id="timer" class="hidden">
+            <div id="event-display" class="text-sky-800 text-center text-3xl font-bold mb-6 break-words"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 items-start gap-4 mb-8">
+                <!-- Left: actions -->
+                <div class="w-full flex justify-center">
+                    <div id="actions-display" class="hidden actions-card bg-sky-50 rounded-lg p-6 w-full max-w-md border border-sky-100">
+                        <div class="text-sky-700 text-center text-lg font-bold mb-4">倒數期間請完成：</div>
+                        <div id="actions-list" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <!-- Center: circular timer -->
+                <div class="w-full flex justify-center">
+                    <div class="relative w-72 h-72">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            <circle class="progress-bg" cx="50" cy="50" r="40" fill="none" stroke="#e0f2fe" stroke-width="3"/>
+                            <circle id="progress-circle" cx="50" cy="50" r="40" fill="none" stroke="#0ea5e9" stroke-width="3"
+                                stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="0"
+                                style="transition: stroke-dashoffset 1s linear;"/>
+                        </svg>
+                        <div class="timer-inner-bg absolute inset-8 flex flex-col items-center justify-center bg-sky-50 rounded-full">
+                            <div class="time-num text-sky-800 text-center font-bold" style="font-size:3.5rem;font-variant-numeric:tabular-nums;">
+                                <span id="minutes-display">05</span>:<span id="seconds-display">00</span>
+                            </div>
+                            <div class="timer-sub text-sky-400 text-xs mt-1">剩餘時間</div>
+                        </div>
+                        <!-- Tick marks -->
+                        <div class="absolute top-2 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-sky-300 opacity-60"></div>
+                        <div class="absolute top-1/2 right-2 -translate-y-1/2 h-0.5 w-3 bg-sky-300 opacity-60"></div>
+                        <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-0.5 h-3 bg-sky-300 opacity-60"></div>
+                        <div class="absolute top-1/2 left-2 -translate-y-1/2 h-0.5 w-3 bg-sky-300 opacity-60"></div>
+                    </div>
+                </div>
+
+                <!-- Right: student grid -->
+                <div class="w-full flex justify-center">
+                    <div class="student-card bg-sky-50 rounded-lg p-5 w-full max-w-md border border-sky-100">
+                        <div class="grid grid-cols-5 gap-2 mb-4" id="student-numbers"></div>
+                        <div class="border-t border-sky-100 pt-3">
+                            <div class="text-slate-500 text-sm mb-2">已登記：</div>
+                            <div id="registered-students" class="text-slate-700 text-base font-medium min-h-[1.5rem]">
+                                <span class="opacity-50">尚無登記</span>
+                            </div>
+                            <button id="clear-students" class="mt-3 px-4 py-1.5 bg-red-100 text-red-600 rounded-lg text-sm hover:bg-red-200 transition-all">清除全部</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls flex flex-wrap justify-center gap-4">
+                <button id="pauseBtn" class="ctrl-btn px-6 py-2.5 bg-sky-100 text-sky-700 rounded-lg font-bold hover:bg-sky-200 transition-all">暫停</button>
+                <button id="resetBtn" class="ctrl-btn px-6 py-2.5 bg-red-100 text-red-600 rounded-lg font-bold hover:bg-red-200 transition-all">重設</button>
+                <button id="fullscreenBtn" class="ctrl-btn px-6 py-2.5 bg-slate-100 text-slate-600 rounded-lg font-bold hover:bg-slate-200 transition-all">全螢幕</button>
+            </div>
+        </div><!-- end #timer -->
+    </div><!-- end #panel-timer -->
+
+    <!-- ══════════════ CLEANING PANEL ══════════════ -->
+    <div id="panel-cleaning" class="hidden p-6 md:p-8">
+
+        <!-- Fixed countdown -->
+        <div class="bg-sky-50 border-2 border-sky-200 rounded-xl p-5 mb-6 text-center">
+            <div class="flex items-center justify-center gap-3 mb-1">
+                <p class="text-sky-600 font-semibold text-lg">距離打掃結束還有</p>
+                <div class="flex items-center gap-1 text-sm text-slate-500">
+                    <span>目標時間</span>
+                    <input type="text" id="clean-target-time" value="10:25" maxlength="5"
+                        class="w-16 text-center px-1 py-0.5 bg-white border border-sky-200 rounded text-sky-700 font-bold focus:outline-none focus:ring-1 focus:ring-sky-400">
+                </div>
+            </div>
+            <div id="clean-countdown" class="text-7xl font-bold text-sky-800 tracking-wider" style="font-variant-numeric:tabular-nums;">--:--</div>
+        </div>
+
+        <!-- Day selector + tasks -->
+        <div class="mb-6">
+            <div class="flex items-center gap-2 mb-4 flex-wrap">
+                <button data-cday="1" class="cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all">星期一</button>
+                <button data-cday="2" class="cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all">星期二</button>
+                <button data-cday="3" class="cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all">星期三</button>
+                <button data-cday="4" class="cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all">星期四</button>
+                <button data-cday="5" class="cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all">星期五</button>
+                <button id="cleaning-edit-btn" class="ml-auto px-3 py-1.5 bg-sky-100 text-sky-700 rounded-lg text-sm hover:bg-sky-200 transition-all">✏️ 編輯</button>
+            </div>
+            <div id="cleaning-list-container" class="bg-sky-50 border border-sky-100 rounded-xl p-5 min-h-[100px]">
+                <ul id="cleaning-task-list" class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-8 text-slate-700 text-base"></ul>
+            </div>
+            <div id="cleaning-edit-container" class="hidden mt-3">
+                <textarea id="cleaning-editor" rows="7"
+                    class="w-full p-4 text-base bg-white text-slate-700 border border-sky-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400"
+                    placeholder="每行輸入一項打掃任務"></textarea>
+                <div class="flex justify-end gap-3 mt-3">
+                    <button id="cleaning-cancel-btn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+                    <button id="cleaning-save-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Behavior grid -->
+        <div class="border-t border-sky-100 pt-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-slate-700 font-bold text-lg">行為紀錄</h2>
+                <span id="clean-behavior-date" class="text-slate-400 text-sm"></span>
+            </div>
+            <div id="clean-behavior-grid" class="grid grid-cols-5 md:grid-cols-10 gap-2 mb-4"></div>
+            <button id="clean-clear-behavior-btn" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除今日紀錄</button>
+        </div>
+    </div><!-- end #panel-cleaning -->
+
+    <!-- ══════════════ EXAM PANEL ══════════════ -->
+    <div id="panel-exam" class="hidden p-6 md:p-8">
+
+        <!-- Current clock -->
+        <div class="text-center mb-6">
+            <div id="exam-clock" class="text-7xl font-bold text-sky-800 tracking-widest" style="font-variant-numeric:tabular-nums;">--:--:--</div>
+            <!-- Remaining time bar -->
+            <div id="exam-remaining-wrap" class="mt-3 hidden">
+                <div class="inline-flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-full px-5 py-2">
+                    <span class="text-sky-600 font-medium text-sm">距離考試結束</span>
+                    <span id="exam-remaining" class="text-sky-800 font-bold text-xl" style="font-variant-numeric:tabular-nums;">--:--</span>
+                </div>
+            </div>
+            <div id="exam-ended-badge" class="hidden mt-3">
+                <span class="inline-block bg-red-100 text-red-600 font-bold text-lg px-5 py-2 rounded-full">考試已結束</span>
+            </div>
+        </div>
+
+        <!-- Exam info form -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <!-- 科目 -->
+            <div class="md:col-span-2">
+                <label class="block text-slate-500 text-sm font-medium mb-1">科目</label>
+                <input type="text" id="exam-subject" placeholder="例如：數學、國語…"
+                    class="w-full px-4 py-3 rounded-lg text-xl font-semibold bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-300">
+            </div>
+
+            <!-- 開始 / 結束時間 -->
+            <div>
+                <label class="block text-slate-500 text-sm font-medium mb-1">考試開始時間</label>
+                <input type="time" id="exam-start-time"
+                    class="w-full px-4 py-3 rounded-lg text-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            </div>
+            <div>
+                <label class="block text-slate-500 text-sm font-medium mb-1">考試結束時間</label>
+                <input type="time" id="exam-end-time"
+                    class="w-full px-4 py-3 rounded-lg text-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            </div>
+
+            <!-- 應到 / 實到 -->
+            <div>
+                <label class="block text-slate-500 text-sm font-medium mb-1">應到人數</label>
+                <input type="number" id="exam-expected" min="0" step="1" placeholder="0"
+                    class="w-full px-4 py-3 rounded-lg text-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-300">
+            </div>
+            <div>
+                <label class="block text-slate-500 text-sm font-medium mb-1">實到人數</label>
+                <input type="number" id="exam-actual" min="0" step="1" placeholder="0"
+                    class="w-full px-4 py-3 rounded-lg text-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-300">
+            </div>
+
+            <!-- 缺席（自動計算）-->
+            <div class="md:col-span-2">
+                <div class="flex items-center gap-6 bg-sky-50 border border-sky-100 rounded-xl px-5 py-4">
+                    <div class="text-center">
+                        <div class="text-slate-400 text-xs mb-1">缺席人數</div>
+                        <div id="exam-absent" class="text-3xl font-bold text-red-500">—</div>
+                    </div>
+                    <div class="w-px h-10 bg-sky-200"></div>
+                    <div class="text-center">
+                        <div class="text-slate-400 text-xs mb-1">出席率</div>
+                        <div id="exam-rate" class="text-3xl font-bold text-sky-600">—</div>
+                    </div>
+                    <div class="ml-auto">
+                        <button id="exam-clear-btn" class="px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm hover:bg-slate-200 transition-all">清除資料</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 備註 -->
+            <div class="md:col-span-2">
+                <label class="block text-slate-500 text-sm font-medium mb-1">備註</label>
+                <textarea id="exam-notes" rows="3" placeholder="例如：缺考原因、特殊狀況…"
+                    class="w-full px-4 py-3 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-300 resize-none"></textarea>
+            </div>
+        </div>
+    </div><!-- end #panel-exam -->
+
+</div><!-- end card -->
+</div><!-- end max-w -->
+
+<!-- Notification -->
+<div id="notification" class="notification">
+    <div class="font-bold text-lg text-slate-800">時間到！</div>
+    <div id="notification-event" class="text-slate-500">您設定的計時已結束</div>
+</div>
+
+<div id="copy-feedback" class="copy-feedback">已複製到剪貼簿</div>
+
+<!-- Add preset modal -->
+<div id="add-preset-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-slate-800 text-xl font-bold mb-4">新增常用選項</h3>
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="block text-slate-600 text-sm font-medium mb-1">事項名稱</label>
+                <input type="text" id="new-preset-input" placeholder="輸入常用事項..."
+                    class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400">
+            </div>
+            <div>
+                <label class="block text-slate-600 text-sm font-medium mb-1">預設分鐘數</label>
+                <input type="number" id="new-preset-minutes" min="1" step="1" max="999" value="5"
+                    class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            </div>
+            <div>
+                <label class="block text-slate-600 text-sm font-medium mb-1">班級人數 (選填)</label>
+                <input type="number" id="new-preset-studentCount" min="1" step="1" max="100" placeholder="例如：30"
+                    class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400">
+            </div>
+            <div>
+                <label class="block text-slate-600 text-sm font-medium mb-1">行動指示 (選填)</label>
+                <textarea id="new-preset-actions" placeholder="例如：將該堂課書籍放在桌面" rows="3"
+                    class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400 resize-none"></textarea>
+                <div class="text-slate-400 text-xs mt-1">多個行動請用換行分隔</div>
+            </div>
+        </div>
+        <div class="flex gap-3 justify-end mt-5">
+            <button id="cancel-preset-btn" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+            <button id="save-preset-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // ── DOM refs ──────────────────────────────────────────────
+    const setupDiv = document.getElementById('setup');
+    const timerDiv = document.getElementById('timer');
+    const minutesInput = document.getElementById('minutes');
+    const minutesDisplay = document.getElementById('minutes-display');
+    const secondsDisplay = document.getElementById('seconds-display');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const soundEnabledCheckbox = document.getElementById('soundEnabled');
+    const notification = document.getElementById('notification');
+    const eventTitleInput = document.getElementById('eventTitle');
+    const eventDisplay = document.getElementById('event-display');
+    const notificationEvent = document.getElementById('notification-event');
+    const addPresetBtn = document.getElementById('add-preset-btn');
+    const addPresetModal = document.getElementById('add-preset-modal');
+    const newPresetInput = document.getElementById('new-preset-input');
+    const newPresetMinutes = document.getElementById('new-preset-minutes');
+    const newPresetActions = document.getElementById('new-preset-actions');
+    const newPresetStudentCount = document.getElementById('new-preset-studentCount');
+    const savePresetBtn = document.getElementById('save-preset-btn');
+    const cancelPresetBtn = document.getElementById('cancel-preset-btn');
+    const customPresetsContainer = document.getElementById('custom-presets');
+    const reminderActionsInput = document.getElementById('reminderActions');
+    const studentNumbersContainer = document.getElementById('student-numbers');
+    const registeredStudentsDisplay = document.getElementById('registered-students');
+    const clearStudentsBtn = document.getElementById('clear-students');
+    const studentCountInput = document.getElementById('studentCount');
+    const saveStudentCountPresetBtn = document.getElementById('save-student-count-preset-btn');
+    const studentCountPresetContainer = document.getElementById('student-count-presets');
+    const copyFeedback = document.getElementById('copy-feedback');
+    const exportBtn = document.getElementById('export-btn');
+    const importInput = document.getElementById('import-input');
+
+    // ── State ─────────────────────────────────────────────────
+    let countdown, totalSeconds = 0, initialTotalSeconds = 0;
+    let isPaused = false, isFullscreen = false;
+    let currentEvent = '', currentActions = '';
+    let selectedSound = '時間到了', selectedLang = 'zh-TW';
+    let customPresets = JSON.parse(localStorage.getItem('timerCustomPresets') || '[]');
+    let studentCountPresets = JSON.parse(localStorage.getItem('timerStudentCountPresets') || '["20","25","30"]');
+    let registeredStudents = new Set();
+
+    const defaultCleaningTasks = {
+        1: ["桌面收乾淨、整理抽屜","搬椅子","每組1號掃地","每個人擦地板15格兩次","椅子搬下來、桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
+        2: ["桌面收乾淨、整理抽屜","搬椅子","每組2號掃地","每個人擦地板15格兩次","椅子搬下來、桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
+        3: ["整理抽屜、櫃子","擦桌子、椅子、抽屜2次","桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
+        4: ["桌面收乾淨、整理抽屜","搬椅子","每組3號掃地","每個人擦地板15格兩次","椅子搬下來、桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
+        5: ["整理抽屜、櫃子","擦桌子、椅子、抽屜2次","桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
+    };
+    let cleaningTasks = JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || defaultCleaningTasks;
+    const todayDow = new Date().getDay();
+    let currentCleaningDay = String(todayDow >= 1 && todayDow <= 5 ? todayDow : 1);
+    let cleaningCountdownInterval = null;
+
+    studentCountInput.value = localStorage.getItem('timerStudentCount') || '20';
+
+    // ── Init ──────────────────────────────────────────────────
+    loadCustomPresets();
+    loadStudentCountPresets();
+    renderHistoryPanel();
+    initCleaningPanel();
+    loadActiveState();
+
+    // ── Tabs ──────────────────────────────────────────────────
+    document.getElementById('tab-timer-btn').addEventListener('click', () => switchTab('timer'));
+    document.getElementById('tab-cleaning-btn').addEventListener('click', () => switchTab('cleaning'));
+    document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
+
+    function switchTab(tab) {
+        const tabs = ['timer', 'cleaning', 'exam'];
+        tabs.forEach(t => {
+            document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+            document.getElementById(`tab-${t}-btn`).className =
+                'tab-btn flex-1 py-3 px-4 font-semibold transition-all ' + (t === tab ? 'tab-active' : 'tab-inactive');
+        });
+        if (tab === 'cleaning') {
+            const dow = new Date().getDay();
+            currentCleaningDay = String(dow >= 1 && dow <= 5 ? dow : 1);
+            renderCleaningTasks(); updateBehaviorDate(); renderBehaviorGrid();
+            startCleaningCountdown(); stopExamClock();
+        } else if (tab === 'exam') {
+            startExamClock(); stopCleaningCountdown();
+        } else {
+            stopCleaningCountdown(); stopExamClock();
+        }
+    }
+
+    // ── Feature 1: Cross-page persistence ─────────────────────
+    function saveActiveState() {
+        localStorage.setItem('timerActiveState', JSON.stringify({
+            totalSeconds, initialTotalSeconds,
+            startTimestamp: Date.now(), isPaused,
+            currentEvent, currentActions,
+            studentCount: parseInt(studentCountInput.value),
+            registeredStudents: Array.from(registeredStudents)
+        }));
+    }
+    function clearActiveState() { localStorage.removeItem('timerActiveState'); }
+
+    function loadActiveState() {
+        const saved = localStorage.getItem('timerActiveState');
+        if (!saved) return;
+        let state;
+        try { state = JSON.parse(saved); } catch { clearActiveState(); return; }
+        let remaining = state.totalSeconds;
+        if (!state.isPaused) remaining -= Math.floor((Date.now() - state.startTimestamp) / 1000);
+        if (remaining <= 0) { clearActiveState(); return; }
+
+        totalSeconds = remaining;
+        initialTotalSeconds = state.initialTotalSeconds || remaining;
+        currentEvent = state.currentEvent || '';
+        currentActions = state.currentActions || '';
+        isPaused = state.isPaused;
+        studentCountInput.value = state.studentCount || 20;
+        registeredStudents = new Set(state.registeredStudents || []);
+
+        initializeStudentNumbers();
+        eventDisplay.textContent = currentEvent;
+        eventDisplay.classList.toggle('hidden', !currentEvent);
+        restoreActionsDisplay();
+        setupDiv.classList.add('hidden');
+        timerDiv.classList.remove('hidden');
+        document.querySelectorAll('.student-number-btn').forEach(btn => {
+            if (registeredStudents.has(parseInt(btn.dataset.number))) btn.classList.add('selected');
+        });
+        updateRegisteredStudentsDisplay();
+        updateTimerDisplay();
+        if (isPaused) { pauseBtn.textContent = '繼續'; }
+        else startTimer(false);
+    }
+
+    function restoreActionsDisplay() {
+        const ad = document.getElementById('actions-display');
+        const al = document.getElementById('actions-list');
+        if (currentActions && ad && al) {
+            al.innerHTML = '';
+            currentActions.split('\n').filter(a => a.trim()).forEach((a, i) => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center text-sky-800 bg-sky-100 rounded-lg p-3 border border-sky-200';
+                el.innerHTML = `<div class="w-7 h-7 bg-sky-200 rounded-full flex items-center justify-center font-bold mr-3 shrink-0">${i+1}</div><div>${a.trim()}</div>`;
+                al.appendChild(el);
+            });
+            ad.classList.remove('hidden');
+        } else if (ad) ad.classList.add('hidden');
+    }
+
+    // ── Timer controls ─────────────────────────────────────────
+    startBtn.addEventListener('click', startTimer);
+
+    pauseBtn.addEventListener('click', () => {
+        if (isPaused) { isPaused = false; pauseBtn.textContent = '暫停'; startTimer(false); }
+        else { isPaused = true; pauseBtn.textContent = '繼續'; clearInterval(countdown); saveActiveState(); }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        if (registeredStudents.size > 0) saveRegistrationRecord();
+        clearInterval(countdown);
+        clearActiveState();
+        setupDiv.classList.remove('hidden');
+        timerDiv.classList.add('hidden');
+        isPaused = false;
+        minutesDisplay.parentElement.classList.remove('time-up');
+        stopAlarm();
+        clearStudentRegistrations();
+        renderHistoryPanel();
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+        isFullscreen = !isFullscreen;
+        document.body.classList.toggle('fullscreen-mode', isFullscreen);
+        fullscreenBtn.textContent = isFullscreen ? '退出全螢幕' : '全螢幕';
+    });
+
+    clearStudentsBtn.addEventListener('click', clearStudentRegistrations);
+
+    // Sound options
+    document.querySelectorAll('.sound-option').forEach(opt => {
+        opt.addEventListener('click', e => {
+            if (e.target.closest('.play-button')) return;
+            document.querySelectorAll('.sound-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            selectedSound = opt.dataset.sound;
+            selectedLang = opt.dataset.lang;
+        });
+    });
+    document.querySelectorAll('.play-button').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const opt = btn.closest('.sound-option');
+            previewSound(opt.dataset.sound, opt.dataset.lang);
+        });
+    });
+
+    // Preset option clicks
+    document.addEventListener('click', e => {
+        const target = e.target.closest('.preset-option');
+        if (!target || e.target.closest('.delete-preset')) return;
+        if (eventTitleInput) eventTitleInput.value = target.dataset.text || '';
+        if (target.dataset.minutes && minutesInput) minutesInput.value = target.dataset.minutes;
+        if (reminderActionsInput) reminderActionsInput.value = target.dataset.actions ? target.dataset.actions.replace(/\|/g, '\n') : '';
+        if (target.dataset.studentCount && studentCountInput) studentCountInput.value = target.dataset.studentCount;
+    });
+
+    addPresetBtn.addEventListener('click', () => {
+        if (newPresetStudentCount) newPresetStudentCount.value = studentCountInput.value || '';
+        addPresetModal.classList.add('show');
+        newPresetInput.focus();
+    });
+
+    saveStudentCountPresetBtn.addEventListener('click', () => {
+        const v = studentCountInput.value.trim();
+        const n = parseInt(v, 10);
+        if (n > 0 && n <= 100 && !studentCountPresets.includes(v)) {
+            studentCountPresets.push(v); loadStudentCountPresets();
+        }
+    });
+
+    savePresetBtn.addEventListener('click', () => {
+        const text = newPresetInput.value.trim();
+        const minutes = parseInt(newPresetMinutes.value) || 5;
+        const actions = newPresetActions.value.trim();
+        const sc = newPresetStudentCount.value.trim();
+        if (text && !customPresets.some(p => p.text === text)) {
+            const p = { text, minutes };
+            if (actions) p.actions = actions.replace(/\n/g, '|');
+            if (sc) p.studentCount = sc;
+            customPresets.push(p);
+            localStorage.setItem('timerCustomPresets', JSON.stringify(customPresets));
+            loadCustomPresets();
+            newPresetInput.value = ''; newPresetMinutes.value = '5'; newPresetActions.value = ''; newPresetStudentCount.value = '';
+            addPresetModal.classList.remove('show');
+        }
+    });
+
+    cancelPresetBtn.addEventListener('click', () => {
+        newPresetInput.value = ''; newPresetMinutes.value = '5'; newPresetActions.value = ''; newPresetStudentCount.value = '';
+        addPresetModal.classList.remove('show');
+    });
+    newPresetInput.addEventListener('keypress', e => { if (e.key === 'Enter') savePresetBtn.click(); });
+    addPresetModal.addEventListener('click', e => { if (e.target === addPresetModal) cancelPresetBtn.click(); });
+
+    document.getElementById('history-toggle').addEventListener('click', e => {
+        if (e.target.closest('#clear-history-btn')) return;
+        const hidden = document.getElementById('history-panel').classList.toggle('hidden');
+        document.getElementById('history-chevron').textContent = hidden ? '▼' : '▲';
+    });
+    document.getElementById('clear-history-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm('確定要清除全部登記紀錄嗎？')) { localStorage.removeItem('timerHistory'); renderHistoryPanel(); }
+    });
+    exportBtn.addEventListener('click', exportSettings);
+    importInput.addEventListener('change', e => { if (e.target.files[0]) { importSettings(e.target.files[0]); e.target.value = ''; } });
+
+    // ── Timer functions ────────────────────────────────────────
+    function initializeStudentNumbers() {
+        const count = parseInt(studentCountInput.value) || 20;
+        studentNumbersContainer.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'student-number-btn'; btn.textContent = i; btn.dataset.number = i;
+            btn.addEventListener('click', () => toggleStudentRegistration(i, btn));
+            studentNumbersContainer.appendChild(btn);
+        }
+    }
+
+    function toggleStudentRegistration(n, btn) {
+        if (registeredStudents.has(n)) { registeredStudents.delete(n); btn.classList.remove('selected'); }
+        else { registeredStudents.add(n); btn.classList.add('selected'); }
+        updateRegisteredStudentsDisplay(); saveActiveState();
+    }
+
+    function updateRegisteredStudentsDisplay() {
+        if (registeredStudents.size === 0) {
+            registeredStudentsDisplay.innerHTML = '<span class="opacity-50">尚無登記</span>';
+        } else {
+            const sorted = Array.from(registeredStudents).sort((a,b) => a-b);
+            registeredStudentsDisplay.innerHTML = sorted.map(n =>
+                `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${n}號</span>`
+            ).join('');
+        }
+    }
+
+    function clearStudentRegistrations() {
+        registeredStudents.clear();
+        document.querySelectorAll('.student-number-btn').forEach(b => b.classList.remove('selected'));
+        updateRegisteredStudentsDisplay();
+    }
+
+    function startTimer(isNewTimer = true) {
+        if (isNewTimer) {
+            if (typeof speechSynthesis !== 'undefined') {
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance('請準備就緒'); u.lang = 'zh-TW'; speechSynthesis.speak(u);
+            }
+            localStorage.setItem('timerStudentCount', studentCountInput.value);
+            initializeStudentNumbers();
+            const mins = parseFloat(minutesInput.value) || 5;
+            totalSeconds = Math.round(mins * 60); initialTotalSeconds = totalSeconds;
+            currentEvent = eventTitleInput.value.trim();
+            currentActions = reminderActionsInput.value.trim();
+            eventDisplay.textContent = currentEvent;
+            eventDisplay.classList.toggle('hidden', !currentEvent);
+            restoreActionsDisplay();
+            setupDiv.classList.add('hidden'); timerDiv.classList.remove('hidden');
+            minutesDisplay.parentElement.classList.remove('time-up'); stopAlarm();
+            const pc = document.getElementById('progress-circle');
+            if (pc) { pc.style.stroke = '#0ea5e9'; pc.style.strokeDashoffset = '0'; }
+        }
+        clearInterval(countdown); updateTimerDisplay();
+        countdown = setInterval(() => {
+            if (totalSeconds > 0) totalSeconds--;
+            updateTimerDisplay(); saveActiveState();
+            if (totalSeconds === 0) { clearInterval(countdown); timeUp(); }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const m = Math.floor(totalSeconds / 60), s = totalSeconds % 60;
+        minutesDisplay.textContent = m.toString().padStart(2,'0');
+        secondsDisplay.textContent = s.toString().padStart(2,'0');
+        updateCircularProgress();
+    }
+
+    function updateCircularProgress() {
+        const pc = document.getElementById('progress-circle');
+        if (!pc || initialTotalSeconds <= 0) return;
+        const pct = totalSeconds / initialTotalSeconds;
+        pc.style.strokeDashoffset = 251 * (1 - pct);
+        pc.style.stroke = pct > 0.5 ? '#0ea5e9' : pct > 0.2 ? '#f59e0b' : '#ef4444';
+    }
+
+    function previewSound(text, lang) {
+        if (typeof speechSynthesis === 'undefined') return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text); u.lang = lang; speechSynthesis.speak(u);
+    }
+
+    function playAlarm() {
+        if (!soundEnabledCheckbox.checked || typeof speechSynthesis === 'undefined') return;
+        const u = new SpeechSynthesisUtterance(selectedSound); u.lang = selectedLang; speechSynthesis.speak(u);
+    }
+
+    function stopAlarm() {
+        if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+        notification.classList.remove('show');
+    }
+
+    function timeUp() {
+        minutesDisplay.parentElement.classList.add('time-up');
+        playAlarm();
+        notificationEvent.textContent = currentEvent ? `「${currentEvent}」時間已到！` : '您設定的計時已結束';
+        notification.classList.add('show');
+        notification.addEventListener('click', stopAlarm, { once: true });
+        saveRegistrationRecord(); clearActiveState(); renderHistoryPanel();
+    }
+
+    // ── Feature 2: Student registration history ────────────────
+    function saveRegistrationRecord() {
+        if (registeredStudents.size === 0) return;
+        const h = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+        const now = new Date(), pad = n => String(n).padStart(2,'0');
+        h.unshift({
+            id: now.getTime(), timestamp: now.getTime(),
+            date: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+            event: currentEvent || '(未命名)',
+            students: Array.from(registeredStudents).sort((a,b) => a-b),
+            totalStudents: parseInt(studentCountInput.value) || 20
+        });
+        localStorage.setItem('timerHistory', JSON.stringify(h));
+    }
+
+    function renderHistoryPanel() {
+        const list = document.getElementById('history-list');
+        const empty = document.getElementById('history-empty');
+        if (!list) return;
+        const h = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+        list.innerHTML = '';
+        if (h.length === 0) { if (empty) empty.classList.remove('hidden'); return; }
+        if (empty) empty.classList.add('hidden');
+        h.forEach(rec => {
+            const item = document.createElement('div');
+            item.className = 'history-record';
+            item.innerHTML = `
+                <div class="flex justify-between items-start mb-2 gap-2">
+                    <div>
+                        <div class="text-slate-700 font-bold">${rec.event}</div>
+                        <div class="text-slate-400 text-sm">${rec.date}　班級人數：${rec.totalStudents}人</div>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button class="copy-record-btn px-3 py-1 bg-sky-100 text-sky-700 rounded text-sm hover:bg-sky-200">複製</button>
+                        <button class="delete-record-btn px-3 py-1 bg-red-100 text-red-600 rounded text-sm hover:bg-red-200">刪除</button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center">
+                    ${rec.students.map(n => `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${n}號</span>`).join('')}
+                    <span class="text-slate-400 text-sm ml-1">（共${rec.students.length}人）</span>
+                </div>`;
+            item.querySelector('.copy-record-btn').addEventListener('click', () => {
+                const txt = `${rec.date} ${rec.event}：${rec.students.join('、')}號（共${rec.students.length}人）`;
+                navigator.clipboard.writeText(txt).then(() => { copyFeedback.classList.add('show'); setTimeout(() => copyFeedback.classList.remove('show'), 2000); });
+            });
+            item.querySelector('.delete-record-btn').addEventListener('click', () => {
+                let hh = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+                hh = hh.filter(r => r.id !== rec.id);
+                localStorage.setItem('timerHistory', JSON.stringify(hh)); renderHistoryPanel();
+            });
+            list.appendChild(item);
+        });
+    }
+
+    // ── Preset loaders ─────────────────────────────────────────
+    function loadStudentCountPresets() {
+        if (!studentCountPresetContainer) return;
+        studentCountPresetContainer.innerHTML = '';
+        studentCountPresets = [...new Set(studentCountPresets)].sort((a,b) => parseInt(a)-parseInt(b));
+        localStorage.setItem('timerStudentCountPresets', JSON.stringify(studentCountPresets));
+        studentCountPresets.forEach(count => {
+            const tag = document.createElement('div');
+            tag.className = 'inline-flex items-center px-2 py-1 bg-sky-100 text-sky-700 rounded text-sm cursor-pointer hover:bg-sky-200 transition-all';
+            const sp = document.createElement('span'); sp.textContent = count;
+            sp.addEventListener('click', () => { studentCountInput.value = count; });
+            const del = document.createElement('button'); del.innerHTML = '&times;';
+            del.className = 'ml-1 text-sky-500 hover:text-sky-700 focus:outline-none font-bold';
+            del.addEventListener('click', e => {
+                e.stopPropagation();
+                studentCountPresets.splice(studentCountPresets.indexOf(count), 1);
+                loadStudentCountPresets();
+            });
+            tag.appendChild(sp); tag.appendChild(del);
+            studentCountPresetContainer.appendChild(tag);
+        });
+    }
+
+    function loadCustomPresets() {
+        if (!customPresetsContainer) return;
+        customPresetsContainer.innerHTML = '';
+        customPresets = customPresets.map(p => typeof p === 'string' ? { text: p, minutes: 5 } : p);
+        customPresets.forEach((preset, index) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'preset-option custom px-3 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm hover:bg-sky-200 transition-all text-left';
+            btn.dataset.text = preset.text; btn.dataset.minutes = preset.minutes;
+            if (preset.actions) btn.dataset.actions = preset.actions;
+            if (preset.studentCount) btn.dataset.studentCount = preset.studentCount;
+            const label = preset.studentCount ? `${preset.text} (${preset.minutes}分 / ${preset.studentCount}人)` : `${preset.text} (${preset.minutes}分鐘)`;
+            btn.innerHTML = `${label}<button class="delete-preset" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+            btn.querySelector('.delete-preset').addEventListener('click', e => {
+                e.stopPropagation();
+                customPresets.splice(index, 1);
+                localStorage.setItem('timerCustomPresets', JSON.stringify(customPresets)); loadCustomPresets();
+            });
+            customPresetsContainer.appendChild(btn);
+        });
+    }
+
+    // ── Export / Import ────────────────────────────────────────
+    function exportSettings() {
+        const now = new Date(), pad = n => String(n).padStart(2,'0');
+        const data = {
+            exportedAt: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+            customPresets: JSON.parse(localStorage.getItem('timerCustomPresets') || '[]'),
+            studentCountPresets: JSON.parse(localStorage.getItem('timerStudentCountPresets') || '[]'),
+            timerHistory: JSON.parse(localStorage.getItem('timerHistory') || '[]'),
+            cleaningTasks: JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || cleaningTasks,
+            cleanTargetTime: localStorage.getItem('cleanTargetTime') || '10:25'
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'timer-backup.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function importSettings(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            let data;
+            try { data = JSON.parse(e.target.result); } catch { alert('匯入失敗：檔案格式不正確'); return; }
+            if (data.customPresets) {
+                const ex = JSON.parse(localStorage.getItem('timerCustomPresets') || '[]');
+                const merged = [...ex]; data.customPresets.forEach(p => { if (!merged.some(ep => ep.text === p.text)) merged.push(p); });
+                customPresets = merged; localStorage.setItem('timerCustomPresets', JSON.stringify(merged)); loadCustomPresets();
+            }
+            if (data.studentCountPresets) {
+                const ex = JSON.parse(localStorage.getItem('timerStudentCountPresets') || '[]');
+                studentCountPresets = [...new Set([...ex, ...data.studentCountPresets])]; loadStudentCountPresets();
+            }
+            if (data.timerHistory) {
+                const ex = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+                const ids = new Set(ex.map(r => r.id));
+                const merged = [...ex, ...data.timerHistory.filter(r => !ids.has(r.id))].sort((a,b) => b.timestamp - a.timestamp);
+                localStorage.setItem('timerHistory', JSON.stringify(merged)); renderHistoryPanel();
+            }
+            if (data.cleaningTasks) {
+                cleaningTasks = data.cleaningTasks;
+                localStorage.setItem('timerCleaningTasks', JSON.stringify(cleaningTasks)); renderCleaningTasks();
+            }
+            if (data.cleanTargetTime) {
+                localStorage.setItem('cleanTargetTime', data.cleanTargetTime);
+                document.getElementById('clean-target-time').value = data.cleanTargetTime;
+            }
+            alert('匯入成功！');
+        };
+        reader.readAsText(file);
+    }
+
+    // ── Cleaning panel ─────────────────────────────────────────
+    function initCleaningPanel() {
+        const targetInput = document.getElementById('clean-target-time');
+        targetInput.value = localStorage.getItem('cleanTargetTime') || '10:25';
+        targetInput.addEventListener('change', () => {
+            localStorage.setItem('cleanTargetTime', targetInput.value);
+        });
+
+        document.querySelectorAll('.cleaning-day-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!document.getElementById('cleaning-edit-container').classList.contains('hidden')) return;
+                currentCleaningDay = btn.dataset.cday; renderCleaningTasks();
+            });
+        });
+
+        document.getElementById('cleaning-edit-btn').addEventListener('click', () => {
+            document.getElementById('cleaning-editor').value = (cleaningTasks[currentCleaningDay] || []).join('\n');
+            document.getElementById('cleaning-list-container').classList.add('hidden');
+            document.getElementById('cleaning-edit-container').classList.remove('hidden');
+        });
+        document.getElementById('cleaning-save-btn').addEventListener('click', () => {
+            const raw = document.getElementById('cleaning-editor').value;
+            cleaningTasks[currentCleaningDay] = raw.split('\n').map(t => t.trim()).filter(t => t);
+            localStorage.setItem('timerCleaningTasks', JSON.stringify(cleaningTasks));
+            document.getElementById('cleaning-list-container').classList.remove('hidden');
+            document.getElementById('cleaning-edit-container').classList.add('hidden');
+            renderCleaningTasks();
+        });
+        document.getElementById('cleaning-cancel-btn').addEventListener('click', () => {
+            document.getElementById('cleaning-list-container').classList.remove('hidden');
+            document.getElementById('cleaning-edit-container').classList.add('hidden');
+        });
+
+        document.getElementById('clean-clear-behavior-btn').addEventListener('click', () => {
+            const key = getTodayKey();
+            const records = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+            records[key] = [];
+            localStorage.setItem('cleaningBehaviorRecords', JSON.stringify(records));
+            renderBehaviorGrid();
+        });
+
+        renderCleaningTasks();
+        renderBehaviorGrid();
+        updateBehaviorDate();
+    }
+
+    function renderCleaningTasks() {
+        const list = document.getElementById('cleaning-task-list');
+        if (!list) return;
+        document.querySelectorAll('.cleaning-day-btn').forEach(btn => {
+            if (btn.dataset.cday === currentCleaningDay) {
+                btn.className = 'cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all bg-sky-600 text-white shadow';
+            } else {
+                btn.className = 'cleaning-day-btn px-4 py-1.5 rounded-lg text-sm font-semibold transition-all bg-sky-100 text-sky-700 hover:bg-sky-200';
+            }
+        });
+        list.innerHTML = '';
+        const tasks = cleaningTasks[currentCleaningDay] || [];
+        if (tasks.length === 0) {
+            list.innerHTML = '<li class="col-span-2 text-slate-400">尚無任務，點「編輯」新增。</li>';
+            return;
+        }
+        tasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = 'flex items-start gap-2 text-slate-700';
+            li.innerHTML = `<svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${task}</span>`;
+            list.appendChild(li);
+        });
+    }
+
+    function getTodayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function updateBehaviorDate() {
+        const el = document.getElementById('clean-behavior-date');
+        if (el) el.textContent = `今日：${getTodayKey()}`;
+    }
+
+    function renderBehaviorGrid() {
+        const grid = document.getElementById('clean-behavior-grid');
+        if (!grid) return;
+        const count = parseInt(studentCountInput.value) || 20;
+        const key = getTodayKey();
+        const records = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+        const today = records[key] || [];
+        grid.innerHTML = '';
+        for (let i = 1; i <= count; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            const sel = today.includes(i);
+            btn.className = `w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all ${sel ? 'bg-red-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+            btn.addEventListener('click', () => {
+                const r = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+                if (!r[key]) r[key] = [];
+                const idx = r[key].indexOf(i);
+                if (idx > -1) r[key].splice(idx, 1); else r[key].push(i);
+                localStorage.setItem('cleaningBehaviorRecords', JSON.stringify(r));
+                renderBehaviorGrid();
+            });
+            grid.appendChild(btn);
+        }
+    }
+
+    // ── Exam tab ───────────────────────────────────────────────
+    let examClockInterval = null;
+
+    function initExamPanel() {
+        const fields = ['exam-subject', 'exam-start-time', 'exam-end-time', 'exam-expected', 'exam-actual', 'exam-notes'];
+        const saved = JSON.parse(localStorage.getItem('examInfo') || '{}');
+        fields.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (saved[id] !== undefined) el.value = saved[id];
+            el.addEventListener('input', () => {
+                const data = {};
+                fields.forEach(f => { data[f] = document.getElementById(f)?.value || ''; });
+                localStorage.setItem('examInfo', JSON.stringify(data));
+                updateExamStats();
+            });
+        });
+        document.getElementById('exam-clear-btn').addEventListener('click', () => {
+            if (!confirm('確定要清除所有監考資料嗎？')) return;
+            fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            localStorage.removeItem('examInfo');
+            updateExamStats();
+        });
+        updateExamStats();
+    }
+
+    function updateExamStats() {
+        const expected = parseInt(document.getElementById('exam-expected')?.value) || 0;
+        const actual = parseInt(document.getElementById('exam-actual')?.value) || 0;
+        const absentEl = document.getElementById('exam-absent');
+        const rateEl = document.getElementById('exam-rate');
+        if (expected > 0) {
+            const absent = expected - actual;
+            absentEl.textContent = absent >= 0 ? absent : '—';
+            absentEl.className = `text-3xl font-bold ${absent > 0 ? 'text-red-500' : 'text-green-500'}`;
+            rateEl.textContent = `${Math.round((actual / expected) * 100)}%`;
+        } else {
+            absentEl.textContent = '—'; absentEl.className = 'text-3xl font-bold text-red-500';
+            rateEl.textContent = '—';
+        }
+    }
+
+    function startExamClock() {
+        stopExamClock();
+        tickExamClock();
+        examClockInterval = setInterval(tickExamClock, 1000);
+    }
+
+    function stopExamClock() {
+        if (examClockInterval) { clearInterval(examClockInterval); examClockInterval = null; }
+    }
+
+    function tickExamClock() {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const clockEl = document.getElementById('exam-clock');
+        if (clockEl) clockEl.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+        const endStr = document.getElementById('exam-end-time')?.value;
+        const remainWrap = document.getElementById('exam-remaining-wrap');
+        const remainEl = document.getElementById('exam-remaining');
+        const endedBadge = document.getElementById('exam-ended-badge');
+
+        if (!endStr) {
+            remainWrap?.classList.add('hidden'); endedBadge?.classList.add('hidden'); return;
+        }
+        const [eh, em] = endStr.split(':').map(Number);
+        const endTime = new Date(now); endTime.setHours(eh, em, 0, 0);
+        const diff = endTime - now;
+        if (diff > 0) {
+            const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
+            remainEl.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            remainWrap?.classList.remove('hidden'); endedBadge?.classList.add('hidden');
+        } else {
+            remainWrap?.classList.add('hidden'); endedBadge?.classList.remove('hidden');
+        }
+    }
+
+    initExamPanel();
+
+    function startCleaningCountdown() {
+        stopCleaningCountdown();
+        updateCleanCountdown();
+        cleaningCountdownInterval = setInterval(updateCleanCountdown, 1000);
+    }
+
+    function stopCleaningCountdown() {
+        if (cleaningCountdownInterval) { clearInterval(cleaningCountdownInterval); cleaningCountdownInterval = null; }
+    }
+
+    function updateCleanCountdown() {
+        const el = document.getElementById('clean-countdown');
+        if (!el) return;
+        const targetStr = (localStorage.getItem('cleanTargetTime') || '10:25').trim();
+        const parts = targetStr.split(':');
+        if (parts.length !== 2) { el.textContent = '--:--'; return; }
+        const now = new Date();
+        const target = new Date(now);
+        target.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+        const diff = target - now;
+        if (diff > 0) {
+            const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
+            el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            el.classList.remove('text-red-500');
+        } else {
+            el.textContent = '00:00';
+            el.classList.add('text-red-500');
+        }
+    }
+});
+</script>
+</body>
+</html>
