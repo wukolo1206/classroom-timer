@@ -99,6 +99,11 @@
         .tab-inactive:hover { color: #0284c7; background: #f8fafc; }
 
         input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+
+        /* ── Seat check ── */
+        .seat-dot { width: 10px; height: 10px; border-radius: 9999px; display: inline-block; }
+        .seat-cell { width: 96px; }
+        .seat-cell:active { transform: scale(0.96); }
     </style>
 </head>
 <body class="bg-sky-50 min-h-screen p-4 md:p-6">
@@ -111,10 +116,12 @@
     </div>
 
     <!-- Tabs -->
-    <div class="flex border-b border-sky-100">
+    <div id="tab-bar" class="flex border-b border-sky-100">
         <button id="tab-timer-btn" class="tab-btn tab-active flex-1 py-3 px-4 font-semibold transition-all">⏱ 倒數計時</button>
         <button id="tab-cleaning-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🧹 打掃倒數</button>
         <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
+        <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 座位檢查</button>
+        <button id="tab-order-btn" title="調整分頁順序" class="px-3 text-slate-300 hover:text-sky-600 transition-all border-b-[3px] border-transparent">⚙️</button>
     </div>
 
     <!-- ══════════════ TIMER PANEL ══════════════ -->
@@ -424,6 +431,60 @@
         </div>
     </div><!-- end #panel-exam -->
 
+    <!-- ══════════════ SEAT CHECK PANEL ══════════════ -->
+    <div id="panel-seat" class="hidden p-6 md:p-8">
+
+        <div class="flex flex-wrap items-center gap-2 mb-5">
+            <span class="text-slate-500 text-sm font-medium mr-1">點座位卡片：</span>
+            <div id="seat-modes" class="flex flex-wrap gap-2"></div>
+            <span id="seat-check-date" class="ml-auto text-slate-400 text-sm"></span>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            <!-- 左：座位表 -->
+            <div class="flex-1 min-w-0">
+                <div class="text-center mb-4">
+                    <div class="inline-block bg-slate-700 text-white text-sm tracking-[0.4em] px-16 py-2 rounded-lg">黑板（講台）</div>
+                </div>
+                <div class="overflow-x-auto pb-2">
+                    <div id="seat-chart" class="flex flex-col items-center gap-3"></div>
+                </div>
+            </div>
+
+            <!-- 右：統計與名單 -->
+            <aside class="w-full lg:w-72 lg:flex-shrink-0">
+                <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
+                    <div class="flex items-baseline justify-between mb-3 pb-3 border-b border-sky-200">
+                        <span class="text-slate-600 font-bold">待改善</span>
+                        <span><b id="seat-count-total" class="text-sky-700 text-3xl">0</b><span class="text-slate-400 text-sm ml-1">人</span></span>
+                    </div>
+                    <div id="seat-summary" class="flex flex-col gap-3"></div>
+                </div>
+                <button id="seat-items-btn" class="w-full mt-3 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⚙️ 編輯檢查項目</button>
+            </aside>
+        </div>
+
+        <!-- 操作 -->
+        <div class="flex flex-wrap gap-3 mt-6 pt-5 border-t border-sky-100">
+            <button id="seat-copy-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📋 複製檢查報告</button>
+            <button id="seat-edit-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">✏️ 編輯座位表</button>
+            <button id="seat-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除今日紀錄</button>
+        </div>
+
+        <!-- 座位表編輯 -->
+        <div id="seat-edit-container" class="hidden mt-4">
+            <div class="text-slate-500 text-sm mb-2">一行一排，三區用 <code class="bg-sky-50 px-1 rounded">|</code> 分隔，同區座號用逗號分隔；空位留白。例：<code class="bg-sky-50 px-1 rounded">4,30 | 29,16 | 28,3</code></div>
+            <textarea id="seat-editor" rows="7"
+                class="w-full p-4 text-base bg-white text-slate-700 border border-sky-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-sky-400 font-mono"></textarea>
+            <div class="flex justify-end gap-3 mt-3">
+                <button id="seat-edit-reset" class="mr-auto px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm hover:bg-slate-200 transition-all">還原預設</button>
+                <button id="seat-edit-cancel" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+                <button id="seat-edit-save" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
+            </div>
+        </div>
+    </div><!-- end #panel-seat -->
+
 </div><!-- end card -->
 </div><!-- end max-w -->
 
@@ -434,6 +495,51 @@
 </div>
 
 <div id="copy-feedback" class="copy-feedback">已複製到剪貼簿</div>
+
+<!-- Tab order modal -->
+<div id="tab-order-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-slate-800 text-xl font-bold mb-1">分頁順序</h3>
+        <p class="text-slate-400 text-sm mb-4">用 ▲▼ 調整分頁在上方的先後順序；排在第一個的分頁會成為打開網頁時的預設畫面。</p>
+        <div id="tab-order-list" class="flex flex-col gap-2"></div>
+        <div class="flex gap-3 justify-end mt-5">
+            <button id="tab-order-reset" class="mr-auto px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm hover:bg-slate-200 transition-all">還原預設</button>
+            <button id="tab-order-cancel" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+            <button id="tab-order-save" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Seat check modal -->
+<div id="seat-modal" class="modal">
+    <div class="modal-content">
+        <div class="flex items-baseline gap-2 mb-1">
+            <span id="seat-modal-num" class="text-slate-400 font-bold" style="font-variant-numeric:tabular-nums;"></span>
+            <h3 id="seat-modal-name" class="text-slate-800 text-2xl font-bold"></h3>
+        </div>
+        <div id="seat-modal-duty" class="text-slate-400 text-sm mb-4"></div>
+        <div class="text-slate-500 text-sm mb-2">勾選沒有通過的項目：</div>
+        <div id="seat-modal-list" class="flex flex-col gap-2"></div>
+        <div class="flex gap-3 justify-between items-center mt-5">
+            <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">全部通過</button>
+            <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">完成</button>
+        </div>
+    </div>
+</div>
+
+<!-- Seat check items modal -->
+<div id="seat-items-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-slate-800 text-xl font-bold mb-1">檢查項目</h3>
+        <p class="text-slate-400 text-sm mb-4">可修改文字、用 ▲▼ 調整順序、點色點換顏色或新增項目。刪除項目會一併移除該項目的今日紀錄。</p>
+        <div id="seat-items-list" class="flex flex-col gap-2"></div>
+        <button id="seat-items-add" class="mt-3 w-full px-4 py-2 border-2 border-dashed border-sky-200 text-sky-600 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">＋ 新增檢查項目</button>
+        <div class="flex gap-3 justify-end mt-5">
+            <button id="seat-items-cancel" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+            <button id="seat-items-save" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
+        </div>
+    </div>
+</div>
 
 <!-- Add preset modal -->
 <div id="add-preset-modal" class="modal">
@@ -541,9 +647,96 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-timer-btn').addEventListener('click', () => switchTab('timer'));
     document.getElementById('tab-cleaning-btn').addEventListener('click', () => switchTab('cleaning'));
     document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
+    document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
+
+    // ── 分頁順序 ──
+    var defaultTabOrder = ['timer', 'cleaning', 'exam', 'seat'];
+    var tabOrder = loadTabOrder();
+    var tabOrderDraft = [];
+
+    function loadTabOrder() {
+        var saved;
+        try { saved = JSON.parse(localStorage.getItem('timerTabOrder') || 'null'); } catch (e) { saved = null; }
+        if (!Array.isArray(saved)) return defaultTabOrder.slice();
+        var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
+        defaultTabOrder.forEach(function (k) { if (out.indexOf(k) === -1) out.push(k); });
+        return out;
+    }
+    function tabLabel(key) { return document.getElementById('tab-' + key + '-btn').textContent.trim(); }
+
+    function applyTabOrder() {
+        var bar = document.getElementById('tab-bar');
+        tabOrder.forEach(function (k) { bar.appendChild(document.getElementById('tab-' + k + '-btn')); });
+        bar.appendChild(document.getElementById('tab-order-btn'));
+    }
+
+    function renderTabOrderEditor() {
+        var list = document.getElementById('tab-order-list');
+        list.innerHTML = '';
+        tabOrderDraft.forEach(function (key, idx) {
+            var row = document.createElement('div');
+            row.className = 'flex items-center gap-2 px-4 py-3 bg-sky-50 border border-sky-100 rounded-lg';
+
+            var moveWrap = document.createElement('div');
+            moveWrap.className = 'flex flex-col flex-shrink-0';
+            [['▲', -1], ['▼', 1]].forEach(function (m) {
+                var target = idx + m[1];
+                var disabled = target < 0 || target >= tabOrderDraft.length;
+                var mv = document.createElement('button');
+                mv.className = 'px-1 text-[10px] leading-none py-0.5 transition-all ' +
+                    (disabled ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-sky-600');
+                mv.textContent = m[0];
+                mv.title = m[1] < 0 ? '上移' : '下移';
+                if (!disabled) {
+                    mv.addEventListener('click', function () {
+                        var tmp = tabOrderDraft[idx];
+                        tabOrderDraft[idx] = tabOrderDraft[target];
+                        tabOrderDraft[target] = tmp;
+                        renderTabOrderEditor();
+                    });
+                }
+                moveWrap.appendChild(mv);
+            });
+
+            var name = document.createElement('span');
+            name.className = 'font-semibold text-slate-700';
+            name.textContent = tabLabel(key);
+
+            row.appendChild(moveWrap);
+            row.appendChild(name);
+            if (idx === 0) {
+                var badge = document.createElement('span');
+                badge.className = 'ml-auto text-sky-600 text-xs font-semibold bg-sky-100 px-2 py-1 rounded';
+                badge.textContent = '預設畫面';
+                row.appendChild(badge);
+            }
+            list.appendChild(row);
+        });
+    }
+
+    var tabOrderModal = document.getElementById('tab-order-modal');
+    document.getElementById('tab-order-btn').addEventListener('click', function () {
+        tabOrderDraft = tabOrder.slice();
+        renderTabOrderEditor();
+        tabOrderModal.classList.add('show');
+    });
+    document.getElementById('tab-order-cancel').addEventListener('click', function () { tabOrderModal.classList.remove('show'); });
+    tabOrderModal.addEventListener('click', function (e) { if (e.target === tabOrderModal) tabOrderModal.classList.remove('show'); });
+    document.getElementById('tab-order-reset').addEventListener('click', function () {
+        tabOrderDraft = defaultTabOrder.slice();
+        renderTabOrderEditor();
+    });
+    document.getElementById('tab-order-save').addEventListener('click', function () {
+        tabOrder = tabOrderDraft.slice();
+        localStorage.setItem('timerTabOrder', JSON.stringify(tabOrder));
+        applyTabOrder();
+        tabOrderModal.classList.remove('show');
+    });
+
+    applyTabOrder();
 
     function switchTab(tab) {
-        const tabs = ['timer', 'cleaning', 'exam'];
+        const tabs = defaultTabOrder;
         tabs.forEach(t => {
             document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
             document.getElementById(`tab-${t}-btn`).className =
@@ -556,6 +749,9 @@ document.addEventListener('DOMContentLoaded', () => {
             startCleaningCountdown(); stopExamClock();
         } else if (tab === 'exam') {
             startExamClock(); stopCleaningCountdown();
+        } else if (tab === 'seat') {
+            stopCleaningCountdown(); stopExamClock();
+            updateSeatDate(); renderSeatChart();
         } else {
             stopCleaningCountdown(); stopExamClock();
         }
@@ -940,7 +1136,11 @@ document.addEventListener('DOMContentLoaded', () => {
             cleaningTasks: JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || cleaningTasks,
             cleanTargetTime: localStorage.getItem('cleanTargetTime') || '10:25',
             cleaningBehaviorRecords: JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}'),
-            examInfo: JSON.parse(localStorage.getItem('examInfo') || '{}')
+            examInfo: JSON.parse(localStorage.getItem('examInfo') || '{}'),
+            seatLayout: localStorage.getItem('seatLayout') || null,
+            seatCheckRecords: JSON.parse(localStorage.getItem('seatCheckRecords') || '{}'),
+            seatCheckItems: JSON.parse(localStorage.getItem('seatCheckItems') || 'null'),
+            tabOrder: JSON.parse(localStorage.getItem('timerTabOrder') || 'null')
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -985,6 +1185,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 fields.forEach(id => { const el = document.getElementById(id); if (el && data.examInfo[id] !== undefined) el.value = data.examInfo[id]; });
                 updateExamStats();
             }
+            if (data.seatLayout) {
+                localStorage.setItem('seatLayout', data.seatLayout);
+                seatLayout = parseSeatLayout(data.seatLayout);
+            }
+            if (data.seatCheckRecords) {
+                localStorage.setItem('seatCheckRecords', JSON.stringify(data.seatCheckRecords));
+            }
+            if (data.seatCheckItems) {
+                localStorage.setItem('seatCheckItems', JSON.stringify(data.seatCheckItems));
+                seatItems = loadSeatItems();
+            }
+            if (data.tabOrder) {
+                localStorage.setItem('timerTabOrder', JSON.stringify(data.tabOrder));
+                tabOrder = loadTabOrder();
+                applyTabOrder();
+            }
+            renderSeatChart();
             alert('匯入成功！');
         };
         reader.readAsText(file);
@@ -1204,6 +1421,438 @@ document.addEventListener('DOMContentLoaded', () => {
             el.classList.add('text-red-500');
         }
     }
+
+    // ── Seat check tab ────────────────────────
+    // 名冊：座號 -> [姓名, 職務]
+    var seatRoster = {
+        1:['游濬謙','衛生股長2'], 2:['李晨睿','副班長'], 3:['王柏勛','掃具長'],
+        4:['劉宸燁','黑板長'], 5:['鄭又仁','飯菜長'], 6:['簡宇辰','作業長(國數)'],
+        8:['楊晨熙','抬餐(2)'], 9:['林宏哲','抬餐(3)'], 10:['李亦修','資源回收1'],
+        11:['汪昱辰','資源回收2'], 12:['李宸緯','體育股長2'], 13:['陳冠宇','書包長'],
+        14:['李茗堃','電子書長'], 15:['林祐辰','作業長(其他)'], 16:['蔡秉浩','電燈風扇'],
+        17:['蔡菲芸','座位排列檢查長'], 18:['陳依婕','體育股長1'], 19:['陳依綺','資訊機櫃長'],
+        20:['柯祉妤','冷氣長'], 21:['程旻薰','班長'], 22:['陳玥筑','潔牙長'],
+        23:['王梓羽','門窗長'], 24:['黃庭蓁','含氟長'], 25:['李玉琳','午休長'],
+        26:['黃樂芙','垃圾清空長'], 27:['林忻','衛生股長1'], 28:['沈盈萱','地板垃圾檢查長'],
+        29:['游穠羽','鑰匙長'], 30:['沈芷心','洗手台長'], 31:['吳苡熙','櫃子檢查長'],
+        32:['吳芊妤','抬餐(1)']
+    };
+
+    // 預設座位表（408 雙桌合併）：一行一排，左區 | 中區 | 右區
+    var defaultSeatLayoutText = [
+        '4,30 | 29,16 | 28,3',
+        '27,15 | 18,8 | 9,31',
+        '19,17 | 24,23 | 21,11',
+        '20,6 | 25,26 | 1,13',
+        '10,12 | 14,2 | 32,5',
+        ',22 | , | ,'
+    ].join(String.fromCharCode(10));
+
+    // 檢查項目配色（新增項目時依序取用）
+    var seatPalette = [
+        { dot: 'bg-amber-500',   text: 'text-amber-600',   soft: 'bg-amber-50 border-amber-300' },
+        { dot: 'bg-rose-500',    text: 'text-rose-600',    soft: 'bg-rose-50 border-rose-300' },
+        { dot: 'bg-violet-500',  text: 'text-violet-600',  soft: 'bg-violet-50 border-violet-300' },
+        { dot: 'bg-teal-500',    text: 'text-teal-600',    soft: 'bg-teal-50 border-teal-300' },
+        { dot: 'bg-orange-500',  text: 'text-orange-600',  soft: 'bg-orange-50 border-orange-300' },
+        { dot: 'bg-blue-500',    text: 'text-blue-600',    soft: 'bg-blue-50 border-blue-300' },
+        { dot: 'bg-pink-500',    text: 'text-pink-600',    soft: 'bg-pink-50 border-pink-300' },
+        { dot: 'bg-lime-600',    text: 'text-lime-700',    soft: 'bg-lime-50 border-lime-300' }
+    ];
+    var defaultSeatItems = [
+        { key: 'tilt',  label: '座位歪了',   color: 0 },
+        { key: 'trash', label: '地上有垃圾', color: 1 },
+        { key: 'bag',   label: '書包沒放好', color: 2 }
+    ];
+
+    var seatItems = loadSeatItems();
+    var seatLayout = parseSeatLayout(localStorage.getItem('seatLayout') || defaultSeatLayoutText);
+    var seatMode = null;   // null = 開勾選視窗；否則為快速標記的項目 key
+    var seatModalNum = null;
+    var seatItemsDraft = [];
+
+    function loadSeatItems() {
+        var raw = localStorage.getItem('seatCheckItems');
+        if (!raw) return defaultSeatItems.slice();
+        try {
+            var arr = JSON.parse(raw);
+            if (Array.isArray(arr) && arr.length) return arr;
+        } catch (e) {}
+        return defaultSeatItems.slice();
+    }
+    function saveSeatItems() { localStorage.setItem('seatCheckItems', JSON.stringify(seatItems)); }
+    function seatColor(item) { return seatPalette[(item.color || 0) % seatPalette.length]; }
+    function findSeatItem(key) {
+        for (var i = 0; i < seatItems.length; i++) { if (seatItems[i].key === key) return seatItems[i]; }
+        return null;
+    }
+
+    function parseSeatLayout(text) {
+        return text.split(String.fromCharCode(10)).filter(function (l) { return l.trim() !== ''; }).map(function (line) {
+            return line.split('|').map(function (zone) {
+                return zone.split(',').map(function (n) {
+                    var v = parseInt(n.trim(), 10);
+                    return isNaN(v) ? null : v;
+                });
+            });
+        });
+    }
+    function seatLayoutToText() {
+        return seatLayout.map(function (row) {
+            return row.map(function (zone) {
+                return zone.map(function (n) { return n === null ? '' : n; }).join(',');
+            }).join(' | ');
+        }).join(String.fromCharCode(10));
+    }
+
+    function getSeatRecords() { return JSON.parse(localStorage.getItem('seatCheckRecords') || '{}'); }
+    function getTodaySeatRecord() { return getSeatRecords()[getTodayKey()] || {}; }
+    function saveTodaySeatRecord(today) {
+        var all = getSeatRecords();
+        all[getTodayKey()] = today;
+        localStorage.setItem('seatCheckRecords', JSON.stringify(all));
+    }
+
+    function initSeatPanel() {
+        document.getElementById('seat-clear-btn').addEventListener('click', function () {
+            if (!confirm('確定要清除今日所有座位檢查紀錄？')) return;
+            saveTodaySeatRecord({});
+            renderSeatChart();
+        });
+
+        document.getElementById('seat-copy-btn').addEventListener('click', function () {
+            navigator.clipboard.writeText(buildSeatReport()).then(function () {
+                copyFeedback.classList.add('show');
+                setTimeout(function () { copyFeedback.classList.remove('show'); }, 2000);
+            });
+        });
+
+        document.getElementById('seat-edit-btn').addEventListener('click', function () {
+            var c = document.getElementById('seat-edit-container');
+            document.getElementById('seat-editor').value = seatLayoutToText();
+            c.classList.toggle('hidden');
+        });
+        document.getElementById('seat-edit-cancel').addEventListener('click', function () {
+            document.getElementById('seat-edit-container').classList.add('hidden');
+        });
+        document.getElementById('seat-edit-save').addEventListener('click', function () {
+            var text = document.getElementById('seat-editor').value;
+            seatLayout = parseSeatLayout(text);
+            localStorage.setItem('seatLayout', text);
+            document.getElementById('seat-edit-container').classList.add('hidden');
+            renderSeatChart();
+        });
+        document.getElementById('seat-edit-reset').addEventListener('click', function () {
+            document.getElementById('seat-editor').value = defaultSeatLayoutText;
+        });
+
+        // 座位勾選 modal
+        var seatModal = document.getElementById('seat-modal');
+        document.getElementById('seat-modal-done').addEventListener('click', closeSeatModal);
+        document.getElementById('seat-modal-pass').addEventListener('click', function () {
+            var rec = getTodaySeatRecord();
+            delete rec[seatModalNum];
+            saveTodaySeatRecord(rec);
+            renderSeatModalList();
+            renderSeatChart();
+        });
+        seatModal.addEventListener('click', function (e) { if (e.target === seatModal) closeSeatModal(); });
+
+        // 檢查項目 modal
+        var itemsModal = document.getElementById('seat-items-modal');
+        document.getElementById('seat-items-btn').addEventListener('click', openSeatItemsModal);
+        document.getElementById('seat-items-cancel').addEventListener('click', function () { itemsModal.classList.remove('show'); });
+        document.getElementById('seat-items-add').addEventListener('click', function () {
+            seatItemsDraft.push({ key: 'c' + Date.now() + seatItemsDraft.length, label: '', color: seatItemsDraft.length });
+            renderSeatItemsEditor();
+        });
+        document.getElementById('seat-items-save').addEventListener('click', saveSeatItemsFromEditor);
+        itemsModal.addEventListener('click', function (e) { if (e.target === itemsModal) itemsModal.classList.remove('show'); });
+
+        renderSeatModeButtons();
+        updateSeatDate();
+        renderSeatChart();
+    }
+
+    function renderSeatModeButtons() {
+        var bar = document.getElementById('seat-modes');
+        if (!bar) return;
+        bar.innerHTML = '';
+        var modes = [{ key: null, label: '✋ 逐項勾選', btn: 'bg-sky-600' }];
+        seatItems.forEach(function (it) {
+            modes.push({ key: it.key, label: it.label, btn: seatColor(it).dot });
+        });
+        modes.forEach(function (m) {
+            var on = m.key === seatMode;
+            var btn = document.createElement('button');
+            btn.className = 'px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ' +
+                (on ? m.btn + ' text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
+            btn.textContent = m.label;
+            btn.addEventListener('click', function () {
+                seatMode = m.key;
+                renderSeatModeButtons();
+            });
+            bar.appendChild(btn);
+        });
+    }
+
+    function updateSeatDate() {
+        var el = document.getElementById('seat-check-date');
+        if (el) el.textContent = '今日：' + getTodayKey();
+    }
+
+    // ── 座位表 ──
+    function renderSeatChart() {
+        var chart = document.getElementById('seat-chart');
+        if (!chart) return;
+        var today = getTodaySeatRecord();
+        chart.innerHTML = '';
+
+        seatLayout.forEach(function (row, ri) {
+            var rowEl = document.createElement('div');
+            rowEl.className = 'flex items-stretch gap-4';
+
+            var label = document.createElement('div');
+            label.className = 'w-8 flex items-center justify-end text-slate-300 text-xs font-bold';
+            label.textContent = (ri + 1);
+            rowEl.appendChild(label);
+
+            row.forEach(function (zone) {
+                var zoneEl = document.createElement('div');
+                zoneEl.className = 'flex gap-1.5';
+                zone.forEach(function (num) { zoneEl.appendChild(buildSeatCell(num, today)); });
+                rowEl.appendChild(zoneEl);
+            });
+            chart.appendChild(rowEl);
+        });
+
+        renderSeatSummary(today);
+    }
+
+    function buildSeatCell(num, today) {
+        if (num === null || !seatRoster[num]) {
+            var blank = document.createElement('div');
+            blank.className = 'seat-cell';
+            return blank;
+        }
+        var info = seatRoster[num];
+        var flags = today[num] || [];
+        var cell = document.createElement('button');
+        var active = flags.length > 0;
+        cell.className = 'seat-cell text-left rounded-xl border-2 px-2 py-2 transition-all ' +
+            (active ? 'border-rose-300 bg-rose-50 shadow-sm' : 'border-sky-100 bg-white hover:border-sky-300 hover:bg-sky-50');
+
+        var dots = seatItems.map(function (it) {
+            var on = flags.indexOf(it.key) > -1;
+            return '<span class="seat-dot ' + (on ? seatColor(it).dot : 'bg-slate-200') + '" title="' + it.label + '"></span>';
+        }).join('');
+
+        cell.innerHTML =
+            '<div class="flex items-baseline gap-1.5">' +
+                '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + num + '</span>' +
+                '<span class="text-slate-700 font-bold text-base leading-tight">' + info[0] + '</span>' +
+            '</div>' +
+            '<div class="text-slate-400 text-[11px] leading-tight truncate">' + info[1] + '</div>' +
+            '<div class="flex flex-wrap gap-1 mt-1.5">' + dots + '</div>';
+
+        cell.addEventListener('click', function () {
+            if (seatMode === null) openSeatModal(num);
+            else toggleSeatFlag(num, seatMode);
+        });
+        return cell;
+    }
+
+    // ── 右側統計名單 ──
+    function renderSeatSummary(today) {
+        var box = document.getElementById('seat-summary');
+        if (!box) return;
+        box.innerHTML = '';
+        var people = 0;
+        Object.keys(today).forEach(function (n) { if (today[n].length) people++; });
+        document.getElementById('seat-count-total').textContent = people;
+
+        seatItems.forEach(function (it) {
+            var c = seatColor(it);
+            var names = seatNamesFor(it.key, today);
+            var el = document.createElement('div');
+            el.innerHTML =
+                '<div class="flex items-center gap-2 mb-1">' +
+                    '<span class="seat-dot ' + c.dot + '"></span>' +
+                    '<span class="text-slate-600 text-sm font-semibold">' + it.label + '</span>' +
+                    '<b class="ml-auto ' + c.text + ' text-lg">' + names.length + '</b>' +
+                '</div>' +
+                '<div class="text-slate-500 text-sm leading-relaxed pl-4">' +
+                    (names.length ? names.join('、') : '<span class="text-slate-300">全部通過</span>') +
+                '</div>';
+            box.appendChild(el);
+        });
+    }
+
+    function seatNamesFor(key, today) {
+        return Object.keys(today)
+            .filter(function (n) { return today[n].indexOf(key) > -1; })
+            .sort(function (a, b) { return a - b; })
+            .map(function (n) { return n + ' ' + (seatRoster[n] ? seatRoster[n][0] : ''); });
+    }
+
+    // ── 座位勾選 modal ──
+    function openSeatModal(num) {
+        seatModalNum = num;
+        var info = seatRoster[num];
+        document.getElementById('seat-modal-num').textContent = num;
+        document.getElementById('seat-modal-name').textContent = info[0];
+        document.getElementById('seat-modal-duty').textContent = info[1];
+        renderSeatModalList();
+        document.getElementById('seat-modal').classList.add('show');
+    }
+    function closeSeatModal() {
+        document.getElementById('seat-modal').classList.remove('show');
+        seatModalNum = null;
+    }
+    function renderSeatModalList() {
+        var list = document.getElementById('seat-modal-list');
+        var flags = getTodaySeatRecord()[seatModalNum] || [];
+        list.innerHTML = '';
+        seatItems.forEach(function (it) {
+            var on = flags.indexOf(it.key) > -1;
+            var c = seatColor(it);
+            var btn = document.createElement('button');
+            btn.className = 'flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 text-left transition-all ' +
+                (on ? c.soft : 'bg-white border-slate-200 hover:border-slate-300');
+            btn.innerHTML =
+                '<span class="w-6 h-6 rounded-md flex items-center justify-center text-white text-sm font-bold ' +
+                    (on ? c.dot : 'bg-slate-200') + '">' + (on ? '✓' : '') + '</span>' +
+                '<span class="font-semibold ' + (on ? c.text : 'text-slate-600') + '">' + it.label + '</span>';
+            btn.addEventListener('click', function () { toggleSeatFlag(seatModalNum, it.key); });
+            list.appendChild(btn);
+        });
+    }
+    function toggleSeatFlag(num, key) {
+        var rec = getTodaySeatRecord();
+        var f = rec[num] || [];
+        var i = f.indexOf(key);
+        if (i > -1) f.splice(i, 1); else f.push(key);
+        if (f.length) rec[num] = f; else delete rec[num];
+        saveTodaySeatRecord(rec);
+        if (seatModalNum !== null) renderSeatModalList();
+        renderSeatChart();
+    }
+
+    // ── 檢查項目編輯 ──
+    function openSeatItemsModal() {
+        seatItemsDraft = seatItems.map(function (it) { return { key: it.key, label: it.label, color: it.color || 0 }; });
+        renderSeatItemsEditor();
+        document.getElementById('seat-items-modal').classList.add('show');
+    }
+    function renderSeatItemsEditor() {
+        var list = document.getElementById('seat-items-list');
+        list.innerHTML = '';
+        seatItemsDraft.forEach(function (it, idx) {
+            var row = document.createElement('div');
+            row.className = 'flex items-center gap-2';
+
+            var dot = document.createElement('button');
+            dot.className = 'seat-dot ' + seatColor(it).dot + ' flex-shrink-0';
+            dot.title = '換顏色';
+            dot.addEventListener('click', function () {
+                it.color = ((it.color || 0) + 1) % seatPalette.length;
+                renderSeatItemsEditor();
+            });
+
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.value = it.label;
+            input.placeholder = '例如：抽屜沒收好';
+            input.className = 'flex-1 px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-300';
+            input.addEventListener('input', function () { it.label = input.value; });
+
+            var moveWrap = document.createElement('div');
+            moveWrap.className = 'flex flex-col flex-shrink-0';
+            [['▲', -1], ['▼', 1]].forEach(function (m) {
+                var mv = document.createElement('button');
+                var target = idx + m[1];
+                var disabled = target < 0 || target >= seatItemsDraft.length;
+                mv.className = 'px-1 text-[10px] leading-none py-0.5 transition-all ' +
+                    (disabled ? 'text-slate-200 cursor-default' : 'text-slate-400 hover:text-sky-600');
+                mv.textContent = m[0];
+                mv.title = m[1] < 0 ? '上移' : '下移';
+                if (!disabled) {
+                    mv.addEventListener('click', function () {
+                        var tmp = seatItemsDraft[idx];
+                        seatItemsDraft[idx] = seatItemsDraft[target];
+                        seatItemsDraft[target] = tmp;
+                        renderSeatItemsEditor();
+                    });
+                }
+                moveWrap.appendChild(mv);
+            });
+
+            var del = document.createElement('button');
+            del.className = 'px-2 py-2 text-slate-300 hover:text-red-500 transition-all flex-shrink-0';
+            del.textContent = '✕';
+            del.title = '刪除';
+            del.addEventListener('click', function () {
+                seatItemsDraft.splice(idx, 1);
+                renderSeatItemsEditor();
+            });
+
+            row.appendChild(moveWrap);
+            row.appendChild(dot);
+            row.appendChild(input);
+            row.appendChild(del);
+            list.appendChild(row);
+        });
+        if (!seatItemsDraft.length) {
+            list.innerHTML = '<div class="text-slate-300 text-sm text-center py-3">至少要有一個檢查項目</div>';
+        }
+    }
+    function saveSeatItemsFromEditor() {
+        var items = seatItemsDraft
+            .map(function (it) { return { key: it.key, label: it.label.trim(), color: it.color || 0 }; })
+            .filter(function (it) { return it.label !== ''; });
+        if (!items.length) { alert('至少要留一個檢查項目'); return; }
+
+        // 刪掉的項目一併清掉紀錄中的旗標
+        var keep = {};
+        items.forEach(function (it) { keep[it.key] = true; });
+        var all = getSeatRecords();
+        Object.keys(all).forEach(function (date) {
+            var day = all[date];
+            Object.keys(day).forEach(function (num) {
+                day[num] = day[num].filter(function (k) { return keep[k]; });
+                if (!day[num].length) delete day[num];
+            });
+        });
+        localStorage.setItem('seatCheckRecords', JSON.stringify(all));
+
+        seatItems = items;
+        saveSeatItems();
+        if (seatMode !== null && !findSeatItem(seatMode)) seatMode = null;
+        renderSeatModeButtons();
+        document.getElementById('seat-items-modal').classList.remove('show');
+        renderSeatChart();
+    }
+
+    // ── 報告 ──
+    function buildSeatReport() {
+        var today = getTodaySeatRecord();
+        var lines = ['座位檢查報告（' + getTodayKey() + '）'];
+        var any = false;
+        seatItems.forEach(function (it) {
+            var names = seatNamesFor(it.key, today);
+            lines.push('');
+            lines.push('【' + it.label + '】' + names.length + ' 人');
+            lines.push(names.length ? names.join('、') : '無');
+            if (names.length) any = true;
+        });
+        if (!any) lines.push('', '今日全部通過 👍');
+        return lines.join(String.fromCharCode(10));
+    }
+
+    initSeatPanel();
+
+    // 分頁模組都就緒後，再切到使用者排的第一個分頁
+    if (tabOrder[0] !== 'timer' && !localStorage.getItem('timerActiveState')) switchTab(tabOrder[0]);
 });
 </script>
 </body>
