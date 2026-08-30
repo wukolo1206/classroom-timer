@@ -555,9 +555,21 @@
         <div class="overflow-x-auto border border-sky-100 rounded-xl">
             <table id="seat-stats-table" class="w-full text-sm"></table>
         </div>
-        <div class="flex gap-3 justify-end mt-5">
-            <button id="seat-csv-btn" class="mr-auto px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">⬇️ 匯出 CSV（Excel）</button>
-            <button id="seat-stats-close" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">關閉</button>
+        <div class="flex flex-wrap items-center gap-3 mt-5">
+            <button id="seat-csv-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">⬇️ 匯出 CSV（Excel）</button>
+            <button id="seat-purge-toggle" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all">🗑 清除紀錄</button>
+            <button id="seat-stats-close" class="ml-auto px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">關閉</button>
+        </div>
+
+        <div id="seat-purge-box" class="hidden mt-4 pt-4 border-t border-red-100">
+            <p class="text-slate-500 text-sm mb-3">清除後無法復原（連同試算表上的紀錄一起刪）。表格每一列右邊的 ✕ 可單獨清掉那位學生在目前期間的紀錄。</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="date" id="seat-purge-date"
+                    class="px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                <button id="seat-purge-day" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除這一天</button>
+                <button id="seat-purge-range" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除目前期間</button>
+                <button id="seat-purge-all" class="ml-auto px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all">清除全部歷史</button>
+            </div>
         </div>
     </div>
 </div>
@@ -1799,6 +1811,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('seat-csv-btn').addEventListener('click', exportSeatCsv);
 
+        document.getElementById('seat-purge-toggle').addEventListener('click', function () {
+            var box = document.getElementById('seat-purge-box');
+            box.classList.toggle('hidden');
+            if (!box.classList.contains('hidden')) document.getElementById('seat-purge-date').value = getTodayKey();
+        });
+        document.getElementById('seat-purge-day').addEventListener('click', function () {
+            var d = document.getElementById('seat-purge-date').value;
+            if (!d) { alert('請先選日期'); return; }
+            if (!confirm('確定清除 ' + d + ' 全班的登記紀錄？此動作無法復原。')) return;
+            purgeSeatRecords([d]);
+        });
+        document.getElementById('seat-purge-range').addEventListener('click', function () {
+            var dates = seatDatesInRange();
+            if (!dates.length) { alert('這段期間沒有紀錄'); return; }
+            if (!confirm('確定清除' + seatRangeLabel() + '共 ' + dates.length + ' 天的登記紀錄？此動作無法復原。')) return;
+            purgeSeatRecords(dates);
+        });
+        document.getElementById('seat-purge-all').addEventListener('click', function () {
+            if (!confirm('確定清除「全部歷史」登記紀錄？所有日期、所有學生都會刪除，無法復原。')) return;
+            if (!confirm('再確認一次：真的要清空全部紀錄嗎？')) return;
+            purgeAllSeatRecords();
+        });
+
         // 座位資料匯出 / 匯入
         document.getElementById('seat-export-btn').addEventListener('click', exportSeatData);
         document.getElementById('seat-import-input').addEventListener('change', function (e) {
@@ -2139,7 +2174,8 @@ document.addEventListener('DOMContentLoaded', () => {
             seatItems.map(function (it) {
                 return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
             }).join('') +
-            '<th class="py-2 px-2 font-semibold text-slate-600">總計</th></tr>';
+            '<th class="py-2 px-2 font-semibold text-slate-600">總計</th>' +
+            '<th class="py-2 px-2"></th></tr>';
 
         var body = data.rows.map(function (r) {
             return '<tr class="border-t border-sky-100">' +
@@ -2151,11 +2187,70 @@ document.addEventListener('DOMContentLoaded', () => {
                            '" style="font-variant-numeric:tabular-nums;">' + n + '</td>';
                 }).join('') +
                 '<td class="py-2 px-2 text-center text-sky-700 font-bold text-lg" style="font-variant-numeric:tabular-nums;">' + r.sum + '</td>' +
+                '<td class="py-2 px-2 text-center">' +
+                    '<button class="seat-purge-row px-2 text-slate-300 hover:text-red-500 transition-all" data-seat="' + r.num + '" title="清除這位學生在目前期間的紀錄">✕</button>' +
+                '</td>' +
             '</tr>';
         }).join('');
 
         document.getElementById('seat-stats-table').innerHTML =
             '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="9" class="py-6 text-center text-slate-300">這段期間沒有登記紀錄</td></tr>') + '</tbody>';
+
+        document.querySelectorAll('.seat-purge-row').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var seat = btn.dataset.seat;
+                var who = seat + ' ' + (seatRoster[seat] ? seatRoster[seat][0] : '');
+                if (!confirm('確定清除「' + who + '」在' + seatRangeLabel() + '的所有登記紀錄？此動作無法復原。')) return;
+                purgeSeatRecords(seatDatesInRange(), seat);
+            });
+        });
+    }
+
+    function seatRangeLabel() {
+        return { all: '全部期間', today: '今日', '7': '近 7 天', '30': '近 30 天' }[seatStatsRange];
+    }
+
+    /** 目前期間內有紀錄的日期 */
+    function seatDatesInRange() {
+        var from = seatRangeStartKey();
+        return Object.keys(getSeatRecords()).filter(function (d) { return !from || d >= from; });
+    }
+
+    /**
+     * 清除紀錄：dates 為日期陣列，seat 省略代表整天所有人。
+     * 本機先刪，再同步刪掉試算表上的對應列。
+     */
+    function purgeSeatRecords(dates, seat) {
+        var all = getSeatRecords();
+        dates.forEach(function (d) {
+            if (!all[d]) return;
+            if (seat) { delete all[d][seat]; if (!Object.keys(all[d]).length) delete all[d]; }
+            else { delete all[d]; }
+        });
+        localStorage.setItem('seatCheckRecords', JSON.stringify(all));
+        seatUndoStack = [];
+        dates.forEach(function (d) { seatSyncClear(d, seat); });
+        renderSeatChart();
+        renderSeatStats();
+    }
+
+    function purgeAllSeatRecords() {
+        localStorage.setItem('seatCheckRecords', JSON.stringify({}));
+        seatUndoStack = [];
+        if (SEAT_SYNC) {
+            seatSyncBusy++;
+            renderSyncStatus();
+            google.script.run
+                .withSuccessHandler(function () { seatSyncBusy--; seatSyncError = ''; renderSyncStatus(); })
+                .withFailureHandler(function (err) {
+                    seatSyncBusy--;
+                    seatSyncError = (err && err.message) ? err.message : '清除失敗';
+                    renderSyncStatus();
+                })
+                .clearSeatAll();
+        }
+        renderSeatChart();
+        renderSeatStats();
     }
 
     function downloadSeatFile(content, filename, mime) {

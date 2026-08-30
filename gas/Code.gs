@@ -144,6 +144,20 @@ function clearSeatRecords(date, seat) {
   }
 }
 
+/** 清掉全部登記紀錄（只動資料列，不動標題）*/
+function clearSeatAll() {
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(20000);
+  try {
+    var sh = getSheet_();
+    var last = sh.getLastRow();
+    if (last > 1) sh.deleteRows(2, last - 1);
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /**
  * 本機備份檔匯入：整份覆蓋「上課表現紀錄」的資料列。
  * rows 由前端整理好：[[日期, 座號, 姓名, 項目, 次數, 項目代碼], ...]
