@@ -539,6 +539,27 @@
     </div>
 </div>
 
+<!-- Seat import modal -->
+<div id="seat-import-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-slate-800 text-xl font-bold mb-1">匯入座位資料</h3>
+        <p id="seat-import-summary" class="text-slate-500 text-sm mb-4"></p>
+        <div class="flex flex-col gap-3">
+            <button id="seat-import-merge" class="text-left px-4 py-3 rounded-xl border-2 border-sky-200 bg-sky-50 hover:border-sky-400 transition-all">
+                <div class="font-bold text-sky-700">合併（建議）</div>
+                <div class="text-slate-500 text-sm">保留現有紀錄，把備份檔裡多出來的補進來。同一天同一項取次數較多的那筆，不會重複累加。</div>
+            </button>
+            <button id="seat-import-replace" class="text-left px-4 py-3 rounded-xl border-2 border-red-200 bg-red-50 hover:border-red-400 transition-all">
+                <div class="font-bold text-red-600">覆蓋</div>
+                <div class="text-slate-500 text-sm">丟掉現有紀錄，完全以備份檔為準。執行前會自動先下載一份現況備份。</div>
+            </button>
+        </div>
+        <div class="flex justify-end mt-5">
+            <button id="seat-import-cancel" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
+        </div>
+    </div>
+</div>
+
 <!-- Seat stats modal -->
 <div id="seat-stats-modal" class="modal">
     <div class="modal-content" style="max-width: 760px;">
@@ -1507,7 +1528,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 seatSyncBusy--;
                 seatSyncError = '';
                 if (bundle && bundle.records) {
-                    localStorage.setItem('seatCheckRecords', JSON.stringify(bundle.records));
+                    // 試算表為主，但本機比試算表多的部分不丟掉，改成補傳上去
+                    var local = getSeatRecords();
+                    var sheet = bundle.records;
+                    Object.keys(local).forEach(function (date) {
+                        Object.keys(local[date]).forEach(function (seat) {
+                            Object.keys(local[date][seat]).forEach(function (key) {
+                                var mine = local[date][seat][key];
+                                var theirs = (sheet[date] && sheet[date][seat] && sheet[date][seat][key]) || 0;
+                                if (mine > theirs) {
+                                    var item = findSeatItem(key);
+                                    var q = seatQueue();
+                                    q.push({
+                                        date: date, seat: String(seat),
+                                        name: seatRoster[seat] ? seatRoster[seat][0] : '',
+                                        key: key, label: item ? item.label : key,
+                                        delta: mine - theirs
+                                    });
+                                    saveSeatQueue(q);
+                                }
+                            });
+                        });
+                    });
+                    localStorage.setItem('seatCheckRecords', JSON.stringify(mergeSeatRecords(sheet, local)));
                 }
                 if (bundle && bundle.settings) {
                     if (bundle.settings.items && bundle.settings.items.length) {
@@ -1838,6 +1881,20 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('seat-export-btn').addEventListener('click', exportSeatData);
         document.getElementById('seat-import-input').addEventListener('change', function (e) {
             if (e.target.files[0]) { importSeatData(e.target.files[0]); e.target.value = ''; }
+        });
+
+        var importModal = document.getElementById('seat-import-modal');
+        document.getElementById('seat-import-merge').addEventListener('click', function () { applySeatImport('merge'); });
+        document.getElementById('seat-import-replace').addEventListener('click', function () {
+            if (!confirm('覆蓋會丟掉現有紀錄，確定嗎？（會先自動下載一份現況備份）')) return;
+            applySeatImport('replace');
+        });
+        document.getElementById('seat-import-cancel').addEventListener('click', function () {
+            seatImportPending = null;
+            importModal.classList.remove('show');
+        });
+        importModal.addEventListener('click', function (e) {
+            if (e.target === importModal) { seatImportPending = null; importModal.classList.remove('show'); }
         });
 
         renderSeatModeButtons();
@@ -2235,6 +2292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function purgeAllSeatRecords() {
+        exportSeatData();   // 清空前先留一份備份檔
         localStorage.setItem('seatCheckRecords', JSON.stringify({}));
         seatUndoStack = [];
         if (SEAT_SYNC) {
@@ -2288,6 +2346,8 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadSeatFile(JSON.stringify(data, null, 2), '座位檢查備份_' + getTodayKey() + '.json', 'application/json');
     }
 
+    var seatImportPending = null;
+
     function importSeatData(file) {
         var reader = new FileReader();
         reader.onload = function (e) {
@@ -2297,28 +2357,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('匯入失敗：這個檔案沒有座位檢查資料');
                 return;
             }
-            if (!confirm('匯入會「覆蓋」這台裝置上現有的座位檢查資料（座位表、檢查項目、所有登記紀錄），確定要繼續嗎？')) return;
+            seatImportPending = data;
 
-            if (data.seatLayout) {
-                localStorage.setItem('seatLayout', data.seatLayout);
-                seatLayout = parseSeatLayout(data.seatLayout);
-            }
-            if (data.seatCheckItems && data.seatCheckItems.length) {
-                localStorage.setItem('seatCheckItems', JSON.stringify(data.seatCheckItems));
-                seatItems = loadSeatItems();
-            }
-            if (data.seatCheckRecords) {
-                localStorage.setItem('seatCheckRecords', JSON.stringify(data.seatCheckRecords));
-            }
-            seatUndoStack = [];
-            seatMode = null;
-            renderSeatModeButtons();
-            renderSeatChart();
-            seatSyncSettings();
-            seatSyncImportAll();
-            alert('匯入成功！');
+            var days = data.seatCheckRecords ? Object.keys(data.seatCheckRecords).length : 0;
+            var mine = Object.keys(getSeatRecords()).length;
+            document.getElementById('seat-import-summary').textContent =
+                '備份檔有 ' + days + ' 天的紀錄，目前' + (SEAT_SYNC ? '試算表' : '這台裝置') + '有 ' + mine + ' 天。要怎麼處理？';
+            document.getElementById('seat-import-modal').classList.add('show');
         };
         reader.readAsText(file);
+    }
+
+    /** 兩份紀錄合併：同一天同一人同一項取次數較大者 */
+    function mergeSeatRecords(base, add) {
+        var out = JSON.parse(JSON.stringify(base));
+        Object.keys(add || {}).forEach(function (date) {
+            if (!out[date]) out[date] = {};
+            Object.keys(add[date]).forEach(function (seat) {
+                if (!out[date][seat]) out[date][seat] = {};
+                Object.keys(add[date][seat]).forEach(function (key) {
+                    var n = parseInt(add[date][seat][key], 10) || 0;
+                    if (n > (out[date][seat][key] || 0)) out[date][seat][key] = n;
+                });
+                if (!Object.keys(out[date][seat]).length) delete out[date][seat];
+            });
+            if (!Object.keys(out[date]).length) delete out[date];
+        });
+        return out;
+    }
+
+    function applySeatImport(mode) {
+        var data = seatImportPending;
+        if (!data) return;
+        if (mode === 'replace') exportSeatData();   // 覆蓋前先留一份現況
+
+        if (data.seatLayout) {
+            localStorage.setItem('seatLayout', data.seatLayout);
+            seatLayout = parseSeatLayout(data.seatLayout);
+        }
+        if (data.seatCheckItems && data.seatCheckItems.length) {
+            var items = data.seatCheckItems;
+            if (mode === 'merge') {
+                var have = {};
+                seatItems.forEach(function (it) { have[it.key] = true; });
+                items = seatItems.concat(data.seatCheckItems.filter(function (it) { return !have[it.key]; }));
+            }
+            localStorage.setItem('seatCheckItems', JSON.stringify(items));
+            seatItems = loadSeatItems();
+        }
+        if (data.seatCheckRecords) {
+            var next = (mode === 'merge')
+                ? mergeSeatRecords(getSeatRecords(), data.seatCheckRecords)
+                : data.seatCheckRecords;
+            localStorage.setItem('seatCheckRecords', JSON.stringify(next));
+        }
+
+        seatImportPending = null;
+        seatUndoStack = [];
+        seatMode = null;
+        document.getElementById('seat-import-modal').classList.remove('show');
+        renderSeatModeButtons();
+        renderSeatChart();
+        seatSyncSettings();
+        seatSyncImportAll();
+        alert(mode === 'merge' ? '已合併匯入！' : '已覆蓋匯入！');
     }
 
     /** 匯入備份後，把整份紀錄覆蓋回試算表 */
