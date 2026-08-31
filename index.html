@@ -1494,6 +1494,8 @@ document.addEventListener('DOMContentLoaded', () => {
     var SEAT_SYNC = (typeof google !== 'undefined' && google.script && google.script.run) ? true : false;
     var seatSyncBusy = 0;
     var seatSyncError = '';
+    var seatFlushing = false;      // 同時只送一筆，避免重送
+    var seatRetryTimer = null;
 
     function seatQueue() {
         try { return JSON.parse(localStorage.getItem('seatSyncQueue') || '[]'); } catch (e) { return []; }
@@ -1531,26 +1533,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 試算表為主，但本機比試算表多的部分不丟掉，改成補傳上去
                     var local = getSeatRecords();
                     var sheet = bundle.records;
+                    var merged = mergeSeatRecords(sheet, local);
+                    localStorage.setItem('seatCheckRecords', JSON.stringify(merged));
+                    var pend = seatQueue();
                     Object.keys(local).forEach(function (date) {
                         Object.keys(local[date]).forEach(function (seat) {
                             Object.keys(local[date][seat]).forEach(function (key) {
                                 var mine = local[date][seat][key];
                                 var theirs = (sheet[date] && sheet[date][seat] && sheet[date][seat][key]) || 0;
-                                if (mine > theirs) {
-                                    var item = findSeatItem(key);
-                                    var q = seatQueue();
-                                    q.push({
-                                        date: date, seat: String(seat),
-                                        name: seatRoster[seat] ? seatRoster[seat][0] : '',
-                                        key: key, label: item ? item.label : key,
-                                        delta: mine - theirs
-                                    });
-                                    saveSeatQueue(q);
-                                }
+                                var queued = pend.some(function (j) {
+                                    return j.date === date && j.seat === String(seat) && j.key === key;
+                                });
+                                if (mine > theirs && !queued) seatSyncPush(date, seat, key);
                             });
                         });
                     });
-                    localStorage.setItem('seatCheckRecords', JSON.stringify(mergeSeatRecords(sheet, local)));
+
                 }
                 if (bundle && bundle.settings) {
                     if (bundle.settings.items && bundle.settings.items.length) {
@@ -1574,42 +1572,73 @@ document.addEventListener('DOMContentLoaded', () => {
             .getSeatBundle();
     }
 
-    /** 把一筆登記排進佇列並立刻嘗試送出 */
-    function seatSyncPush(date, seat, key, delta) {
+    /** 取某一天某人某項的本機次數 */
+    function seatCountAt(date, seat, key) {
+        var all = getSeatRecords();
+        return (all[date] && all[date][seat] && all[date][seat][key]) || 0;
+    }
+
+    /**
+     * 把「這一格現在是幾次」排進佇列（絕對值，不是 +1）。
+     * 同一格只留最新一筆，重送也不會多算。
+     */
+    function seatSyncPush(date, seat, key) {
         if (!SEAT_SYNC) return;
         var item = findSeatItem(key);
-        var q = seatQueue();
-        q.push({
+        var job = {
             date: date, seat: String(seat),
             name: seatRoster[seat] ? seatRoster[seat][0] : '',
-            key: key, label: item ? item.label : key, delta: delta
+            key: key, label: item ? item.label : key,
+            count: seatCountAt(date, String(seat), key)
+        };
+        var q = seatQueue().filter(function (j) {
+            return !(j.date === job.date && j.seat === job.seat && j.key === job.key);
         });
+        q.push(job);
         saveSeatQueue(q);
         seatFlushQueue();
     }
 
+    function seatScheduleRetry() {
+        if (seatRetryTimer) return;
+        seatRetryTimer = setTimeout(function () {
+            seatRetryTimer = null;
+            seatFlushQueue();
+        }, 15000);
+    }
+
     function seatFlushQueue() {
         if (!SEAT_SYNC) { renderSyncStatus(); return; }
+        if (seatFlushing) return;                       // 有一筆在路上就先等它
         var q = seatQueue();
         if (!q.length) { renderSyncStatus(); return; }
+
         var job = q[0];
+        seatFlushing = true;
         seatSyncBusy++;
         renderSyncStatus();
         google.script.run
             .withSuccessHandler(function () {
+                seatFlushing = false;
                 seatSyncBusy--;
                 seatSyncError = '';
                 var rest = seatQueue();
-                rest.shift();
-                saveSeatQueue(rest);
-                if (rest.length) seatFlushQueue(); else renderSyncStatus();
+                // 只有當佇列頭還是剛才送出的那一筆時才移除（期間可能被新的取代）
+                if (rest.length && rest[0].date === job.date && rest[0].seat === job.seat &&
+                    rest[0].key === job.key && rest[0].count === job.count) {
+                    rest.shift();
+                    saveSeatQueue(rest);
+                }
+                if (seatQueue().length) seatFlushQueue(); else renderSyncStatus();
             })
             .withFailureHandler(function (err) {
+                seatFlushing = false;
                 seatSyncBusy--;
                 seatSyncError = (err && err.message) ? err.message : '\u5beb\u5165\u5931\u6557';
                 renderSyncStatus();
+                seatScheduleRetry();
             })
-            .logSeatCheck(job.date, job.seat, job.name, job.key, job.label, job.delta);
+            .setSeatCount(job.date, job.seat, job.name, job.key, job.label, job.count);
     }
 
     function seatSyncClear(date, seat) {
@@ -1766,7 +1795,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (next <= 0) { delete rec[num][key]; } else { rec[num][key] = next; }
         if (!Object.keys(rec[num]).length) delete rec[num];
         saveTodaySeatRecord(rec);
-        seatSyncPush(getTodayKey(), num, key, delta);
+        seatSyncPush(getTodayKey(), num, key);
         if (!silent && delta > 0) seatUndoStack.push({ num: num, key: key });
         if (seatModalNum !== null) renderSeatModalList();
         renderSeatChart();

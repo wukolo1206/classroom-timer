@@ -123,6 +123,37 @@ function logSeatCheck(date, seat, name, itemKey, itemLabel, delta) {
   }
 }
 
+/**
+ * 直接設定某一格的次數（絕對值，重複呼叫結果一致）。
+ * 前端以本機數字為準，網路重傳也不會多算或少算。
+ */
+function setSeatCount(date, seat, name, itemKey, itemLabel, count) {
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(20000);
+  try {
+    var sh = getSheet_();
+    var rows = readAll_(sh);
+    seat = String(seat).trim();
+    date = String(date).trim();
+    count = parseInt(count, 10) || 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      if (dateKey_(rows[i][0]) === date && String(rows[i][1]).trim() === seat &&
+          String(rows[i][6] || '').trim() === itemKey) {
+        var rowNo = i + 2;
+        if (count <= 0) { sh.deleteRow(rowNo); return 0; }
+        sh.getRange(rowNo, 3, 1, 4).setValues([[name, itemLabel, count, new Date()]]);
+        return count;
+      }
+    }
+    if (count <= 0) return 0;
+    sh.appendRow([date, Number(seat), name, itemLabel, count, new Date(), itemKey]);
+    return count;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /** 清掉某一天某個人的所有登記；seat 省略則清整天 */
 function clearSeatRecords(date, seat) {
   var lock = LockService.getDocumentLock();

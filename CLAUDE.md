@@ -2,9 +2,9 @@
 project: 班級計時器
 category: 學科工具集
 status: 開發中
-version: GAS 部署 @2（座位檢查同步）
+version: GAS 部署 @3（資料安全強化）
 url: https://wukolo1206.github.io/classroom-timer/
-next_action: 使用者需先授權 GAS 網頁應用，才能實測試算表同步
+next_action: 到學校那台電腦開 GAS 網址，看舊登記紀錄能否自動補傳回試算表
 updated: 2026-08-31
 ---
 
