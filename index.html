@@ -806,6 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabOrder = tabOrderDraft.slice();
         localStorage.setItem('timerTabOrder', JSON.stringify(tabOrder));
         applyTabOrder();
+        if (typeof seatSyncSettings === 'function') seatSyncSettings();
         tabOrderModal.classList.remove('show');
     });
 
@@ -1567,6 +1568,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.setItem('seatLayout', bundle.settings.layout);
                         seatLayout = parseSeatLayout(bundle.settings.layout);
                     }
+                    if (bundle.settings.tabOrder && bundle.settings.tabOrder.length) {
+                        localStorage.setItem('timerTabOrder', JSON.stringify(bundle.settings.tabOrder));
+                        tabOrder = loadTabOrder();
+                        applyTabOrder();
+                    }
                 }
                 renderSeatModeButtons();
                 renderSeatChart();
@@ -1667,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!SEAT_SYNC) return;
         google.script.run
             .withFailureHandler(function () {})
-            .saveSeatSettings(seatItems, seatLayoutToText());
+            .saveSeatSettings(seatItems, seatLayoutToText(), tabOrder);
     }
 
     // ── Seat check tab ────────────────────────

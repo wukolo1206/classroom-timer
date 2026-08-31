@@ -64,16 +64,19 @@ function getSeatSettings() {
   var props = PropertiesService.getDocumentProperties();
   var items = props.getProperty('seatCheckItems');
   var layout = props.getProperty('seatLayout');
+  var tabs = props.getProperty('timerTabOrder');
   return {
     items: items ? JSON.parse(items) : null,
-    layout: layout || null
+    layout: layout || null,
+    tabOrder: tabs ? JSON.parse(tabs) : null
   };
 }
 
-function saveSeatSettings(items, layout) {
+function saveSeatSettings(items, layout, tabOrder) {
   var props = PropertiesService.getDocumentProperties();
   if (items) props.setProperty('seatCheckItems', JSON.stringify(items));
   if (layout) props.setProperty('seatLayout', layout);
+  if (tabOrder && tabOrder.length) props.setProperty('timerTabOrder', JSON.stringify(tabOrder));
   return true;
 }
 
