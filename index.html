@@ -456,8 +456,12 @@
             <!-- 右：統計與名單 -->
             <aside class="w-full lg:w-72 lg:flex-shrink-0">
                 <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
+                    <div class="flex gap-1 mb-3">
+                        <button data-srange="today" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">今日</button>
+                        <button data-srange="all" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">全部累計</button>
+                    </div>
                     <div class="flex items-baseline justify-between mb-3 pb-3 border-b border-sky-200">
-                        <span class="text-slate-600 font-bold">今日登記</span>
+                        <span id="seat-summary-title" class="text-slate-600 font-bold">今日登記</span>
                         <span>
                             <b id="seat-count-total" class="text-sky-700 text-3xl">0</b><span class="text-slate-400 text-sm ml-1">次</span>
                             <span class="text-slate-300 mx-1">/</span>
@@ -465,6 +469,10 @@
                         </span>
                     </div>
                     <div id="seat-summary" class="flex flex-col gap-3"></div>
+                </div>
+                <button id="seat-text-btn" class="w-full mt-3 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">📝 文字報告</button>
+                <div id="seat-text-box" class="hidden mt-2">
+                    <pre id="seat-report-text" class="whitespace-pre-wrap break-words bg-white border border-sky-100 rounded-lg p-3 text-slate-600 text-sm leading-relaxed max-h-72 overflow-y-auto" style="font-family: inherit;"></pre>
                 </div>
                 <button id="seat-stats-btn" class="w-full mt-3 px-4 py-2.5 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📊 累計次數統計</button>
                 <button id="seat-items-btn" class="w-full mt-2 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⚙️ 編輯檢查項目</button>
@@ -1712,6 +1720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatLayout = parseSeatLayout(localStorage.getItem('seatLayout') || defaultSeatLayoutText);
     var seatUndoStack = [];   // 本次開啟期間的登記紀錄，供「復原上一筆」使用
     var seatStatsRange = 'all';
+    var seatSummaryRange = 'today';   // 右側統計：today / all
 
     function loadSeatItems() {
         var raw = localStorage.getItem('seatCheckItems');
@@ -1926,6 +1935,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === importModal) { seatImportPending = null; importModal.classList.remove('show'); }
         });
 
+        document.querySelectorAll('.seat-srange-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                seatSummaryRange = btn.dataset.srange;
+                localStorage.setItem('seatSummaryRange', seatSummaryRange);
+                renderSeatChart();
+            });
+        });
+        document.getElementById('seat-text-btn').addEventListener('click', function () {
+            var box = document.getElementById('seat-text-box');
+            box.classList.toggle('hidden');
+            if (!box.classList.contains('hidden')) {
+                document.getElementById('seat-report-text').textContent = buildSeatReport();
+            }
+        });
+
+        seatSummaryRange = localStorage.getItem('seatSummaryRange') || 'today';
         renderSeatModeButtons();
         updateSeatDate();
         renderSeatChart();
@@ -2023,10 +2048,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return cell;
     }
 
-    // ── 右側統計名單（今日）──
+    /** 把所有日期的紀錄加總成一份 { 座號: { 項目: 次數 } } */
+    function seatAggregateAll() {
+        var all = getSeatRecords();
+        var out = {};
+        Object.keys(all).forEach(function (date) {
+            Object.keys(all[date]).forEach(function (seat) {
+                if (!out[seat]) out[seat] = {};
+                Object.keys(all[date][seat]).forEach(function (key) {
+                    out[seat][key] = (out[seat][key] || 0) + all[date][seat][key];
+                });
+            });
+        });
+        return out;
+    }
+    function seatSummaryData() {
+        return seatSummaryRange === 'all' ? seatAggregateAll() : getTodaySeatRecord();
+    }
+
+    // ── 右側統計名單 ──
     function renderSeatSummary(today) {
         var box = document.getElementById('seat-summary');
         if (!box) return;
+        today = seatSummaryData();
+        document.querySelectorAll('.seat-srange-btn').forEach(function (btn) {
+            var on = btn.dataset.srange === seatSummaryRange;
+            btn.className = 'seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ' +
+                (on ? 'bg-sky-600 text-white shadow' : 'bg-white text-slate-500 hover:bg-sky-100');
+        });
+        document.getElementById('seat-summary-title').textContent =
+            seatSummaryRange === 'all' ? '累計登記' : '今日登記';
         box.innerHTML = '';
         var totalTimes = 0;
         Object.keys(today).forEach(function (n) { totalTimes += seatTotalOf(today, n); });
@@ -2046,10 +2097,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     '<b class="ml-auto ' + c.text + ' text-lg">' + times + '</b>' +
                 '</div>' +
                 '<div class="text-slate-500 text-sm leading-relaxed pl-4">' +
-                    (names.length ? names.join('、') : '<span class="text-slate-300">今日無登記</span>') +
+                    (names.length ? names.join('、') : '<span class="text-slate-300">' +
+                        (seatSummaryRange === 'all' ? '沒有紀錄' : '今日無登記') + '</span>') +
                 '</div>';
             box.appendChild(el);
         });
+
+        var txt = document.getElementById('seat-report-text');
+        if (txt && !document.getElementById('seat-text-box').classList.contains('hidden')) {
+            txt.textContent = buildSeatReport();
+        }
     }
 
     function seatNamesFor(key, rec) {
@@ -2481,8 +2538,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 報告 ──
     function buildSeatReport() {
-        var today = getTodaySeatRecord();
-        var lines = ['座位檢查報告（' + getTodayKey() + '）'];
+        var today = seatSummaryData();
+        var lines = [seatSummaryRange === 'all'
+            ? '座位檢查報告（全部累計，至 ' + getTodayKey() + '）'
+            : '座位檢查報告（' + getTodayKey() + '）'];
         var any = false;
         seatItems.forEach(function (it) {
             var names = seatNamesFor(it.key, today);
@@ -2493,7 +2552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lines.push(names.length ? names.join('、') : '無');
             if (names.length) any = true;
         });
-        if (!any) lines.push('', '今日全部通過 👍');
+        if (!any) lines.push('', seatSummaryRange === 'all' ? '目前沒有任何登記紀錄' : '今日全部通過 👍');
         return lines.join(String.fromCharCode(10));
     }
 
