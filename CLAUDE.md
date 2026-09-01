@@ -2,10 +2,10 @@
 project: 班級計時器
 category: 學科工具集
 status: 開發中
-version: GAS 部署 @6（分頁順序同步）
+version: GAS 部署 @7（累計模式座位卡片）
 url: https://wukolo1206.github.io/classroom-timer/
 next_action: 實際上課試用 GAS 版，確認連點登記的次數與試算表一致
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # CLAUDE.md — 班級計時器

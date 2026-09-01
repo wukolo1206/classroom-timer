@@ -447,6 +447,7 @@
             <div class="flex-1 min-w-0">
                 <div class="text-center mb-4">
                     <div class="inline-block bg-slate-700 text-white text-sm tracking-[0.4em] px-16 py-2 rounded-lg">黑板（講台）</div>
+                    <div id="seat-chart-hint" class="hidden mt-2 text-sm text-sky-600 bg-sky-50 border border-sky-100 rounded-lg py-1.5 px-3 inline-block">📊 目前卡片顯示【全部累計】次數；點選登記仍會記到今日</div>
                 </div>
                 <div class="overflow-x-auto pb-2">
                     <div id="seat-chart" class="flex flex-col items-center gap-3"></div>
@@ -1994,7 +1995,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSeatChart() {
         var chart = document.getElementById('seat-chart');
         if (!chart) return;
-        var today = getTodaySeatRecord();
+        var today = seatSummaryData();
+        var hint = document.getElementById('seat-chart-hint');
+        if (hint) hint.classList.toggle('hidden', seatSummaryRange !== 'all');
         chart.innerHTML = '';
 
         seatLayout.forEach(function (row, ri) {
@@ -2131,7 +2134,8 @@ document.addEventListener('DOMContentLoaded', () => {
         var info = seatRoster[num];
         document.getElementById('seat-modal-num').textContent = num;
         document.getElementById('seat-modal-name').textContent = info[0];
-        document.getElementById('seat-modal-duty').textContent = info[1];
+        document.getElementById('seat-modal-duty').textContent = info[1] +
+            (seatSummaryRange === 'all' ? '｜以下為今日次數' : '');
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
