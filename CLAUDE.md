@@ -1,10 +1,10 @@
 ---
-project: 班級計時器
+project: 班級紀錄器
 category: 學科工具集
-status: 開發中
-version: GAS 部署 @7（累計模式座位卡片）
-url: https://wukolo1206.github.io/classroom-timer/
-next_action: 實際上課試用 GAS 版，確認連點登記的次數與試算表一致
+status: 維護中
+version: GAS 部署 @8（更名為班級紀錄器 + SH150 運動登記快捷連線）
+url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
+next_action: 課堂使用與大屏雙向切換
 updated: 2026-09-02
 ---
 
