@@ -1,16 +1,16 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 維護中
-version: GAS 部署 @8（更名為班級紀錄器 + SH150 運動登記快捷連線）
+status: 已部署（GAS @19，秩序登記與含氟每週紀錄）
+version: GAS 部署 @19（秩序登記加入週一至週五日期切換並統一當日文字）；保留良好表現名單兩欄、右側移除重複秩序項目清單、當週／每週統計、SH150 運動登記快捷連線與列印邊界調整
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 課堂使用與大屏雙向切換
-updated: 2026-09-02
+next_action: 實際使用秩序登記未登記名單、當週累計、每週統計與含氟每週紀錄，確認同步與列印結果
+updated: 2026-09-10
 ---
 
 # CLAUDE.md — 班級計時器
 
-單檔 HTML 課堂工具（`index.html`），分頁：倒數計時 / 打掃倒數 / 監考 / 座位檢查。
+單檔 HTML 課堂工具（`index.html`），分頁：倒數計時 / 監考 / 秩序登記 / 含氟每週紀錄。
 
 ## 技術框架
 
@@ -18,7 +18,7 @@ updated: 2026-09-02
 - 資料預設存瀏覽器 localStorage
 - `gas/`：Apps Script 專案，綁定試算表「碧小408四上聯絡簿」
   （`19zxbbVSalkk4OzfVYDWYVwDUKJyyvCBJD_NdKGHKfJA`），`gas/index.html` 是 root 的複本
-- 座位檢查的雲端同步只在 GAS 版啟用，靠 `google.script.run` 是否存在判斷
+- 秩序登記的雲端同步只在 GAS 版啟用，靠 `google.script.run` 是否存在判斷
 
 **兩個網址，行為不同：**
 
@@ -43,7 +43,7 @@ updated: 2026-09-02
 `clasp deploy` 後用無痕視窗開 GAS 網址確認：
 
 1. 四個分頁都在，順序符合雲端設定，⚙️ 可開分頁順序視窗
-2. 切到座位檢查：狀態列顯示「☁ 已同步至試算表」（不是「⚠ 待同步」或「○ 本機模式」）
+2. 切到秩序登記：狀態列顯示「☁ 已同步至試算表」（不是「⚠ 待同步」或「○ 本機模式」）
 3. 檢查項目與座位表是雲端那份（不是預設三項）
 4. 連點同一人 3 下 → 試算表該列次數精準為 3（驗證佇列沒有重送問題）
 5. 測試後把測試列從「上課表現紀錄」刪掉，並還原被測試改動的雲端設定
