@@ -102,8 +102,75 @@
 
         /* ── Seat check ── */
         .seat-dot { width: 10px; height: 10px; border-radius: 9999px; display: inline-block; }
-        .seat-cell { width: 96px; }
+        .seat-cell { width: 86px; min-width: 86px; }
         .seat-cell:active { transform: scale(0.96); }
+        @media (min-width: 1280px) {
+            .seat-cell { width: 96px; min-width: 96px; }
+        }
+
+        /* ── Weekly record ── */
+        .weekly-table { border-collapse: separate; border-spacing: 0; }
+        .weekly-table th, .weekly-table td { border-right: 1px solid #bae6fd; border-bottom: 1px solid #bae6fd; }
+        .weekly-table th { background: #f0f9ff; color: #475569; font-weight: 700; }
+        .weekly-table thead th { border-top: 1px solid #bae6fd; }
+        .weekly-table tr > :first-child { border-left: 1px solid #bae6fd; }
+        .weekly-table .weekly-fixed { position: sticky; z-index: 2; background: #ffffff; }
+        .weekly-table thead .weekly-fixed { background: #f0f9ff; z-index: 4; }
+        .weekly-table .weekly-seat { left: 0; min-width: 3.5rem; width: 3.5rem; }
+        .weekly-table .weekly-name { left: 3.5rem; min-width: 6.5rem; width: 6.5rem; }
+        .weekly-table .weekly-count { left: 10rem; min-width: 5.5rem; width: 5.5rem; }
+        .weekly-table .weekly-week { min-width: 4.5rem; width: 4.5rem; }
+        .weekly-table tr.weekly-excluded-row .weekly-seat,
+        .weekly-table tr.weekly-excluded-row .weekly-name { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: #b45309; }
+        .weekly-week-input { width: 3.5rem; }
+        .weekly-date-input { width: 3.8rem; }
+        .weekly-mark { min-height: 2.8rem; min-width: 4rem; width: 100%; font-size: 1.25rem; font-weight: 700; transition: all 0.15s; }
+        .weekly-mark:hover { background: #f0f9ff; }
+        .weekly-mark:active { transform: scale(0.94); }
+        .weekly-mark-done { color: #15803d; background: #dcfce7; }
+        .weekly-mark-missed { color: #dc2626; background: #fee2e2; }
+        .weekly-current-week { box-shadow: inset 0 -3px 0 #0284c7; }
+
+        /* ── Weekly printable form ── */
+        .weekly-print-sheet { display: none; box-sizing: border-box; }
+        .weekly-print-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .weekly-print-table th, .weekly-print-table td { border: 1px solid #111; padding: 0; text-align: center; vertical-align: middle; }
+        .weekly-print-table .print-seat-col { width: 4%; }
+        .weekly-print-table .print-name-col { width: 17%; }
+        .weekly-print-table .print-action-col { width: 4%; }
+        .weekly-print-table .print-count-col { width: 4%; }
+        /* 4 + 17 + 4 + 4 + (20 × 3.55) = 100%，避免表格向右溢出。 */
+        .weekly-print-table .print-week-col { width: 3.55%; }
+        .weekly-print-table thead th { height: 6mm; font-weight: 700; }
+        .weekly-print-table tbody td { height: 6.4mm; font-size: 10pt; }
+        .weekly-print-table .print-label { width: 4%; font-weight: 700; }
+        .weekly-print-table .print-class-cell { width: 17%; font-size: 19pt; line-height: 1.25; font-weight: 700; white-space: pre-line; }
+        .weekly-print-table .print-name-cell { text-align: left; padding-left: 2mm; font-size: 10pt; }
+        .weekly-print-table .print-mark { font-size: 11pt; font-weight: 700; }
+        .weekly-print-table .print-done { color: #111; }
+        .weekly-print-table .print-missed { color: #111; }
+        .weekly-print-table tr.print-excluded td { position: relative; }
+        .weekly-print-table tr.print-excluded td::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid #111; pointer-events: none; z-index: 2; }
+        .weekly-print-notes { display: flex; justify-content: space-between; gap: 8mm; border: 1px solid #111; border-top: 0; padding: 2.5mm 3mm; font-size: 10pt; line-height: 1.8; }
+
+        @media print {
+            @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+            html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+            body > * { display: none !important; }
+            body > #weekly-print-sheet {
+                display: block !important;
+                width: 93% !important;
+                max-width: 180mm !important;
+                margin: 4mm auto 0 auto !important;
+                padding: 4mm 4px 0 4px !important;
+                box-sizing: border-box !important;
+            }
+            .weekly-print-sheet { color: #111; font-family: 'Noto Sans TC', sans-serif; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .weekly-print-title { text-align: center; font-size: 13.5pt; font-weight: 700; margin: 4px 0 6px; letter-spacing: 0.5px; white-space: nowrap; }
+            .weekly-print-table { width: 100% !important; page-break-inside: avoid; }
+            .weekly-print-table thead { display: table-header-group; }
+            .weekly-print-table tr { page-break-inside: avoid; }
+        }
     </style>
 </head>
 <body class="bg-sky-50 min-h-screen p-4 md:p-6">
@@ -120,11 +187,11 @@
     </div>
 
     <!-- Tabs -->
-    <div id="tab-bar" class="flex border-b border-sky-100">
+    <div id="tab-bar" class="flex border-b border-sky-100 overflow-x-auto">
         <button id="tab-timer-btn" class="tab-btn tab-active flex-1 py-3 px-4 font-semibold transition-all">⏱ 倒數計時</button>
-        <button id="tab-cleaning-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🧹 打掃倒數</button>
         <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
-        <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 座位檢查</button>
+        <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 秩序登記</button>
+        <button id="tab-weekly-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🗓 含氟每週紀錄</button>
         <a href="https://wukolo1206.github.io/sh150-tracker/" target="_blank" class="py-3 px-3 font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all border-b-[3px] border-transparent flex items-center gap-1 text-sm whitespace-nowrap" title="前往 408 SH150 跑跳遊臺灣每日運動登記">🏃 SH150 登記 ↗</a>
         <button id="tab-order-btn" title="調整分頁順序" class="px-3 text-slate-300 hover:text-sky-600 transition-all border-b-[3px] border-transparent">⚙️</button>
     </div>
@@ -436,12 +503,67 @@
         </div>
     </div><!-- end #panel-exam -->
 
+    <!-- ══════════════ WEEKLY RECORD PANEL ══════════════ -->
+    <div id="panel-weekly" class="hidden p-4 md:p-8">
+        <div class="flex flex-wrap items-start gap-3 mb-5">
+            <div class="flex-1 min-w-[16rem]">
+                <h2 class="text-slate-700 font-bold text-xl">🗓 含氟每週紀錄</h2>
+                <p class="text-slate-400 text-sm mt-1">依照參考表格，每位學生一列、每週一格；點格子會循環顯示空白 → ✓ 已實施 → X 未執行。</p>
+            </div>
+            <span id="weekly-sync-status" class="text-slate-400 text-sm"></span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <label class="text-slate-500 text-sm font-medium">表單名稱
+                <input id="weekly-title" type="text" maxlength="80"
+                    class="mt-1 w-full px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            </label>
+            <label class="text-slate-500 text-sm font-medium">學期／班級
+                <input id="weekly-subtitle" type="text" maxlength="80"
+                    class="mt-1 w-full px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
+            </label>
+            <label class="text-slate-500 text-sm font-medium">不參加含氟座號（列印劃線）
+                <input id="weekly-excluded-seats" type="text" maxlength="80" placeholder="例如：9,20,24,27"
+                    class="mt-1 w-full px-3 py-2 rounded-lg bg-amber-50 text-slate-700 border border-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400">
+            </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <label class="text-slate-500 text-sm font-medium">目前操作週次
+                <select id="weekly-current-week" class="ml-1 px-3 py-2 rounded-lg bg-white text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400"></select>
+            </label>
+            <button id="weekly-fill-done" class="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">✓ 全班標記已實施</button>
+            <button id="weekly-fill-missed" class="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">X 全班標記未執行</button>
+            <button id="weekly-clear-week" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all">清除本週</button>
+        </div>
+
+        <div class="overflow-x-auto pb-2">
+            <table id="weekly-table" class="weekly-table text-sm"></table>
+        </div>
+        <p class="text-slate-400 text-xs mt-2">週次欄下方可填日期；「實施次數」會自動統計 ✓。缺席、不同意或當天未執行，可用 X 標記。</p>
+
+        <div class="flex flex-wrap gap-3 mt-5 pt-5 border-t border-sky-100">
+            <button id="weekly-print-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">🖨 列印繳交版</button>
+            <button id="weekly-export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">⬇️ 匯出每週資料</button>
+            <button id="weekly-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除全部每週紀錄</button>
+        </div>
+    </div><!-- end #panel-weekly -->
+
     <!-- ══════════════ SEAT CHECK PANEL ══════════════ -->
     <div id="panel-seat" class="hidden p-6 md:p-8">
 
+        <div class="mb-5">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-600 text-sm font-bold">秩序登記日期</span>
+                <span id="seat-week-label" class="text-slate-400 text-sm"></span>
+            </div>
+            <div id="seat-date-tabs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
+        </div>
+
         <div class="flex flex-wrap items-center gap-2 mb-5">
-            <span class="text-slate-500 text-sm font-medium mr-1">點座位卡片：</span>
+            <span class="text-slate-500 text-sm font-medium mr-1">點學生卡片：</span>
             <div id="seat-modes" class="flex flex-wrap gap-2"></div>
+            <button id="seat-undo-btn" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-all" title="把最後一次登記減回一筆">↩ 按錯？減回一筆</button>
             <span id="seat-sync-status" class="ml-auto text-slate-400 text-sm"></span>
             <span id="seat-check-date" class="text-slate-400 text-sm"></span>
         </div>
@@ -452,7 +574,7 @@
             <div class="flex-1 min-w-0">
                 <div class="text-center mb-4">
                     <div class="inline-block bg-slate-700 text-white text-sm tracking-[0.4em] px-16 py-2 rounded-lg">黑板（講台）</div>
-                    <div id="seat-chart-hint" class="hidden mt-2 text-sm text-sky-600 bg-sky-50 border border-sky-100 rounded-lg py-1.5 px-3 inline-block">📊 目前卡片顯示【全部累計】次數；點選登記仍會記到今日</div>
+                    <div id="seat-chart-hint" class="hidden mt-2 text-sm text-sky-600 bg-sky-50 border border-sky-100 rounded-lg py-1.5 px-3 inline-block">📊 目前卡片顯示【全部累計】次數；點選登記仍會記到所選日期</div>
                 </div>
                 <div class="overflow-x-auto pb-2">
                     <div id="seat-chart" class="flex flex-col items-center gap-3"></div>
@@ -463,11 +585,12 @@
             <aside class="w-full lg:w-72 lg:flex-shrink-0">
                 <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
                     <div class="flex gap-1 mb-3">
-                        <button data-srange="today" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">今日</button>
+                        <button data-srange="today" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">當日</button>
+                        <button data-srange="week" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">當週累計</button>
                         <button data-srange="all" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">全部累計</button>
                     </div>
                     <div class="flex items-baseline justify-between mb-3 pb-3 border-b border-sky-200">
-                        <span id="seat-summary-title" class="text-slate-600 font-bold">今日登記</span>
+                        <span id="seat-summary-title" class="text-slate-600 font-bold">當日登記</span>
                         <span>
                             <b id="seat-count-total" class="text-sky-700 text-3xl">0</b><span class="text-slate-400 text-sm ml-1">次</span>
                             <span class="text-slate-300 mx-1">/</span>
@@ -480,23 +603,22 @@
                 <div id="seat-text-box" class="hidden mt-2">
                     <pre id="seat-report-text" class="whitespace-pre-wrap break-words bg-white border border-sky-100 rounded-lg p-3 text-slate-600 text-sm leading-relaxed max-h-72 overflow-y-auto" style="font-family: inherit;"></pre>
                 </div>
-                <button id="seat-stats-btn" class="w-full mt-3 px-4 py-2.5 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📊 累計次數統計</button>
-                <button id="seat-items-btn" class="w-full mt-2 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⚙️ 編輯檢查項目</button>
+                <button id="seat-stats-btn" class="w-full mt-3 px-4 py-2.5 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📊 秩序統計</button>
+                <button id="seat-items-btn" class="w-full mt-2 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⚙️ 編輯秩序項目</button>
                 <a href="https://wukolo1206.github.io/sh150-tracker/" target="_blank" class="w-full mt-3 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 shadow-sm" title="前往 408 SH150 跑跳遊臺灣每日運動登記">🏃 前往 SH150 運動登記 ↗</a>
             </aside>
         </div>
 
         <!-- 操作 -->
         <div class="flex flex-wrap gap-3 mt-6 pt-5 border-t border-sky-100">
-            <button id="seat-copy-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📋 複製檢查報告</button>
-            <button id="seat-edit-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">✏️ 編輯座位表</button>
-            <button id="seat-undo-btn" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all">↩ 復原上一筆</button>
-            <button id="seat-export-btn" class="px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⬇️ 匯出座位資料</button>
+            <button id="seat-copy-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">📋 複製秩序報告</button>
+            <button id="seat-edit-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">✏️ 編輯座位排列</button>
+            <button id="seat-export-btn" class="px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⬇️ 匯出秩序資料</button>
             <label class="px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all cursor-pointer">
                 ⬆️ 匯入座位資料
                 <input type="file" id="seat-import-input" accept="application/json,.json" class="hidden">
             </label>
-            <button id="seat-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除今日紀錄</button>
+            <button id="seat-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除所選日期</button>
         </div>
 
         <!-- 座位表編輯 -->
@@ -514,6 +636,16 @@
 
 </div><!-- end card -->
 </div><!-- end max-w -->
+
+<!-- 列印時只顯示這份 A4 繳交版表格 -->
+<div id="weekly-print-sheet" class="weekly-print-sheet" aria-hidden="true">
+    <div id="weekly-print-title" class="weekly-print-title"></div>
+    <table id="weekly-print-table" class="weekly-print-table"></table>
+    <div class="weekly-print-notes">
+        <div>1. 不同意參加的學生請直接劃掉</div>
+        <div>2. 當天未執行的打 X</div>
+    </div>
+</div>
 
 <!-- Notification -->
 <div id="notification" class="notification">
@@ -545,10 +677,10 @@
             <h3 id="seat-modal-name" class="text-slate-800 text-2xl font-bold"></h3>
         </div>
         <div id="seat-modal-duty" class="text-slate-400 text-sm mb-4"></div>
-        <div class="text-slate-500 text-sm mb-2">點項目登記一次，可重複登記：</div>
+        <div class="text-slate-500 text-sm mb-2">點項目增加 1 次；按右側「減 1」可修正誤按：</div>
         <div id="seat-modal-list" class="flex flex-col gap-2"></div>
         <div class="flex gap-3 justify-between items-center mt-5">
-            <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人今日紀錄</button>
+            <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人當日紀錄</button>
             <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">完成</button>
         </div>
     </div>
@@ -579,7 +711,7 @@
 <div id="seat-stats-modal" class="modal">
     <div class="modal-content" style="max-width: 760px;">
         <div class="flex items-baseline gap-3 mb-1">
-            <h3 class="text-slate-800 text-xl font-bold">累計次數統計</h3>
+            <h3 class="text-slate-800 text-xl font-bold">秩序統計</h3>
             <span id="seat-stats-meta" class="text-slate-400 text-sm"></span>
         </div>
         <div class="flex flex-wrap gap-2 my-4">
@@ -587,6 +719,7 @@
             <button data-range="30" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">近 30 天</button>
             <button data-range="7" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">近 7 天</button>
             <button data-range="today" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">今日</button>
+            <button data-range="weekly" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">每週統計</button>
         </div>
         <div class="overflow-x-auto border border-sky-100 rounded-xl">
             <table id="seat-stats-table" class="w-full text-sm"></table>
@@ -613,10 +746,10 @@
 <!-- Seat check items modal -->
 <div id="seat-items-modal" class="modal">
     <div class="modal-content">
-        <h3 class="text-slate-800 text-xl font-bold mb-1">檢查項目</h3>
-        <p class="text-slate-400 text-sm mb-4">可修改文字、用 ▲▼ 調整順序、點色點換顏色或新增項目。刪除項目會一併移除該項目的今日紀錄。</p>
+            <h3 class="text-slate-800 text-xl font-bold mb-1">秩序項目</h3>
+            <p class="text-slate-400 text-sm mb-4">可修改文字、用 ▲▼ 調整順序、點色點換顏色或新增項目。刪除項目會一併移除該項目的紀錄。</p>
         <div id="seat-items-list" class="flex flex-col gap-2"></div>
-        <button id="seat-items-add" class="mt-3 w-full px-4 py-2 border-2 border-dashed border-sky-200 text-sky-600 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">＋ 新增檢查項目</button>
+        <button id="seat-items-add" class="mt-3 w-full px-4 py-2 border-2 border-dashed border-sky-200 text-sky-600 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">＋ 新增秩序項目</button>
         <div class="flex gap-3 justify-end mt-5">
             <button id="seat-items-cancel" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">取消</button>
             <button id="seat-items-save" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存</button>
@@ -728,12 +861,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Tabs ──────────────────────────────────────────────────
     document.getElementById('tab-timer-btn').addEventListener('click', () => switchTab('timer'));
-    document.getElementById('tab-cleaning-btn').addEventListener('click', () => switchTab('cleaning'));
     document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
     document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
+    document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['timer', 'cleaning', 'exam', 'seat'];
+    var defaultTabOrder = ['timer', 'exam', 'seat', 'weekly'];
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
 
@@ -836,6 +969,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'seat') {
             stopCleaningCountdown(); stopExamClock();
             updateSeatDate(); renderSeatChart(); seatSyncPull();
+        } else if (tab === 'weekly') {
+            stopCleaningCountdown(); stopExamClock();
+            renderWeeklyTable(); weeklySyncPull();
         } else {
             stopCleaningCountdown(); stopExamClock();
         }
@@ -1224,7 +1360,9 @@ document.addEventListener('DOMContentLoaded', () => {
             seatLayout: localStorage.getItem('seatLayout') || null,
             seatCheckRecords: JSON.parse(localStorage.getItem('seatCheckRecords') || '{}'),
             seatCheckItems: JSON.parse(localStorage.getItem('seatCheckItems') || 'null'),
-            tabOrder: JSON.parse(localStorage.getItem('timerTabOrder') || 'null')
+            tabOrder: JSON.parse(localStorage.getItem('timerTabOrder') || 'null'),
+            weeklySettings: typeof getWeeklySettings === 'function' ? getWeeklySettings() : null,
+            weeklyRecords: typeof getWeeklyRecords === 'function' ? getWeeklyRecords() : {}
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -1285,6 +1423,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 tabOrder = loadTabOrder();
                 applyTabOrder();
             }
+            if (data.weeklySettings) {
+                weeklySettings = normalizeWeeklySettings(data.weeklySettings);
+                saveWeeklySettingsLocal();
+            }
+            if (data.weeklyRecords) {
+                weeklyRecords = normalizeWeeklyRecords(data.weeklyRecords);
+                saveWeeklyRecordsLocal();
+                weeklySyncAllLocal();
+            }
+            renderWeeklyTable();
             renderSeatChart();
             alert('匯入成功！');
         };
@@ -1709,6 +1857,565 @@ document.addEventListener('DOMContentLoaded', () => {
         ',22 | , | ,'
     ].join(String.fromCharCode(10));
 
+    // ── 每週記錄 ──────────────────────────────────────
+    // 一格只存「done」或「missed」，空白代表尚未填寫；資料放在 DocumentProperties，
+    // 不新增或改寫試算表分頁，符合專案對正式聯絡簿分頁的保護規則。
+    var WEEKLY_SETTINGS_KEY = 'weeklyRecordSettings';
+    var WEEKLY_RECORDS_KEY = 'weeklyRecordData';
+    var WEEKLY_SYNC = (typeof google !== 'undefined' && google.script && google.script.run) ? true : false;
+    var weeklySettings = null;
+    var weeklyRecords = {};
+    var weeklySelectedWeek = parseInt(localStorage.getItem('weeklySelectedWeek') || '1', 10) || 1;
+    var weeklySyncBusy = 0;
+    var weeklySyncError = '';
+    var weeklyFlushing = false;
+    var weeklyRetryTimer = null;
+
+    function makeWeeklyDefaultSettings() {
+        var weeks = [];
+        var months = [9, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 12, 1, 1, 1];
+        var days = [8, 15, 22, 29, 6, 13, 20, 27, 3, 10, 17, 24, 1, 8, 15, 22, 29, 5, 12, 19];
+        for (var i = 1; i <= 20; i++) {
+            weeks.push({ label: String(i), date: months[i - 1] + '/' + days[i - 1], year: i <= 17 ? '115' : '116' });
+        }
+        return {
+            title: '新北市三重區碧華國小校115學年第1學期含氟漱口水實施記錄表',
+            subtitle: '四年8班',
+            weeks: weeks,
+            excludedSeats: [9, 20, 24, 27]
+        };
+    }
+
+    function normalizeWeeklyExcludedSeats(raw, fallback) {
+        var source;
+        if (Array.isArray(raw)) source = raw;
+        else if (typeof raw === 'string') source = raw.split(/[\s,，、;；]+/);
+        else source = Array.isArray(fallback) ? fallback : [];
+        var seen = {};
+        var out = [];
+        source.forEach(function (value) {
+            var seat = parseInt(String(value).trim(), 10);
+            if (seat >= 1 && seat <= 34 && !seen[seat]) {
+                seen[seat] = true; out.push(seat);
+            }
+        });
+        return out.sort(function (a, b) { return a - b; });
+    }
+
+    function normalizeWeeklySettings(raw) {
+        var defaults = makeWeeklyDefaultSettings();
+        raw = raw && typeof raw === 'object' ? raw : {};
+        var out = {
+            title: typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim().slice(0, 80) : defaults.title,
+            subtitle: typeof raw.subtitle === 'string' && raw.subtitle.trim() ? raw.subtitle.trim().slice(0, 80) : defaults.subtitle,
+            excludedSeats: normalizeWeeklyExcludedSeats(raw.excludedSeats, defaults.excludedSeats),
+            weeks: []
+        };
+        for (var i = 0; i < defaults.weeks.length; i++) {
+            var src = Array.isArray(raw.weeks) ? raw.weeks[i] : null;
+            if (typeof src === 'string') src = { label: src };
+            src = src && typeof src === 'object' ? src : {};
+            out.weeks.push({
+                label: typeof src.label === 'string' && src.label.trim() ? src.label.trim().slice(0, 16) : defaults.weeks[i].label,
+                date: typeof src.date === 'string' ? src.date.trim().slice(0, 16) : defaults.weeks[i].date,
+                year: typeof src.year === 'string' && src.year.trim() ? src.year.trim().slice(0, 8) : defaults.weeks[i].year
+            });
+        }
+        return out;
+    }
+
+    function getWeeklySettings() {
+        var raw = localStorage.getItem(WEEKLY_SETTINGS_KEY);
+        if (!raw) return makeWeeklyDefaultSettings();
+        try { return normalizeWeeklySettings(JSON.parse(raw)); } catch (e) { return makeWeeklyDefaultSettings(); }
+    }
+
+    function saveWeeklySettingsLocal() {
+        localStorage.setItem(WEEKLY_SETTINGS_KEY, JSON.stringify(normalizeWeeklySettings(weeklySettings)));
+    }
+
+    function normalizeWeeklyRecords(raw) {
+        var out = {};
+        if (!raw || typeof raw !== 'object') return out;
+        Object.keys(raw).forEach(function (seat) {
+            if (!seatRoster[seat] || !raw[seat] || typeof raw[seat] !== 'object') return;
+            Object.keys(raw[seat]).forEach(function (week) {
+                var n = parseInt(week, 10);
+                var state = raw[seat][week];
+                if (n < 1 || n > 20 || (state !== 'done' && state !== 'missed')) return;
+                if (!out[seat]) out[seat] = {};
+                out[seat][String(n)] = state;
+            });
+        });
+        return out;
+    }
+
+    function getWeeklyRecords() {
+        var raw = localStorage.getItem(WEEKLY_RECORDS_KEY);
+        if (!raw) return {};
+        try { return normalizeWeeklyRecords(JSON.parse(raw)); } catch (e) { return {}; }
+    }
+
+    function saveWeeklyRecordsLocal() {
+        localStorage.setItem(WEEKLY_RECORDS_KEY, JSON.stringify(normalizeWeeklyRecords(weeklyRecords)));
+    }
+
+    function weeklyStateAt(seat, week) {
+        return weeklyRecords[String(seat)] && weeklyRecords[String(seat)][String(week)] || '';
+    }
+
+    function setWeeklyStateLocal(seat, week, state) {
+        seat = String(seat); week = String(week);
+        if (state !== 'done' && state !== 'missed') {
+            if (weeklyRecords[seat]) {
+                delete weeklyRecords[seat][week];
+                if (!Object.keys(weeklyRecords[seat]).length) delete weeklyRecords[seat];
+            }
+            return;
+        }
+        if (!weeklyRecords[seat]) weeklyRecords[seat] = {};
+        weeklyRecords[seat][week] = state;
+    }
+
+    function weeklyCopyState(out, seat, week, state) {
+        seat = String(seat); week = String(week);
+        if (state !== 'done' && state !== 'missed') {
+            if (out[seat]) {
+                delete out[seat][week];
+                if (!Object.keys(out[seat]).length) delete out[seat];
+            }
+            return;
+        }
+        if (!out[seat]) out[seat] = {};
+        out[seat][week] = state;
+    }
+
+    function weeklyQueue() {
+        try { return JSON.parse(localStorage.getItem('weeklySyncQueue') || '[]'); } catch (e) { return []; }
+    }
+
+    function saveWeeklyQueue(q) { localStorage.setItem('weeklySyncQueue', JSON.stringify(q)); }
+
+    function renderWeeklySyncStatus() {
+        var el = document.getElementById('weekly-sync-status');
+        if (!el) return;
+        if (!WEEKLY_SYNC) {
+            el.innerHTML = '<span class="text-slate-400">\u25cb 本機模式（未連試算表）</span>';
+            return;
+        }
+        var pending = weeklyQueue().length;
+        if (weeklySyncBusy > 0) {
+            el.innerHTML = '<span class="text-sky-500">\u21bb 同步中…</span>';
+        } else if (pending) {
+            el.innerHTML = '<span class="text-amber-600 font-semibold">\u26a0 待同步 ' + pending + ' 格' +
+                (weeklySyncError ? '（' + weeklySyncError + '）' : '') + '</span>';
+        } else {
+            el.innerHTML = '<span class="text-green-600">\u2601 已同步至試算表</span>';
+        }
+    }
+
+    function weeklyCommitSettings() {
+        var title = document.getElementById('weekly-title');
+        var subtitle = document.getElementById('weekly-subtitle');
+        var excluded = document.getElementById('weekly-excluded-seats');
+        weeklySettings.title = (title.value || '').trim() || makeWeeklyDefaultSettings().title;
+        weeklySettings.subtitle = (subtitle.value || '').trim() || makeWeeklyDefaultSettings().subtitle;
+        weeklySettings.excludedSeats = normalizeWeeklyExcludedSeats(excluded ? excluded.value : weeklySettings.excludedSeats, makeWeeklyDefaultSettings().excludedSeats);
+        saveWeeklySettingsLocal();
+        weeklySyncSettings();
+        renderWeeklyTable();
+    }
+
+    function renderWeeklyTable() {
+        var table = document.getElementById('weekly-table');
+        if (!table || !weeklySettings) return;
+        weeklySettings = normalizeWeeklySettings(weeklySettings);
+
+        var titleInput = document.getElementById('weekly-title');
+        var subtitleInput = document.getElementById('weekly-subtitle');
+        var excludedInput = document.getElementById('weekly-excluded-seats');
+        if (titleInput && titleInput.value !== weeklySettings.title) titleInput.value = weeklySettings.title;
+        if (subtitleInput && subtitleInput.value !== weeklySettings.subtitle) subtitleInput.value = weeklySettings.subtitle;
+        if (excludedInput) {
+            var excludedText = weeklySettings.excludedSeats.join(', ');
+            if (excludedInput.value !== excludedText) excludedInput.value = excludedText;
+        }
+
+        var select = document.getElementById('weekly-current-week');
+        if (select) {
+            select.innerHTML = '';
+            weeklySettings.weeks.forEach(function (week, idx) {
+                var opt = document.createElement('option');
+                opt.value = String(idx + 1);
+                opt.textContent = '第 ' + week.label + ' 週' + (week.date ? '（' + week.date + '）' : '');
+                select.appendChild(opt);
+            });
+            if (weeklySelectedWeek < 1 || weeklySelectedWeek > weeklySettings.weeks.length) weeklySelectedWeek = 1;
+            select.value = String(weeklySelectedWeek);
+        }
+
+        table.innerHTML = '';
+        var caption = document.createElement('caption');
+        caption.className = 'caption-top text-left pb-3';
+        var captionTitle = document.createElement('div');
+        captionTitle.className = 'text-slate-700 font-bold text-lg';
+        captionTitle.textContent = weeklySettings.title;
+        var captionSub = document.createElement('div');
+        captionSub.className = 'text-slate-400 text-sm mt-1';
+        captionSub.textContent = weeklySettings.subtitle;
+        caption.appendChild(captionTitle); caption.appendChild(captionSub); table.appendChild(caption);
+
+        var thead = document.createElement('thead');
+        var header = document.createElement('tr');
+        [['座號', 'weekly-seat'], ['姓名', 'weekly-name'], ['實施次數', 'weekly-count']].forEach(function (item) {
+            var th = document.createElement('th');
+            th.className = 'weekly-fixed ' + item[1] + ' px-2 py-2 text-center align-middle whitespace-nowrap';
+            th.textContent = item[0]; header.appendChild(th);
+        });
+        weeklySettings.weeks.forEach(function (week, idx) {
+            var th = document.createElement('th');
+            th.className = 'weekly-week p-1 text-center align-top' + (idx + 1 === weeklySelectedWeek ? ' weekly-current-week' : '');
+            var labelInput = document.createElement('input');
+            labelInput.type = 'text'; labelInput.maxLength = 16; labelInput.value = week.label;
+            labelInput.className = 'weekly-week-input px-1 py-0.5 text-center text-xs rounded border border-sky-200 bg-white focus:outline-none focus:ring-1 focus:ring-sky-400';
+            labelInput.title = '編輯第 ' + (idx + 1) + ' 週的標籤';
+            labelInput.addEventListener('change', function () {
+                weeklySettings.weeks[idx].label = labelInput.value.trim() || String(idx + 1);
+                saveWeeklySettingsLocal(); weeklySyncSettings(); renderWeeklyTable();
+            });
+            var dateInput = document.createElement('input');
+            dateInput.type = 'text'; dateInput.maxLength = 16; dateInput.value = week.date || '';
+            dateInput.placeholder = '日期'; dateInput.className = 'weekly-date-input mt-1 px-1 py-0.5 text-center text-[10px] rounded border border-sky-100 bg-white focus:outline-none focus:ring-1 focus:ring-sky-400';
+            dateInput.addEventListener('change', function () {
+                weeklySettings.weeks[idx].date = dateInput.value.trim();
+                saveWeeklySettingsLocal(); weeklySyncSettings(); renderWeeklyTable();
+            });
+            th.appendChild(labelInput); th.appendChild(document.createElement('br')); th.appendChild(dateInput);
+            header.appendChild(th);
+        });
+        thead.appendChild(header); table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        Object.keys(seatRoster).map(function (n) { return parseInt(n, 10); }).sort(function (a, b) { return a - b; }).forEach(function (seat) {
+            var tr = document.createElement('tr');
+            var excluded = weeklySettings.excludedSeats.indexOf(seat) >= 0;
+            if (excluded) tr.className = 'weekly-excluded-row';
+            var seatTd = document.createElement('td');
+            seatTd.className = 'weekly-fixed weekly-seat px-2 py-2 text-center font-bold text-slate-600';
+            seatTd.textContent = String(seat); tr.appendChild(seatTd);
+            var nameTd = document.createElement('td');
+            nameTd.className = 'weekly-fixed weekly-name px-2 py-2 font-medium text-slate-700 whitespace-nowrap';
+            nameTd.textContent = seatRoster[seat][0]; tr.appendChild(nameTd);
+            var done = 0;
+            weeklySettings.weeks.forEach(function (_week, idx) { if (weeklyStateAt(seat, idx + 1) === 'done') done++; });
+            var countTd = document.createElement('td');
+            countTd.className = 'weekly-fixed weekly-count px-1 py-2 text-center text-sky-700 font-bold';
+            countTd.textContent = done + ' / ' + weeklySettings.weeks.length; tr.appendChild(countTd);
+            weeklySettings.weeks.forEach(function (_week, idx) {
+                var td = document.createElement('td'); td.className = 'weekly-week p-0 text-center' + (idx + 1 === weeklySelectedWeek ? ' weekly-current-week' : '');
+                var button = document.createElement('button'); button.type = 'button';
+                var state = weeklyStateAt(seat, idx + 1);
+                button.className = 'weekly-mark' + (state === 'done' ? ' weekly-mark-done' : state === 'missed' ? ' weekly-mark-missed' : '');
+                button.textContent = state === 'done' ? '✓' : state === 'missed' ? 'X' : '';
+                button.title = seat + ' ' + seatRoster[seat][0] + '，第 ' + (idx + 1) + ' 週：' + (state === 'done' ? '已實施' : state === 'missed' ? '未執行' : '未填寫');
+                button.addEventListener('click', function () { cycleWeeklyCell(seat, idx + 1); });
+                td.appendChild(button); tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        renderWeeklySyncStatus();
+    }
+
+    function weeklyPrintDateParts(week, idx) {
+        var year = String(week.year || (idx < 17 ? '115' : '116'));
+        var month = '', day = '';
+        var parts = String(week.date || '').trim().split(/[\/.-]/).filter(function (v) { return v !== ''; });
+        if (parts.length >= 3) {
+            year = parts[0]; month = parts[1]; day = parts[2];
+        } else if (parts.length === 2) {
+            month = parts[0]; day = parts[1];
+        } else if (parts.length === 1) {
+            day = parts[0];
+        }
+        return { year: year, month: month, day: day };
+    }
+
+    function weeklyPrintClassLabel() {
+        var text = String(weeklySettings.subtitle || '').trim();
+        var match = text.match(/^(.*?)(\d+\s*班)$/);
+        return match ? match[1].trim() + '\n' + match[2].replace(/\s+/g, '') : text;
+    }
+
+    function renderWeeklyPrintSheet() {
+        var titleInput = document.getElementById('weekly-title');
+        var subtitleInput = document.getElementById('weekly-subtitle');
+        if (titleInput && titleInput.value.trim()) weeklySettings.title = titleInput.value.trim();
+        if (subtitleInput && subtitleInput.value.trim()) weeklySettings.subtitle = subtitleInput.value.trim();
+        saveWeeklySettingsLocal();
+        var title = document.getElementById('weekly-print-title');
+        var table = document.getElementById('weekly-print-table');
+        if (!title || !table) return;
+        title.textContent = weeklySettings.title;
+        table.innerHTML = '';
+
+        var colgroup = document.createElement('colgroup');
+        ['print-seat-col', 'print-name-col', 'print-action-col', 'print-count-col'].forEach(function (className) {
+            var col = document.createElement('col'); col.className = className; colgroup.appendChild(col);
+        });
+        for (var c = 0; c < 20; c++) {
+            var weekCol = document.createElement('col'); weekCol.className = 'print-week-col'; colgroup.appendChild(weekCol);
+        }
+        table.appendChild(colgroup);
+
+        var thead = document.createElement('thead');
+        var years = document.createElement('tr');
+        var classCell = document.createElement('th');
+        classCell.colSpan = 4; classCell.rowSpan = 3; classCell.className = 'print-class-cell';
+        classCell.textContent = weeklyPrintClassLabel(); years.appendChild(classCell);
+        var dateLabels = ['年', '月', '日'];
+        dateLabels.forEach(function (label, rowIdx) {
+            if (rowIdx > 0) return;
+            var labelCell = document.createElement('th'); labelCell.rowSpan = 1; labelCell.className = 'print-label'; labelCell.textContent = label; years.appendChild(labelCell);
+            weeklySettings.weeks.forEach(function (week, idx) {
+                var cell = document.createElement('th'); cell.className = 'print-week-cell'; cell.textContent = weeklyPrintDateParts(week, idx).year; years.appendChild(cell);
+            });
+        });
+        thead.appendChild(years);
+
+        ['月', '日'].forEach(function (label) {
+            var row = document.createElement('tr');
+            var labelCell = document.createElement('th'); labelCell.className = 'print-label'; labelCell.textContent = label; row.appendChild(labelCell);
+            weeklySettings.weeks.forEach(function (week, idx) {
+                var cell = document.createElement('th'); cell.className = 'print-week-cell';
+                var date = weeklyPrintDateParts(week, idx); cell.textContent = label === '月' ? date.month : date.day; row.appendChild(cell);
+            });
+            thead.appendChild(row);
+        });
+
+        var weekHeader = document.createElement('tr');
+        ['座號', '姓名', '實施', '次'].forEach(function (label, idx) {
+            var cell = document.createElement('th'); cell.className = idx === 0 ? 'print-seat-col' : idx === 1 ? 'print-name-col' : idx === 2 ? 'print-action-col' : 'print-count-col';
+            cell.textContent = label; weekHeader.appendChild(cell);
+        });
+        weeklySettings.weeks.forEach(function (week, idx) {
+            var cell = document.createElement('th'); cell.className = 'print-week-cell'; cell.textContent = week.label || String(idx + 1); weekHeader.appendChild(cell);
+        });
+        thead.appendChild(weekHeader); table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+        for (var seat = 1; seat <= 34; seat++) {
+            var row = document.createElement('tr');
+            if (weeklySettings.excludedSeats.indexOf(seat) >= 0) row.className = 'print-excluded';
+            var seatCell = document.createElement('td'); seatCell.textContent = String(seat); row.appendChild(seatCell);
+            var nameCell = document.createElement('td'); nameCell.className = 'print-name-cell'; nameCell.textContent = seatRoster[seat] ? seatRoster[seat][0] : ''; row.appendChild(nameCell);
+            var actionCell = document.createElement('td'); actionCell.textContent = ''; row.appendChild(actionCell);
+            var countCell = document.createElement('td');
+            var done = 0;
+            weeklySettings.weeks.forEach(function (_week, idx) { if (seatRoster[seat] && weeklyStateAt(seat, idx + 1) === 'done') done++; });
+            countCell.className = 'print-mark'; countCell.textContent = done ? String(done) : ''; row.appendChild(countCell);
+            weeklySettings.weeks.forEach(function (_week, idx) {
+                var cell = document.createElement('td'); cell.className = 'print-mark';
+                var state = seatRoster[seat] ? weeklyStateAt(seat, idx + 1) : '';
+                cell.textContent = state === 'done' ? '✓' : state === 'missed' ? 'X' : '';
+                row.appendChild(cell);
+            });
+            tbody.appendChild(row);
+        }
+        table.appendChild(tbody);
+    }
+
+    function cycleWeeklyCell(seat, week) {
+        var current = weeklyStateAt(seat, week);
+        var next = current === '' ? 'done' : current === 'done' ? 'missed' : '';
+        setWeeklyStateLocal(seat, week, next);
+        saveWeeklyRecordsLocal();
+        weeklySyncPush(seat, week, next);
+        renderWeeklyTable();
+    }
+
+    function applyWeeklyStateToCurrentWeek(state) {
+        var week = weeklySelectedWeek;
+        Object.keys(seatRoster).forEach(function (seat) {
+            setWeeklyStateLocal(seat, week, state);
+            weeklySyncPush(seat, week, state);
+        });
+        saveWeeklyRecordsLocal(); renderWeeklyTable();
+    }
+
+    function weeklyDownload(content, filename, mime) {
+        var blob = new Blob([content], { type: mime });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function exportWeeklyData() {
+        var now = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        var key = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+        weeklyDownload(JSON.stringify({
+            type: 'weekly-record', exportedAt: key,
+            settings: weeklySettings, records: weeklyRecords
+        }, null, 2), '每週記錄備份_' + key + '.json', 'application/json');
+    }
+
+    function weeklySyncAllLocal() {
+        if (!WEEKLY_SYNC) return;
+        Object.keys(weeklyRecords).forEach(function (seat) {
+            Object.keys(weeklyRecords[seat]).forEach(function (week) {
+                weeklySyncPush(seat, week, weeklyRecords[seat][week]);
+            });
+        });
+    }
+
+    function weeklySyncPull() {
+        if (!WEEKLY_SYNC) { renderWeeklySyncStatus(); return; }
+        weeklySyncBusy++; renderWeeklySyncStatus();
+        google.script.run
+            .withSuccessHandler(function (bundle) {
+                weeklySyncBusy--; weeklySyncError = '';
+                var cloud = normalizeWeeklyRecords(bundle && bundle.records ? bundle.records : {});
+                var localRaw = localStorage.getItem(WEEKLY_RECORDS_KEY);
+                var local = getWeeklyRecords();
+                var merged = localRaw ? normalizeWeeklyRecords(cloud) : cloud;
+                if (localRaw) {
+                    Object.keys(local).forEach(function (seat) {
+                        Object.keys(local[seat]).forEach(function (week) {
+                            var state = local[seat][week];
+                            if (state !== ((cloud[seat] && cloud[seat][week]) || '')) weeklyCopyState(merged, seat, week, state);
+                        });
+                    });
+                }
+                weeklyQueue().forEach(function (job) { weeklyCopyState(merged, job.seat, job.week, job.state); });
+                weeklyRecords = merged; saveWeeklyRecordsLocal();
+
+                var localSettingsRaw = localStorage.getItem(WEEKLY_SETTINGS_KEY);
+                var cloudSettings = normalizeWeeklySettings(bundle && bundle.settings ? bundle.settings : null);
+                if (localSettingsRaw) {
+                    weeklySettings = getWeeklySettings();
+                    if (JSON.stringify(weeklySettings) !== JSON.stringify(cloudSettings)) weeklySyncSettings();
+                } else {
+                    weeklySettings = cloudSettings; saveWeeklySettingsLocal();
+                }
+                if (bundle && bundle.tabOrder && bundle.tabOrder.length) {
+                    localStorage.setItem('timerTabOrder', JSON.stringify(bundle.tabOrder));
+                    tabOrder = loadTabOrder(); applyTabOrder();
+                }
+                renderWeeklyTable();
+
+                if (localRaw) {
+                    Object.keys(local).forEach(function (seat) {
+                        Object.keys(local[seat]).forEach(function (week) {
+                            var cloudState = (cloud[seat] && cloud[seat][week]) || '';
+                            var pending = weeklyQueue().some(function (j) { return j.seat === String(seat) && j.week === String(week); });
+                            if (local[seat][week] !== cloudState && !pending) weeklySyncPush(seat, week, local[seat][week]);
+                        });
+                    });
+                }
+                weeklyFlushQueue();
+            })
+            .withFailureHandler(function (err) {
+                weeklySyncBusy--;
+                weeklySyncError = (err && err.message) ? err.message : '連線失敗';
+                renderWeeklySyncStatus();
+            })
+            .getWeeklyBundle();
+    }
+
+    function weeklySyncPush(seat, week, state) {
+        if (!WEEKLY_SYNC) return;
+        var job = { seat: String(seat), week: String(week), state: state || '' };
+        var q = weeklyQueue().filter(function (j) { return !(String(j.seat) === job.seat && String(j.week) === job.week); });
+        q.push(job); saveWeeklyQueue(q); weeklyFlushQueue();
+    }
+
+    function weeklyScheduleRetry() {
+        if (weeklyRetryTimer) return;
+        weeklyRetryTimer = setTimeout(function () { weeklyRetryTimer = null; weeklyFlushQueue(); }, 15000);
+    }
+
+    function weeklyFlushQueue() {
+        if (!WEEKLY_SYNC) { renderWeeklySyncStatus(); return; }
+        if (weeklyFlushing) return;
+        var q = weeklyQueue();
+        if (!q.length) { renderWeeklySyncStatus(); return; }
+        var job = q[0]; weeklyFlushing = true; weeklySyncBusy++; renderWeeklySyncStatus();
+        google.script.run
+            .withSuccessHandler(function () {
+                weeklyFlushing = false; weeklySyncBusy--; weeklySyncError = '';
+                var rest = weeklyQueue();
+                if (rest.length && String(rest[0].seat) === String(job.seat) && String(rest[0].week) === String(job.week) && rest[0].state === job.state) {
+                    rest.shift(); saveWeeklyQueue(rest);
+                }
+                if (weeklyQueue().length) weeklyFlushQueue(); else renderWeeklySyncStatus();
+            })
+            .withFailureHandler(function (err) {
+                weeklyFlushing = false; weeklySyncBusy--;
+                weeklySyncError = (err && err.message) ? err.message : '寫入失敗';
+                renderWeeklySyncStatus(); weeklyScheduleRetry();
+            })
+            .setWeeklyCell(job.week, job.seat, job.state);
+    }
+
+    function weeklySyncSettings() {
+        if (!WEEKLY_SYNC) { renderWeeklySyncStatus(); return; }
+        weeklySyncBusy++; renderWeeklySyncStatus();
+        google.script.run
+            .withSuccessHandler(function () { weeklySyncBusy--; weeklySyncError = ''; renderWeeklySyncStatus(); })
+            .withFailureHandler(function (err) {
+                weeklySyncBusy--;
+                weeklySyncError = (err && err.message) ? err.message : '設定同步失敗';
+                renderWeeklySyncStatus();
+            })
+            .saveWeeklySettings(weeklySettings);
+    }
+
+    function initWeeklyPanel() {
+        weeklySettings = getWeeklySettings();
+        weeklyRecords = getWeeklyRecords();
+        var title = document.getElementById('weekly-title');
+        var subtitle = document.getElementById('weekly-subtitle');
+        var excluded = document.getElementById('weekly-excluded-seats');
+        title.value = weeklySettings.title; subtitle.value = weeklySettings.subtitle;
+        excluded.value = weeklySettings.excludedSeats.join(', ');
+        title.addEventListener('change', weeklyCommitSettings);
+        subtitle.addEventListener('change', weeklyCommitSettings);
+        excluded.addEventListener('change', weeklyCommitSettings);
+        document.getElementById('weekly-current-week').addEventListener('change', function () {
+            weeklySelectedWeek = parseInt(this.value, 10) || 1;
+            localStorage.setItem('weeklySelectedWeek', String(weeklySelectedWeek));
+            renderWeeklyTable();
+        });
+        document.getElementById('weekly-fill-done').addEventListener('click', function () { applyWeeklyStateToCurrentWeek('done'); });
+        document.getElementById('weekly-fill-missed').addEventListener('click', function () { applyWeeklyStateToCurrentWeek('missed'); });
+        document.getElementById('weekly-clear-week').addEventListener('click', function () {
+            if (!confirm('確定清除第 ' + weeklySelectedWeek + ' 週全班紀錄嗎？')) return;
+            applyWeeklyStateToCurrentWeek('');
+        });
+        document.getElementById('weekly-print-btn').addEventListener('click', function () {
+            renderWeeklyPrintSheet();
+            window.print();
+        });
+        document.getElementById('weekly-export-btn').addEventListener('click', exportWeeklyData);
+        document.getElementById('weekly-clear-btn').addEventListener('click', function () {
+            if (!confirm('確定清除全部每週紀錄嗎？此動作無法復原。')) return;
+            weeklyRecords = {}; saveWeeklyRecordsLocal(); saveWeeklyQueue([]); renderWeeklyTable();
+            if (WEEKLY_SYNC) {
+                weeklySyncBusy++; renderWeeklySyncStatus();
+                google.script.run
+                    .withSuccessHandler(function () { weeklySyncBusy--; weeklySyncError = ''; renderWeeklySyncStatus(); })
+                    .withFailureHandler(function (err) {
+                        weeklySyncBusy--;
+                        weeklySyncError = (err && err.message) ? err.message : '清除失敗';
+                        renderWeeklySyncStatus();
+                    })
+                    .clearWeeklyRecords();
+            }
+        });
+        renderWeeklyTable(); renderWeeklySyncStatus();
+    }
+
     // 檢查項目配色（新增項目時依序取用）
     var seatPalette = [
         { dot: 'bg-amber-500',   text: 'text-amber-600',   soft: 'bg-amber-50 border-amber-300' },
@@ -1733,7 +2440,8 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatLayout = parseSeatLayout(localStorage.getItem('seatLayout') || defaultSeatLayoutText);
     var seatUndoStack = [];   // 本次開啟期間的登記紀錄，供「復原上一筆」使用
     var seatStatsRange = 'all';
-    var seatSummaryRange = 'today';   // 右側統計：today / all
+    var seatSummaryRange = 'today';   // 右側統計：today / week / all
+    var seatActiveDate = getTodayKey();
 
     function loadSeatItems() {
         var raw = localStorage.getItem('seatCheckItems');
@@ -1797,10 +2505,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(all).forEach(function (d) { out[d] = normalizeSeatDay(all[d]); });
         return out;
     }
-    function getTodaySeatRecord() { return getSeatRecords()[getTodayKey()] || {}; }
-    function saveTodaySeatRecord(today) {
+    function getSelectedSeatRecord() { return getSeatRecords()[seatActiveDate] || {}; }
+    function saveSelectedSeatRecord(today) {
         var all = getSeatRecords();
-        all[getTodayKey()] = today;
+        all[seatActiveDate] = today;
         localStorage.setItem('seatCheckRecords', JSON.stringify(all));
     }
     function seatCountOf(rec, num, key) { return (rec[num] && rec[num][key]) || 0; }
@@ -1811,13 +2519,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function addSeatCount(num, key, delta, silent) {
-        var rec = getTodaySeatRecord();
+        var rec = getSelectedSeatRecord();
         if (!rec[num]) rec[num] = {};
         var next = (rec[num][key] || 0) + delta;
         if (next <= 0) { delete rec[num][key]; } else { rec[num][key] = next; }
         if (!Object.keys(rec[num]).length) delete rec[num];
-        saveTodaySeatRecord(rec);
-        seatSyncPush(getTodayKey(), num, key);
+        saveSelectedSeatRecord(rec);
+        seatSyncPush(seatActiveDate, num, key);
         if (!silent && delta > 0) seatUndoStack.push({ num: num, key: key });
         if (seatModalNum !== null) renderSeatModalList();
         renderSeatChart();
@@ -1825,10 +2533,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initSeatPanel() {
         document.getElementById('seat-clear-btn').addEventListener('click', function () {
-            if (!confirm('確定要清除今日所有座位檢查紀錄？')) return;
-            saveTodaySeatRecord({});
+            if (!confirm('確定要清除' + seatDateLabel(seatActiveDate) + '所有秩序登記紀錄？')) return;
+            saveSelectedSeatRecord({});
             seatUndoStack = [];
-            seatSyncClear(getTodayKey());
+            seatSyncClear(seatActiveDate);
             renderSeatChart();
         });
 
@@ -1869,10 +2577,10 @@ document.addEventListener('DOMContentLoaded', () => {
         var seatModal = document.getElementById('seat-modal');
         document.getElementById('seat-modal-done').addEventListener('click', closeSeatModal);
         document.getElementById('seat-modal-pass').addEventListener('click', function () {
-            var rec = getTodaySeatRecord();
+            var rec = getSelectedSeatRecord();
             delete rec[seatModalNum];
-            saveTodaySeatRecord(rec);
-            seatSyncClear(getTodayKey(), seatModalNum);
+            saveSelectedSeatRecord(rec);
+            seatSyncClear(seatActiveDate, seatModalNum);
             renderSeatModalList();
             renderSeatChart();
         });
@@ -1908,7 +2616,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('seat-purge-toggle').addEventListener('click', function () {
             var box = document.getElementById('seat-purge-box');
             box.classList.toggle('hidden');
-            if (!box.classList.contains('hidden')) document.getElementById('seat-purge-date').value = getTodayKey();
+            if (!box.classList.contains('hidden')) document.getElementById('seat-purge-date').value = seatActiveDate;
         });
         document.getElementById('seat-purge-day').addEventListener('click', function () {
             var d = document.getElementById('seat-purge-date').value;
@@ -1963,8 +2671,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        seatSummaryRange = localStorage.getItem('seatSummaryRange') || 'today';
+        var savedSummaryRange = localStorage.getItem('seatSummaryRange');
+        seatSummaryRange = ['today', 'week', 'all'].indexOf(savedSummaryRange) >= 0 ? savedSummaryRange : 'today';
         renderSeatModeButtons();
+        renderSeatDateTabs();
         updateSeatDate();
         renderSeatChart();
         seatSyncPull();
@@ -1992,9 +2702,52 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function seatDateAdd(dateKey, days) {
+        var parts = String(dateKey).split('-').map(Number);
+        var d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() + days);
+        return seatDateKeyFromDate(d);
+    }
+
+    function seatDateLabel(dateKey) {
+        var parts = String(dateKey).split('-').map(Number);
+        var d = new Date(parts[0], parts[1] - 1, parts[2]);
+        var weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        return weekdays[d.getDay()] + '（' + (d.getMonth() + 1) + '/' + d.getDate() + '）';
+    }
+
+    function renderSeatDateTabs() {
+        var bar = document.getElementById('seat-date-tabs');
+        if (!bar) return;
+        var weekLabel = document.getElementById('seat-week-label');
+        var start = seatWeekStartKey(seatActiveDate);
+        if (weekLabel) weekLabel.textContent = '本週：' + seatWeekLabel(start);
+        bar.innerHTML = '';
+        for (var i = 0; i < 5; i++) {
+            var dateKey = seatDateAdd(start, i);
+            var btn = document.createElement('button');
+            var selected = dateKey === seatActiveDate;
+            btn.className = 'px-2 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ' +
+                (selected ? 'bg-sky-700 text-white border-sky-700 shadow' : 'bg-white text-slate-700 border-sky-100 hover:border-sky-300 hover:bg-sky-50');
+            btn.textContent = seatDateLabel(dateKey);
+            btn.addEventListener('click', function (key) {
+                return function () {
+                    seatActiveDate = key;
+                    seatSummaryRange = 'today';
+                    localStorage.setItem('seatSummaryRange', seatSummaryRange);
+                    seatUndoStack = [];
+                    renderSeatDateTabs();
+                    updateSeatDate();
+                    renderSeatChart();
+                };
+            }(dateKey));
+            bar.appendChild(btn);
+        }
+    }
+
     function updateSeatDate() {
         var el = document.getElementById('seat-check-date');
-        if (el) el.textContent = '今日：' + getTodayKey();
+        if (el) el.textContent = '已選：' + seatDateLabel(seatActiveDate);
     }
 
     // ── 座位表 ──
@@ -2008,7 +2761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         seatLayout.forEach(function (row, ri) {
             var rowEl = document.createElement('div');
-            rowEl.className = 'flex items-stretch gap-4';
+            rowEl.className = 'flex items-stretch gap-2';
 
             var label = document.createElement('div');
             label.className = 'w-8 flex items-center justify-end text-slate-300 text-xs font-bold';
@@ -2017,7 +2770,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             row.forEach(function (zone) {
                 var zoneEl = document.createElement('div');
-                zoneEl.className = 'flex gap-1.5';
+                zoneEl.className = 'flex gap-1';
                 zone.forEach(function (num) { zoneEl.appendChild(buildSeatCell(num, today)); });
                 rowEl.appendChild(zoneEl);
             });
@@ -2077,8 +2830,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return out;
     }
+    function seatAggregateFrom(fromKey) {
+        var all = getSeatRecords();
+        var out = {};
+        Object.keys(all).forEach(function (date) {
+            if (date < fromKey) return;
+            Object.keys(all[date]).forEach(function (seat) {
+                if (!out[seat]) out[seat] = {};
+                Object.keys(all[date][seat]).forEach(function (key) {
+                    out[seat][key] = (out[seat][key] || 0) + all[date][seat][key];
+                });
+            });
+        });
+        return out;
+    }
+    function seatAggregateCurrentWeek() {
+        return seatAggregateFrom(seatWeekStartKey(seatActiveDate));
+    }
     function seatSummaryData() {
-        return seatSummaryRange === 'all' ? seatAggregateAll() : getTodaySeatRecord();
+        if (seatSummaryRange === 'all') return seatAggregateAll();
+        if (seatSummaryRange === 'week') return seatAggregateCurrentWeek();
+        return getSelectedSeatRecord();
     }
 
     // ── 右側統計名單 ──
@@ -2092,31 +2864,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 (on ? 'bg-sky-600 text-white shadow' : 'bg-white text-slate-500 hover:bg-sky-100');
         });
         document.getElementById('seat-summary-title').textContent =
-            seatSummaryRange === 'all' ? '累計登記' : '今日登記';
+            seatSummaryRange === 'all' ? '累計登記' : seatSummaryRange === 'week' ? '當週累計' : '當日登記';
         box.innerHTML = '';
         var totalTimes = 0;
         Object.keys(today).forEach(function (n) { totalTimes += seatTotalOf(today, n); });
         document.getElementById('seat-count-total').textContent = totalTimes;
         document.getElementById('seat-count-people').textContent = Object.keys(today).length;
 
-        seatItems.forEach(function (it) {
-            var c = seatColor(it);
-            var names = seatNamesFor(it.key, today);
-            var times = 0;
-            Object.keys(today).forEach(function (n) { times += seatCountOf(today, n, it.key); });
-            var el = document.createElement('div');
-            el.innerHTML =
-                '<div class="flex items-center gap-2 mb-1">' +
-                    '<span class="seat-dot ' + c.dot + '"></span>' +
-                    '<span class="text-slate-600 text-sm font-semibold">' + it.label + '</span>' +
-                    '<b class="ml-auto ' + c.text + ' text-lg">' + times + '</b>' +
-                '</div>' +
-                '<div class="text-slate-500 text-sm leading-relaxed pl-4">' +
-                    (names.length ? names.join('、') : '<span class="text-slate-300">' +
-                        (seatSummaryRange === 'all' ? '沒有紀錄' : '今日無登記') + '</span>') +
-                '</div>';
-            box.appendChild(el);
-        });
+        var unregistered = Object.keys(seatRoster)
+            .filter(function (n) { return seatTotalOf(today, n) === 0; })
+            .sort(function (a, b) { return a - b; });
+        var missingBox = document.createElement('div');
+        missingBox.className = 'mt-3 pt-3 border-t border-sky-200';
+        var missingHeader = document.createElement('div');
+        missingHeader.className = 'flex items-center gap-2 mb-1';
+        missingHeader.innerHTML = '<span class="seat-dot bg-emerald-500"></span><span class="text-emerald-700 text-sm font-bold">🌟 表現良好：未被登記</span>';
+        var missingNames = document.createElement('div');
+        missingNames.className = 'grid grid-cols-2 gap-1 mt-2 pl-4 max-h-64 overflow-y-auto pr-1';
+        if (unregistered.length) {
+            unregistered.forEach(function (n) {
+                var row = document.createElement('div');
+                row.className = 'flex min-w-0 items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-semibold';
+                var mark = document.createElement('span');
+                mark.className = 'text-emerald-600 font-bold';
+                mark.textContent = '✓';
+                var name = document.createElement('span');
+                name.textContent = n + ' ' + (seatRoster[n] ? seatRoster[n][0] : '');
+                row.appendChild(mark);
+                row.appendChild(name);
+                missingNames.appendChild(row);
+            });
+        } else {
+            var allGood = document.createElement('div');
+            allGood.className = 'px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-sm font-semibold';
+            allGood.textContent = '全部都有登記 👍';
+            missingNames.appendChild(allGood);
+        }
+        missingBox.appendChild(missingHeader);
+        missingBox.appendChild(missingNames);
+        box.appendChild(missingBox);
 
         var txt = document.getElementById('seat-report-text');
         if (txt && !document.getElementById('seat-text-box').classList.contains('hidden')) {
@@ -2141,7 +2927,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('seat-modal-num').textContent = num;
         document.getElementById('seat-modal-name').textContent = info[0];
         document.getElementById('seat-modal-duty').textContent = info[1] +
-            (seatSummaryRange === 'all' ? '｜以下為今日次數' : '');
+            (seatSummaryRange === 'all' ? '｜以下為所選日期次數' : '');
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
@@ -2151,7 +2937,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function renderSeatModalList() {
         var list = document.getElementById('seat-modal-list');
-        var rec = getTodaySeatRecord();
+        var rec = getSelectedSeatRecord();
         var num = seatModalNum;
         list.innerHTML = '';
         seatItems.forEach(function (it) {
@@ -2170,10 +2956,10 @@ document.addEventListener('DOMContentLoaded', () => {
             add.addEventListener('click', function () { addSeatCount(num, it.key, 1); });
 
             var minus = document.createElement('button');
-            minus.className = 'w-8 h-8 rounded-lg flex-shrink-0 text-lg font-bold transition-all ' +
+            minus.className = 'w-12 h-8 rounded-lg flex-shrink-0 text-sm font-bold transition-all ' +
                 (n ? 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200' : 'text-slate-200 cursor-default');
-            minus.textContent = '−';
-            minus.title = '減一次';
+            minus.textContent = '減 1';
+            minus.title = '按錯減回一次';
             if (n) minus.addEventListener('click', function () { addSeatCount(num, it.key, -1, true); });
 
             row.appendChild(add);
@@ -2280,13 +3066,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 累計次數 ──
     function seatRangeStartKey() {
-        if (seatStatsRange === 'all') return null;
+        if (seatStatsRange === 'all' || seatStatsRange === 'weekly') return null;
         var d = new Date();
         if (seatStatsRange === 'today') { /* 今天 */ }
         else if (seatStatsRange === '7') d.setDate(d.getDate() - 6);
         else if (seatStatsRange === '30') d.setDate(d.getDate() - 29);
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+
+    function seatDateKeyFromDate(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    /** 以星期一為每週起點，將日期分到同一週。 */
+    function seatWeekStartKey(dateKey) {
+        var parts = String(dateKey).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(function (n) { return !isFinite(n); })) return String(dateKey);
+        var d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return seatDateKeyFromDate(d);
+    }
+
+    function seatWeekLabel(startKey) {
+        var parts = String(startKey).split('-').map(Number);
+        if (parts.length !== 3 || parts.some(function (n) { return !isFinite(n); })) return String(startKey);
+        var start = new Date(parts[0], parts[1] - 1, parts[2]);
+        var end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        return (start.getMonth() + 1) + '/' + start.getDate() + '–' + (end.getMonth() + 1) + '/' + end.getDate();
+    }
+
+    function collectSeatWeeklyStats() {
+        var all = getSeatRecords();
+        var weeks = {};
+        Object.keys(all).forEach(function (date) {
+            var start = seatWeekStartKey(date);
+            if (!weeks[start]) weeks[start] = { counts: {}, seats: {} };
+            Object.keys(all[date]).forEach(function (num) {
+                weeks[start].seats[num] = true;
+                Object.keys(all[date][num]).forEach(function (key) {
+                    weeks[start].counts[key] = (weeks[start].counts[key] || 0) + all[date][num][key];
+                });
+            });
+        });
+        return Object.keys(weeks).sort().reverse().map(function (start) {
+            var counts = weeks[start].counts;
+            var total = 0;
+            seatItems.forEach(function (it) { total += counts[it.key] || 0; });
+            return {
+                start: start,
+                label: seatWeekLabel(start),
+                people: Object.keys(weeks[start].seats).length,
+                counts: counts,
+                total: total
+            };
+        });
+    }
+
     function collectSeatStats() {
         var all = getSeatRecords();
         var from = seatRangeStartKey();
@@ -2323,6 +3159,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 (on ? 'bg-sky-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
         });
 
+        var purgeToggle = document.getElementById('seat-purge-toggle');
+        var purgeBox = document.getElementById('seat-purge-box');
+        if (seatStatsRange === 'weekly') {
+            if (purgeToggle) purgeToggle.classList.add('hidden');
+            if (purgeBox) purgeBox.classList.add('hidden');
+            renderWeeklySeatStats();
+            return;
+        }
+        if (purgeToggle) purgeToggle.classList.remove('hidden');
+
         var data = seatStatsRows();
         document.getElementById('seat-stats-meta').textContent =
             '共 ' + data.days + ' 天有紀錄，' + data.rows.length + ' 人被登記過';
@@ -2353,7 +3199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
 
         document.getElementById('seat-stats-table').innerHTML =
-            '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="9" class="py-6 text-center text-slate-300">這段期間沒有登記紀錄</td></tr>') + '</tbody>';
+            '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="' + (4 + seatItems.length) + '" class="py-6 text-center text-slate-300">這段期間沒有登記紀錄</td></tr>') + '</tbody>';
 
         document.querySelectorAll('.seat-purge-row').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -2365,8 +3211,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function renderWeeklySeatStats() {
+        var data = collectSeatWeeklyStats();
+        document.getElementById('seat-stats-meta').textContent = '共 ' + data.length + ' 週有紀錄';
+        var head = '<tr class="text-slate-400 text-xs">' +
+            '<th class="text-left font-semibold py-2 px-2 whitespace-nowrap">週次</th>' +
+            '<th class="text-center font-semibold py-2 px-2 whitespace-nowrap">登記人數</th>' +
+            seatItems.map(function (it) {
+                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
+            }).join('') +
+            '<th class="py-2 px-2 font-semibold text-slate-600">總計</th></tr>';
+        var body = data.map(function (r) {
+            return '<tr class="border-t border-sky-100">' +
+                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + r.label + '</td>' +
+                '<td class="py-2 px-2 text-center text-slate-500" style="font-variant-numeric:tabular-nums;">' + r.people + '</td>' +
+                seatItems.map(function (it) {
+                    var n = r.counts[it.key] || 0;
+                    return '<td class="py-2 px-2 text-center ' + (n ? seatColor(it).text + ' font-bold' : 'text-slate-200') +
+                        '" style="font-variant-numeric:tabular-nums;">' + n + '</td>';
+                }).join('') +
+                '<td class="py-2 px-2 text-center text-sky-700 font-bold text-lg" style="font-variant-numeric:tabular-nums;">' + r.total + '</td>' +
+            '</tr>';
+        }).join('');
+        document.getElementById('seat-stats-table').innerHTML =
+            '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="' + (3 + seatItems.length) + '" class="py-6 text-center text-slate-300">目前沒有每週登記紀錄</td></tr>') + '</tbody>';
+    }
+
     function seatRangeLabel() {
-        return { all: '全部期間', today: '今日', '7': '近 7 天', '30': '近 30 天' }[seatStatsRange];
+        return { all: '全部期間', weekly: '每週統計', today: '今日', '7': '近 7 天', '30': '近 30 天' }[seatStatsRange];
     }
 
     /** 目前期間內有紀錄的日期 */
@@ -2423,6 +3295,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function exportSeatCsv() {
+        if (seatStatsRange === 'weekly') {
+            var weekly = collectSeatWeeklyStats();
+            var weeklyLines = [['週次', '登記人數'].concat(seatItems.map(function (it) { return it.label; })).concat(['總計']).join(',')];
+            weekly.forEach(function (r) {
+                var weeklyCols = [r.label, r.people].concat(seatItems.map(function (it) { return r.counts[it.key] || 0; })).concat([r.total]);
+                weeklyLines.push(weeklyCols.map(function (c) {
+                    var v = String(c);
+                    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+                }).join(','));
+            });
+            downloadSeatFile('﻿' + weeklyLines.join('\r\n'), '秩序登記每週統計_' + getTodayKey() + '.csv', 'text/csv;charset=utf-8');
+            return;
+        }
         var data = seatStatsRows();
         var rangeName = { all: '全部', today: '今日', '7': '近7天', '30': '近30天' }[seatStatsRange];
         var lines = [['座號', '姓名'].concat(seatItems.map(function (it) { return it.label; })).concat(['總計']).join(',')];
@@ -2434,7 +3319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join(','));
         });
         // BOM 讓 Excel 正確讀中文
-        downloadSeatFile('﻿' + lines.join('\r\n'), '座位檢查次數_' + rangeName + '_' + getTodayKey() + '.csv', 'text/csv;charset=utf-8');
+        downloadSeatFile('﻿' + lines.join('\r\n'), '秩序登記次數_' + rangeName + '_' + getTodayKey() + '.csv', 'text/csv;charset=utf-8');
     }
 
     function exportSeatData() {
@@ -2445,7 +3330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             seatCheckItems: seatItems,
             seatCheckRecords: getSeatRecords()
         };
-        downloadSeatFile(JSON.stringify(data, null, 2), '座位檢查備份_' + getTodayKey() + '.json', 'application/json');
+        downloadSeatFile(JSON.stringify(data, null, 2), '秩序登記備份_' + getTodayKey() + '.json', 'application/json');
     }
 
     var seatImportPending = null;
@@ -2456,7 +3341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             var data;
             try { data = JSON.parse(e.target.result); } catch (err) { alert('匯入失敗：檔案格式不正確'); return; }
             if (!data.seatCheckRecords && !data.seatCheckItems && !data.seatLayout) {
-                alert('匯入失敗：這個檔案沒有座位檢查資料');
+                alert('匯入失敗：這個檔案沒有秩序登記資料');
                 return;
             }
             seatImportPending = data;
@@ -2556,8 +3441,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function buildSeatReport() {
         var today = seatSummaryData();
         var lines = [seatSummaryRange === 'all'
-            ? '座位檢查報告（全部累計，至 ' + getTodayKey() + '）'
-            : '座位檢查報告（' + getTodayKey() + '）'];
+            ? '秩序登記報告（全部累計，至 ' + getTodayKey() + '）'
+            : seatSummaryRange === 'week'
+                ? '秩序登記報告（當週 ' + seatWeekLabel(seatWeekStartKey(seatActiveDate)) + '）'
+                : '秩序登記報告（' + seatDateLabel(seatActiveDate) + '）'];
         var any = false;
         seatItems.forEach(function (it) {
             var names = seatNamesFor(it.key, today);
@@ -2568,10 +3455,22 @@ document.addEventListener('DOMContentLoaded', () => {
             lines.push(names.length ? names.join('、') : '無');
             if (names.length) any = true;
         });
-        if (!any) lines.push('', seatSummaryRange === 'all' ? '目前沒有任何登記紀錄' : '今日全部通過 👍');
+        var unregistered = Object.keys(seatRoster)
+            .filter(function (n) { return seatTotalOf(today, n) === 0; })
+            .sort(function (a, b) { return a - b; });
+        lines.push('', '【未被登記】');
+        if (unregistered.length) {
+            unregistered.forEach(function (n) {
+                lines.push(n + ' ' + (seatRoster[n] ? seatRoster[n][0] : ''));
+            });
+        } else {
+            lines.push('全部都有登記 👍');
+        }
+        if (!any) lines.push('', seatSummaryRange === 'all' ? '目前沒有任何登記紀錄' : seatSummaryRange === 'week' ? '本週沒有登記紀錄' : '當日沒有登記紀錄');
         return lines.join(String.fromCharCode(10));
     }
 
+    initWeeklyPanel();
     initSeatPanel();
 
     // 分頁模組都就緒後，再切到使用者排的第一個分頁
