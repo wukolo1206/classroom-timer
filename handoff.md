@@ -9,6 +9,19 @@
 - 「秩序統計」仍可查看全部／近 30 天／近 7 天／當日／每週統計，也可清除指定日期、目前期間或全部歷史。
 - 含氟每週紀錄、SH150 快捷連線、列印功能與既有 Google 試算表同步均保留。
 
+## 2026-09-10 晚間補做（Claude Code session）
+
+- **12 個 commit 全部推上 GitHub**（`5364045..e1d7986`）。先前一整天的 2300 行改動只躺在
+  工作區，沒有任何 commit —— 根因是收工流程裡從來沒有「git commit」這一條（見 PITFALLS 最後一則）。
+- **推之前先把 GAS 網址從歷史中抽掉。** repo 是公開的（未登入 curl 回 200），
+  而 `CLAUDE.md`、`handoff.md` 的 frontmatter 與內文都含完整 `/exec` 網址，
+  等於把「免登入可寫入試算表」的權限公開。已用 `git filter-branch` 改寫那 12 個
+  未推過的 commit，換成 `<見 gas/weburl.txt，已 gitignore>`。
+  驗證：遠端全庫搜尋網址片段 → 0 命中。程式碼（`index.html`／`gas/Code.gs`）完全沒動。
+- 改寫前的原始版本留在本機分支 `backup-before-scrub`（未推送），確認無誤後可刪。
+- **副作用**：Obsidian Dashboard 的 `url` 欄現在是佔位字串，連結點不開。
+  要恢復點擊需另想辦法（例如改指 GitHub Pages 版，或用不受 git 追蹤的本機連結檔）。
+
 ## 本次部署驗證
 
 - `index.html`、`gas/index.html` SHA-256 一致。
