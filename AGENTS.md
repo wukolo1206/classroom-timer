@@ -14,7 +14,9 @@
 - 解決非顯而易見的 bug → `PITFALLS.md`（新坑加底部）；發現已知未修問題 → 更新頂端「已知風險」
 - 做出非顯而易見的架構選擇 → `DECISIONS.md`
 - 部署或修完 bug → `CLAUDE.md` frontmatter 的 `status`／`version`／`next_action`／`updated`
-- 使用者說收工 → 執行 `/handoff`
+- **動過程式碼 → `git add -A` + `git commit`（commit 一律做，push 要先問）**
+- 使用者說收工 → 執行 `/handoff`；沒有這個 skill 時（例如在 ChatGPT／Codex 裡），
+  照全域規則的「收工四件事」手動做完：commit → frontmatter → handoff.md → 備份腳本
 
 ## 這個專案特別注意
 

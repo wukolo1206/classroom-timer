@@ -71,3 +71,24 @@
 **原因**：卡片固定寬度加上區域間距後，剛好超過中等寬度畫面的左側欄位；外層雖可橫向捲動，但使用者容易誤以為卡片不完整。
 
 **解法**：中等寬度以下縮小卡片與間距，寬螢幕再恢復較寬卡片，讓整列優先完整顯示。
+
+---
+
+## 收工流程沒有 git commit 這一條，整天改動差點沒進版控
+
+**現象**：2026-09-10 在另一台電腦用 ChatGPT（Codex）工作一整天，GAS 從 @9 部署到 @19，
+CHANGELOG／PITFALLS／DECISIONS／frontmatter 全都更新得很完整，
+但 `git status` 顯示 8 個檔案、2339 行新增全部還躺在工作區，一個 commit 都沒有。
+
+**原因**：不是 AI 漏做。查過三個地方 —— Codex 全域 `AGENTS.md`、
+Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個提到 commit**。
+規則裡不存在的事，換哪個 AI 都不會做。
+另外 Codex 全域規則的收工第 2 步直接寫「執行 `/handoff`」，
+那是 Claude Code 專屬 skill，Codex 根本執行不了，備份腳本因此也沒跑。
+
+**解法**：收工流程從「呼叫某個 skill」改成「四件事的可執行清單」，
+並補上 commit：commit 一律做、push 才要問。三處規則同步更新
+（Codex 全域 AGENTS.md、Claude 全域 CLAUDE.md、handoff skill）。
+
+**未來避免**：寫給 AI 的規則，凡是跨工具都要遵守的，一律寫成**具體指令**，
+不要寫成「執行 /某個 skill」—— 別的工具讀得到那句話，但執行不了。
