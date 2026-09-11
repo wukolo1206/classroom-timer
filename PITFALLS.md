@@ -5,8 +5,7 @@
 - **分頁順序要進座位檢查分頁才會從雲端套用**：新電腦第一次開啟會先顯示預設順序，點一下座位檢查才校正。
 - **匯入「覆蓋」模式仍會清空試算表全部紀錄**：雖然執行前會自動下載備份並二次確認，但按錯還是會全班資料重來。
 - **跨裝置的刪除不會傳播**：A 裝置清除某筆後，若 B 裝置本機還留著，B 下次拉取會把它補傳回試算表。實務上一台裝置登記就不會遇到。
-- **收工備份需要 Python 才能完整備份 SQLite 記憶**：`sync_to_搬機.ps1` 用 Python 的 SQLite backup API 備份 Codex `memories_1.sqlite` 與 Antigravity `state.vscdb`；本機找不到 Python 時，兩項會失敗並以 exit 1 結束，必須安裝 Python、確認 PowerShell 能找到它後重跑。
-- **收工腳本的 Claude 候選備份判斷式尚未修正**：第 319 行把 `-or` 放在 `Test-Path` 參數後，會報「找不到參數 or」；目前多數情況仍能繼續，但遇到 `claude` 不完整且存在 `.new`／`.prev` 時，候選備份復原判斷可能失效。
+- **收工備份需要 Python 才能完整備份 SQLite 記憶**：`sync_to_搬機.ps1` 用 Python 的 SQLite backup API 備份 Codex `memories_1.sqlite` 與 Antigravity `state.vscdb`；換機或重灌後若 Python 不在 PATH，備份會不完整。2026-09-11 已安裝 Python 3.13.15 並驗證成功。
 
 ---
 
@@ -94,3 +93,11 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 
 **未來避免**：寫給 AI 的規則，凡是跨工具都要遵守的，一律寫成**具體指令**，
 不要寫成「執行 /某個 skill」—— 別的工具讀得到那句話，但執行不了。
+
+---
+
+## 收工備份的 PowerShell `-or` 條件式
+
+**現象**：執行 `sync_to_搬機.ps1` 時，第 319 行報「找不到參數 or」。
+**原因**：PowerShell 將 `Test-Path $claudeTmp -or Test-Path $claudePrev` 誤解析成把 `-or` 傳給 `Test-Path`。
+**解法**：改成 `((Test-Path $claudeTmp) -or (Test-Path $claudePrev))`；修正後重新執行收工備份，Claude 備份與 manifest 均成功。
