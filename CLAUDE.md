@@ -1,10 +1,10 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 已部署（GAS @19，秩序登記與含氟每週紀錄；本機 AI 設定已恢復並檢查通過）
+status: 已部署（GAS @19；本機 AI 設定檢查通過，但收工備份有 2 項 SQLite 失敗）
 version: GAS 部署 @19（本次收工未修改程式碼；秩序登記加入週一至週五日期切換並統一當日文字）；保留良好表現名單兩欄、右側移除重複秩序項目清單、當週／每週統計、SH150 運動登記快捷連線與列印邊界調整
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 實際上課用秩序登記各天資料驗證跨裝置同步；Dashboard 的 url 欄因公開 repo 已改為佔位字串，需另尋可點擊方案
+next_action: 安裝可用的 Python 後重跑收工備份以完成 Codex／Antigravity SQLite 記憶快照；實際上課用秩序登記各天資料驗證跨裝置同步；Dashboard 的 url 欄因公開 repo 已改為佔位字串，需另尋可點擊方案
 updated: 2026-09-11
 ---
 

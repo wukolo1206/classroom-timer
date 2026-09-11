@@ -22,7 +22,10 @@
 
 ## 收工備份
 
-- 本次收工流程最後執行 `G:\我的雲端硬碟\AI設定同步\收工.bat`；完成結果以本次操作回報為準。
+- `收工.bat` 因目前主控台的中文路徑編碼問題未能呼叫正確檔名，已直接執行同資料夾的 `sync_to_搬機.ps1`。
+- 備份資料夾 `G:\我的雲端硬碟\AI設定同步\機器\BHES-115C-408` 已建立，約 **18.22 MiB／885 個檔案**；但腳本回傳 **exit 1**，有 2 項 SQLite 備份失敗：Codex `memories_1.sqlite` 與 Antigravity `state.vscdb`。
+- 失敗原因是本機找不到 Python；安裝 Python 並確認可由 PowerShell 呼叫後，重跑 `sync_to_搬機.ps1` 才能完成兩個記憶資料庫的安全快照。
+- 腳本第 319 行的 `elseif (Test-Path $claudeTmp -or Test-Path $claudePrev)` 會產生 PowerShell 參數錯誤，需另行修正為將兩個 `Test-Path` 各自加括號。
 
 ---
 
