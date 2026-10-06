@@ -536,29 +536,38 @@
             <div class="bg-white/80 border border-amber-200/70 rounded-xl p-4 mb-4">
                 <!-- 模式一選項：抽各組號碼 -->
                 <div id="draw-opts-number" class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
                         <span class="text-slate-600 text-sm font-semibold">組內號碼範圍：</span>
                         <div class="inline-flex gap-1">
                             <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all" data-max="4">1~4 號</button>
                             <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all" data-max="5">1~5 號</button>
                             <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all" data-max="6">1~6 號</button>
                         </div>
-                        <span class="text-slate-400 text-xs">（抽出後各組該號組員代表發言）</span>
+                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200 hover:bg-amber-100/70 transition-all">
+                            <input type="checkbox" id="draw-number-no-repeat" checked class="accent-amber-500 rounded w-4 h-4 cursor-pointer">
+                            <span>不重複抽取（輪流發言）</span>
+                        </label>
+                        <span id="draw-number-history-tag" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">已抽 0 / 5 號</span>
                     </div>
-                    <button id="do-draw-number-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
-                        <span>🎲</span> 抽取各組發言號碼
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="draw-number-reset-btn" type="button" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+                            重設號碼
+                        </button>
+                        <button id="do-draw-number-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
+                            <span>🎲</span> 抽取各組發言號碼
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 模式二選項：抽報告組別 -->
                 <div id="draw-opts-group" class="hidden flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-4">
+                    <div class="flex flex-wrap items-center gap-3">
                         <span class="text-slate-600 text-sm font-semibold">抽取組別：第 1 組 ～ <span id="draw-group-count-text">第 6 組</span></span>
-                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
-                            <input type="checkbox" id="draw-group-no-repeat" checked class="accent-amber-500 rounded">
+                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200 hover:bg-amber-100/70 transition-all">
+                            <input type="checkbox" id="draw-group-no-repeat" checked class="accent-amber-500 rounded w-4 h-4 cursor-pointer">
                             <span>不重複抽取（輪流發表）</span>
                         </label>
-                        <span id="draw-group-history-tag" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">已抽 0 組</span>
+                        <span id="draw-group-history-tag" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">已抽 0 / 6 組</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <button id="draw-group-reset-btn" type="button" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
@@ -572,12 +581,24 @@
 
                 <!-- 模式三選項：抽組別＋號碼 -->
                 <div id="draw-opts-both" class="hidden flex flex-wrap items-center justify-between gap-3">
-                    <div class="text-slate-600 text-sm font-semibold">
-                        隨機抽出一組的特定組員（例如：第 3 組 4 號）
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-slate-600 text-sm font-semibold">
+                            抽特定組員（例如：第 3 組 4 號）
+                        </span>
+                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 font-medium cursor-pointer select-none bg-amber-50/80 px-2.5 py-1 rounded-lg border border-amber-200 hover:bg-amber-100/70 transition-all">
+                            <input type="checkbox" id="draw-both-no-repeat" checked class="accent-amber-500 rounded w-4 h-4 cursor-pointer">
+                            <span>組別不重複抽取</span>
+                        </label>
+                        <span id="draw-both-history-tag" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">已抽 0 / 6 組</span>
                     </div>
-                    <button id="do-draw-both-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
-                        <span>👥</span> 抽出幸運同學
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button id="draw-both-reset-btn" type="button" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+                            重設輪抽
+                        </button>
+                        <button id="do-draw-both-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
+                            <span>👥</span> 抽出幸運同學
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -3985,7 +4006,9 @@ document.addEventListener('DOMContentLoaded', () => {
     var groupSelectedBonus = null; // Currently active bonus item from criteria bar
     var groupMaxDrawNumber = parseInt(localStorage.getItem('groupMaxDrawNumber') || '5', 10);
     var groupDrawHistory = loadGroupDrawHistory();
+    var groupDrawnNumbers = new Set();
     var groupDrawnGroups = new Set();
+    var groupDrawnBothGroups = new Set();
     var groupCurrentDrawMode = 'number'; // 'number' | 'group' | 'both'
     var groupLastDrawResultText = '';
 
@@ -4653,6 +4676,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 var max = parseInt(b.dataset.max, 10);
                 groupMaxDrawNumber = max;
                 localStorage.setItem('groupMaxDrawNumber', String(max));
+                var toDel = [];
+                groupDrawnNumbers.forEach(function (num) {
+                    if (num > max) toDel.push(num);
+                });
+                toDel.forEach(function (num) { groupDrawnNumbers.delete(num); });
+                updateDrawnNumbersTag();
                 document.querySelectorAll('.group-maxnum-btn').forEach(function (x) {
                     if (parseInt(x.dataset.max, 10) === max) {
                         x.className = 'group-maxnum-btn px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all';
@@ -4663,6 +4692,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // Checkboxes persistence
+        var noRepeatNum = document.getElementById('draw-number-no-repeat');
+        if (noRepeatNum) {
+            var savedNumNoRepeat = localStorage.getItem('groupDrawNumberNoRepeat');
+            if (savedNumNoRepeat !== null) noRepeatNum.checked = (savedNumNoRepeat === 'true');
+            noRepeatNum.addEventListener('change', function () {
+                localStorage.setItem('groupDrawNumberNoRepeat', String(noRepeatNum.checked));
+            });
+        }
+        var noRepeatGrp = document.getElementById('draw-group-no-repeat');
+        if (noRepeatGrp) {
+            var savedGrpNoRepeat = localStorage.getItem('groupDrawGroupNoRepeat');
+            if (savedGrpNoRepeat !== null) noRepeatGrp.checked = (savedGrpNoRepeat === 'true');
+            noRepeatGrp.addEventListener('change', function () {
+                localStorage.setItem('groupDrawGroupNoRepeat', String(noRepeatGrp.checked));
+            });
+        }
+        var noRepeatBoth = document.getElementById('draw-both-no-repeat');
+        if (noRepeatBoth) {
+            var savedBothNoRepeat = localStorage.getItem('groupDrawBothNoRepeat');
+            if (savedBothNoRepeat !== null) noRepeatBoth.checked = (savedBothNoRepeat === 'true');
+            noRepeatBoth.addEventListener('change', function () {
+                localStorage.setItem('groupDrawBothNoRepeat', String(noRepeatBoth.checked));
+            });
+        }
+
         // Trigger draw buttons
         var drawNumBtn = document.getElementById('do-draw-number-btn');
         var drawGrpBtn = document.getElementById('do-draw-group-btn');
@@ -4671,12 +4726,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (drawGrpBtn) drawGrpBtn.addEventListener('click', function () { executeGroupDraw('group'); });
         if (drawBothBtn) drawBothBtn.addEventListener('click', function () { executeGroupDraw('both'); });
 
-        // Reset drawn groups in repeat mode
+        // Reset buttons
+        var resetNumBtn = document.getElementById('draw-number-reset-btn');
+        if (resetNumBtn) {
+            resetNumBtn.addEventListener('click', function () {
+                groupDrawnNumbers.clear();
+                updateDrawnNumbersTag();
+                showGroupToast('已重設各組號碼輪抽進度', true);
+            });
+        }
         var resetGrpBtn = document.getElementById('draw-group-reset-btn');
         if (resetGrpBtn) {
             resetGrpBtn.addEventListener('click', function () {
                 groupDrawnGroups.clear();
                 updateDrawnGroupsTag();
+                showGroupToast('已重設組別輪抽進度', true);
+            });
+        }
+        var resetBothBtn = document.getElementById('draw-both-reset-btn');
+        if (resetBothBtn) {
+            resetBothBtn.addEventListener('click', function () {
+                groupDrawnBothGroups.clear();
+                updateDrawnBothTag();
+                showGroupToast('已重設組別輪抽進度', true);
             });
         }
 
@@ -4699,13 +4771,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         renderDrawHistory();
+        updateDrawnNumbersTag();
         updateDrawnGroupsTag();
+        updateDrawnBothTag();
+    }
+
+    function updateDrawnNumbersTag() {
+        var tag = document.getElementById('draw-number-history-tag');
+        if (tag) {
+            tag.textContent = '已抽 ' + groupDrawnNumbers.size + ' / ' + groupMaxDrawNumber + ' 號';
+        }
     }
 
     function updateDrawnGroupsTag() {
         var tag = document.getElementById('draw-group-history-tag');
+        var countText = document.getElementById('draw-group-count-text');
+        if (countText) countText.textContent = '第 ' + groupCount + ' 組';
         if (tag) {
             tag.textContent = '已抽 ' + groupDrawnGroups.size + ' / ' + groupCount + ' 組';
+        }
+    }
+
+    function updateDrawnBothTag() {
+        var tag = document.getElementById('draw-both-history-tag');
+        if (tag) {
+            tag.textContent = '已抽 ' + groupDrawnBothGroups.size + ' / ' + groupCount + ' 組';
         }
     }
 
@@ -4745,16 +4835,36 @@ document.addEventListener('DOMContentLoaded', () => {
         var historyItem = '';
 
         if (mode === 'number') {
-            var chosenNum = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
+            var noRepeatEl = document.getElementById('draw-number-no-repeat');
+            var isNoRepeat = noRepeatEl ? noRepeatEl.checked : true;
+            var pool = [];
+            for (var n = 1; n <= groupMaxDrawNumber; n++) {
+                if (!isNoRepeat || !groupDrawnNumbers.has(n)) {
+                    pool.push(n);
+                }
+            }
+            if (!pool.length) {
+                // If all drawn, reset pool
+                for (var n2 = 1; n2 <= groupMaxDrawNumber; n2++) pool.push(n2);
+                groupDrawnNumbers.clear();
+                showGroupToast('🔄 號碼已全數輪抽一輪，自動重新開始！', true);
+            }
+            var chosenNum = pool[Math.floor(Math.random() * pool.length)];
+            if (isNoRepeat) {
+                groupDrawnNumbers.add(chosenNum);
+            }
+            updateDrawnNumbersTag();
+
             targetText = '各組【 ' + chosenNum + ' 號 】發表！';
             speakText = '請各組 ' + chosenNum + ' 號同學代表發表！';
             historyItem = '各組 ' + chosenNum + ' 號';
-            if (badgeEl) badgeEl.textContent = '🎲 抽各組號碼結果';
+            if (badgeEl) badgeEl.textContent = '🎲 抽各組號碼結果' + (isNoRepeat ? '（不重複）' : '');
         } else if (mode === 'group') {
-            var noRepeat = document.getElementById('draw-group-no-repeat');
+            var noRepeatGrp = document.getElementById('draw-group-no-repeat');
+            var isNoRepeatGrp = noRepeatGrp ? noRepeatGrp.checked : true;
             var pool = [];
             for (var i = 1; i <= groupCount; i++) {
-                if (!noRepeat || !noRepeat.checked || !groupDrawnGroups.has(i)) {
+                if (!isNoRepeatGrp || !groupDrawnGroups.has(i)) {
                     pool.push(i);
                 }
             }
@@ -4762,25 +4872,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If all drawn, reset pool
                 for (var j = 1; j <= groupCount; j++) pool.push(j);
                 groupDrawnGroups.clear();
+                showGroupToast('🔄 各組已全部輪抽一輪，自動重新開始！', true);
             }
             var chosenGid = pool[Math.floor(Math.random() * pool.length)];
-            groupDrawnGroups.add(chosenGid);
+            if (isNoRepeatGrp) {
+                groupDrawnGroups.add(chosenGid);
+            }
             updateDrawnGroupsTag();
 
             var gName = groupNames[chosenGid] || ('第 ' + chosenGid + ' 組');
             targetText = '🎉 抽中：【 ' + gName + ' 】！';
             speakText = '恭喜 ' + gName + ' 代表報告！';
             historyItem = gName;
-            if (badgeEl) badgeEl.textContent = '🎯 抽報告組別結果';
+            if (badgeEl) badgeEl.textContent = '🎯 抽報告組別結果' + (isNoRepeatGrp ? '（不重複）' : '');
         } else {
             // Mode: both
-            var chosenG = Math.floor(Math.random() * groupCount) + 1;
+            var noRepeatBoth = document.getElementById('draw-both-no-repeat');
+            var isNoRepeatBoth = noRepeatBoth ? noRepeatBoth.checked : true;
+            var pool = [];
+            for (var bg = 1; bg <= groupCount; bg++) {
+                if (!isNoRepeatBoth || !groupDrawnBothGroups.has(bg)) {
+                    pool.push(bg);
+                }
+            }
+            if (!pool.length) {
+                for (var bg2 = 1; bg2 <= groupCount; bg2++) pool.push(bg2);
+                groupDrawnBothGroups.clear();
+                showGroupToast('🔄 各組已全部輪抽一輪，自動重新開始！', true);
+            }
+            var chosenG = pool[Math.floor(Math.random() * pool.length)];
+            if (isNoRepeatBoth) {
+                groupDrawnBothGroups.add(chosenG);
+            }
+            updateDrawnBothTag();
+
             var chosenN = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
             var gn = groupNames[chosenG] || ('第 ' + chosenG + ' 組');
             targetText = '🎉 抽中：【 ' + gn + ' ' + chosenN + ' 號 】！';
             speakText = '請 ' + gn + ' ' + chosenN + ' 號同學代表發言！';
             historyItem = gn + ' ' + chosenN + ' 號';
-            if (badgeEl) badgeEl.textContent = '👥 抽組別與號碼結果';
+            if (badgeEl) badgeEl.textContent = '👥 抽組別與號碼結果' + (isNoRepeatBoth ? '（組別不重複）' : '');
         }
 
         // Rolling animation

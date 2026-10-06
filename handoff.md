@@ -2,25 +2,27 @@
 
 ## 本次收工摘要
 
-- 完成「👥 小組討論」分頁新增與問題修復，部署至既有 GAS 部署 **@21**（`deploymentId: AKfycbyr8GG37KxoHOyRdlkpzOAse-b2g7tDEk1AG2TsIK6UwkVf01Kh03GMhkrh7UYsW3UC`）。
+- 完成「👥 小組討論」分頁新增、編輯儲存修復及抽籤中心「不重複抽取」勾選功能，部署至既有 GAS 部署 **@22**（`deploymentId: AKfycbyr8GG37KxoHOyRdlkpzOAse-b2g7tDEk1AG2TsIK6UwkVf01Kh03GMhkrh7UYsW3UC`）。
+- **新增抽籤「不重複抽取」控制與進度**：
+  1. **抽各組號碼**：新增「不重複抽取（輪流發言）」勾選框（預設勾選），號碼依序抽出不重複，全抽完自動提醒並重新啟動新一輪。
+  2. **進度徽章與重設按鈕**：各抽籤模式均具備「已抽 X / Y」即時計數標籤與獨立「重設」按鈕。
+  3. **支援自訂與記憶**：勾選狀態自動儲存於 `localStorage`，重新整理保持老師偏好。
 - **解決「無法編輯儲存」問題**：
   1. **直覺點擊編輯**：將「今日核心主題」與「進行步驟與要求」方塊改為可直接點擊開啟編輯彈窗，並自動選取聚焦文字欄位。
   2. **彈窗頂端新增儲存按鈕**：防止觸控大螢幕／平板虛擬鍵盤彈起時遮蔽底部儲存按鈕；支援 Enter 與 Ctrl+Enter 快速儲存。
   3. **全面接入雲端 DocumentProperties**：`gas/Code.gs` 加入 `groupDiscussionSettings`，透過 `saveGroupSettings` 與 `getSeatBundle()` / `getGroupSettings()` 實現個人筆電與教室大屏跨裝置自動同步。
   4. **即時儲存回饋**：提供浮動 Toast 提示（「☁️ 已儲存並同步至雲端！」）與即時連線徽章狀態。
-- 本地 Playwright 測試與線上 GAS @21 跨 Session / 跨裝置持久化驗證全數通過。
 
 ## 本次驗證
 
-- 本地 `test_group_tab.py` 完整 6 大項測試通過。
-- 本地 `test_ui_edit.py` 測試點擊卡片編輯、頂端儲存、Enter 快速儲存、範本套用、Toast 提示通過。
-- 線上 GAS @21 `verify_live_edit.py` 實測：全新獨立 Session 成功拉取雲端儲存的主題與步驟，持久化驗證 100% 成功。
-- `node --check` 驗證 `index.html` 與 `gas/Code.gs` 均無語法錯誤。
-- `index.html` 與 `gas/index.html` SHA-256 完全一致（`76711C1F9375D33B152E22C049B303B6F23C80660194D23970954E97A0BBB668`）。
+- 本地 `test_draw_no_repeat.py` 完整驗證模式一 4 次連抽（無重複 1~4 號）、第 5 次自動重設、手動重設清空、模式二與模式三勾選框。
+- 線上 GAS @21/22 實測跨 Session / 跨裝置持久化驗證 100% 成功。
+- `node --check` 驗證語法無誤。
+- `index.html` 與 `gas/index.html` SHA-256 完全一致（`81BE5CBDA3A14B215BC8094049C8EE1AFAB1D0306043F1DE0C7A04C6FBC9C8E0`）。
 
 ## 下次接續
 
-- 實際上課使用「👥 小組討論」分頁進行課堂討論計時、組別加分與抽籤發表。
+- 實際上課使用「👥 小組討論」分頁進行課堂討論計時、組別加分與不重複抽籤發表。
 - 觀察教室大屏觸控使用體驗，依教學現場反饋微調。
 
 ## 收工備份

@@ -1,10 +1,10 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 已部署（GAS @21；小組討論編輯儲存、直覺點選與 DocumentProperties 跨裝置同步修復完成）
-version: GAS 部署 @21；新增「👥 小組討論」分頁並支援題目任務直覺點擊編輯、彈窗頂部儲存與 Enter 快捷、DocumentProperties 跨裝置雲端同步與即時 Toast
+status: 已部署（GAS @22；小組討論抽籤中心不重複勾選與進度追蹤功能完成）
+version: GAS 部署 @22；抽籤中心各模式新增「不重複抽取」勾選框、輪抽進度徽章（已抽 X / Y）與重設按鈕
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 實際上課運用小組討論分頁進行課堂分組計時、組別加分與抽籤發表
+next_action: 實際上課運用小組討論分頁進行課堂分組計時、組別加分與不重複抽籤發表
 updated: 2026-10-06
 ---
 
