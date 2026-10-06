@@ -101,3 +101,18 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **現象**：執行 `sync_to_搬機.ps1` 時，第 319 行報「找不到參數 or」。
 **原因**：PowerShell 將 `Test-Path $claudeTmp -or Test-Path $claudePrev` 誤解析成把 `-or` 傳給 `Test-Path`。
 **解法**：改成 `((Test-Path $claudeTmp) -or (Test-Path $claudePrev))`；修正後重新執行收工備份，Claude 備份與 manifest 均成功。
+
+---
+
+## GAS 網頁設定不可僅仰賴 localStorage，必須同步 DocumentProperties
+
+**現象**：在筆電上編輯小組討論主題並儲存後，到教室觸控大螢幕打開 GAS 連結，主題仍顯示為預設範本文字（「無法編輯儲存」）。
+**原因**：
+1. GAS 網頁應用程式以跨來源 iframe（`script.googleusercontent.com`）呈現，各瀏覽器或隱私設定常對 iframe 的 `localStorage` 進行分區或重置。
+2. 更重要的是教師常在「個人筆電備課」並在「教室大螢幕上課」，兩台裝置的 `localStorage` 完全不互通。若未接入 Apps Script 後端 `DocumentProperties`，跨裝置即無法同步。
+3. 觸控大螢幕虛擬鍵盤彈起時，彈窗底部按鈕可能被遮蔽，若無頂端儲存按鈕容易造成使用者點擊背景關閉後變更遺失。
+**解法**：
+1. 後端 `Code.gs` 新增 `GROUP_SETTINGS_PROPERTY`（`groupDiscussionSettings`）及 `getGroupSettings` / `saveGroupSettings`，並整合入 `getSeatBundle()`。
+2. 前端加入全自動雲端同步與即時 Toast 狀態回饋（「☁️ 已儲存並同步至雲端！」）。
+3. 彈窗頂端與底端均設置儲存按鈕，並支援卡片直接點選編輯與 Enter 鍵快速儲存。
+

@@ -10,6 +10,7 @@ var SHEET_NAME = '上課表現紀錄';
 var HEADERS = ['日期', '座號', '姓名', '項目', '次數', '最後更新', '項目代碼'];
 var WEEKLY_RECORDS_PROPERTY = 'weeklyRecordData';
 var WEEKLY_SETTINGS_PROPERTY = 'weeklyRecordSettings';
+var GROUP_SETTINGS_PROPERTY = 'groupDiscussionSettings';
 
 /** 網頁進入點：支援班級紀錄器 HTML 介面與 SH150 運動登記 REST API */
 function doGet(e) {
@@ -207,16 +208,18 @@ function getSeatRecords() {
   return out;
 }
 
-/** 設定（檢查項目、座位表）存在文件屬性，所有裝置共用 */
+/** 設定（檢查項目、座位表、小組討論設定）存在文件屬性，所有裝置共用 */
 function getSeatSettings() {
   var props = PropertiesService.getDocumentProperties();
   var items = props.getProperty('seatCheckItems');
   var layout = props.getProperty('seatLayout');
   var tabs = props.getProperty('timerTabOrder');
+  var group = props.getProperty(GROUP_SETTINGS_PROPERTY);
   return {
     items: items ? JSON.parse(items) : null,
     layout: layout || null,
-    tabOrder: tabs ? JSON.parse(tabs) : null
+    tabOrder: tabs ? JSON.parse(tabs) : null,
+    groupSettings: group ? JSON.parse(group) : null
   };
 }
 
@@ -226,6 +229,26 @@ function saveSeatSettings(items, layout, tabOrder) {
   if (layout) props.setProperty('seatLayout', layout);
   if (tabOrder && tabOrder.length) props.setProperty('timerTabOrder', JSON.stringify(tabOrder));
   return true;
+}
+
+/** 讀取小組討論設定（跨裝置同步） */
+function getGroupSettings() {
+  var raw = PropertiesService.getDocumentProperties().getProperty(GROUP_SETTINGS_PROPERTY);
+  if (!raw) return null;
+  try { return JSON.parse(raw) || null; } catch (e) { return null; }
+}
+
+/** 儲存小組討論設定（包含題目任務、加分項目、組數與組名） */
+function saveGroupSettings(settings) {
+  if (!settings || typeof settings !== 'object') return false;
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(15000);
+  try {
+    PropertiesService.getDocumentProperties().setProperty(GROUP_SETTINGS_PROPERTY, JSON.stringify(settings));
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** 開啟頁面時一次拿齊 */

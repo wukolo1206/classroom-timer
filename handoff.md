@@ -1,24 +1,27 @@
-# 工作交接 — 2026-09-11
+# 工作交接 — 2026-10-06
 
 ## 本次收工摘要
 
-- 專案程式碼維持已部署版本 GAS **@19**；本次沒有修改專案程式碼，收工文件更新已提交（`7b84435`、`8412b85`）。
-- 已將 `DESKTOP-0DS07PJ` 的 AI 設定還原到本機 `BHES-115C-408`。
-- `檢查設定.ps1` 檢查結果：**通過 14 項、缺少 0 項、注意 1 項**。
+- 完成「👥 小組討論」分頁新增與問題修復，部署至既有 GAS 部署 **@21**（`deploymentId: AKfycbyr8GG37KxoHOyRdlkpzOAse-b2g7tDEk1AG2TsIK6UwkVf01Kh03GMhkrh7UYsW3UC`）。
+- **解決「無法編輯儲存」問題**：
+  1. **直覺點擊編輯**：將「今日核心主題」與「進行步驟與要求」方塊改為可直接點擊開啟編輯彈窗，並自動選取聚焦文字欄位。
+  2. **彈窗頂端新增儲存按鈕**：防止觸控大螢幕／平板虛擬鍵盤彈起時遮蔽底部儲存按鈕；支援 Enter 與 Ctrl+Enter 快速儲存。
+  3. **全面接入雲端 DocumentProperties**：`gas/Code.gs` 加入 `groupDiscussionSettings`，透過 `saveGroupSettings` 與 `getSeatBundle()` / `getGroupSettings()` 實現個人筆電與教室大屏跨裝置自動同步。
+  4. **即時儲存回饋**：提供浮動 Toast 提示（「☁️ 已儲存並同步至雲端！」）與即時連線徽章狀態。
+- 本地 Playwright 測試與線上 GAS @21 跨 Session / 跨裝置持久化驗證全數通過。
 
 ## 本次驗證
 
-- Claude Code：登入憑證、`.claude.json`、新版全域規則、13 個專案記憶與 skills 均在。
-- Codex：登入憑證、全域規則與記憶資料庫均在。
-- Antigravity：全域記憶與 57 個專案記憶均在。
-- clasp、Git 設定與 1 個 SSH 金鑰均在。
-- `keybindings.json` 備份不存在，屬可選項目，已略過。
-- `檢查.bat`／`收工.bat` 的中文檔名在目前主控台編碼下可能被解析成亂碼；本次直接執行同資料夾內的 `.ps1` 腳本完成檢查與備份。
+- 本地 `test_group_tab.py` 完整 6 大項測試通過。
+- 本地 `test_ui_edit.py` 測試點擊卡片編輯、頂端儲存、Enter 快速儲存、範本套用、Toast 提示通過。
+- 線上 GAS @21 `verify_live_edit.py` 實測：全新獨立 Session 成功拉取雲端儲存的主題與步驟，持久化驗證 100% 成功。
+- `node --check` 驗證 `index.html` 與 `gas/Code.gs` 均無語法錯誤。
+- `index.html` 與 `gas/index.html` SHA-256 完全一致（`76711C1F9375D33B152E22C049B303B6F23C80660194D23970954E97A0BBB668`）。
 
 ## 下次接續
 
-- 實際上課時依日期按鈕登記各天，確認秩序登記的跨裝置同步與試算表日期列是否符合預期。
-- 若要修復批次檔在 UTF-8 主控台下的中文路徑問題，需另行修改並測試 `檢查.bat`、`收工.bat`。
+- 實際上課使用「👥 小組討論」分頁進行課堂討論計時、組別加分與抽籤發表。
+- 觀察教室大屏觸控使用體驗，依教學現場反饋微調。
 
 ## 收工備份
 

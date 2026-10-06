@@ -171,6 +171,29 @@
             .weekly-print-table thead { display: table-header-group; }
             .weekly-print-table tr { page-break-inside: avoid; }
         }
+
+        /* ── Group discussion styles ── */
+        .group-card { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+        .group-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -3px rgba(0,0,0,0.08); }
+        .group-card:active { transform: translateY(0) scale(0.99); }
+        .group-bonus-pill { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .group-bonus-pill.selected { border-color: #0284c7; background-color: #0284c7; color: #ffffff; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.35); transform: translateY(-1px); }
+        @keyframes floatBonus {
+            0% { opacity: 0; transform: translate(-50%, 10px) scale(0.85); }
+            20% { opacity: 1; transform: translate(-50%, -10px) scale(1.1); }
+            80% { opacity: 1; transform: translate(-50%, -30px) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -45px) scale(0.9); }
+        }
+        .floating-bonus-tag {
+            position: absolute; left: 50%; top: 35%;
+            pointer-events: none; z-index: 50;
+            animation: floatBonus 1.1s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+        }
+        @keyframes drawPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .draw-animating { animation: drawPulse 0.12s infinite; }
     </style>
 </head>
 <body class="bg-sky-50 min-h-screen p-4 md:p-6">
@@ -189,6 +212,7 @@
     <!-- Tabs -->
     <div id="tab-bar" class="flex border-b border-sky-100 overflow-x-auto">
         <button id="tab-timer-btn" class="tab-btn tab-active flex-1 py-3 px-4 font-semibold transition-all">⏱ 倒數計時</button>
+        <button id="tab-group-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">👥 小組討論</button>
         <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
         <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 秩序登記</button>
         <button id="tab-weekly-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🗓 含氟每週紀錄</button>
@@ -373,6 +397,293 @@
             </div>
         </div><!-- end #timer -->
     </div><!-- end #panel-timer -->
+
+    <!-- ══════════════ GROUP DISCUSSION PANEL ══════════════ -->
+    <div id="panel-group" class="hidden p-6 md:p-8">
+
+        <!-- Top Section: 討論事項 + 倒數計時 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+
+            <!-- 討論事項卡片 (7 cols) -->
+            <div class="lg:col-span-7 bg-sky-50/70 border border-sky-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                <div>
+                    <!-- 標題與操作鈕 -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">📋</span>
+                            <h2 class="text-slate-800 font-bold text-lg">討論事項與任務指引</h2>
+                            <span id="group-sync-badge" class="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">☁️ 雲端已同步</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="group-topic-presets-btn" type="button" class="px-3 py-1.5 bg-white hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1">
+                                <span>📚</span> 常用範本
+                            </button>
+                            <button id="group-topic-edit-btn" type="button" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1">
+                                <span>✏️</span> 編輯任務
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 討論主題方塊（可直接點擊編輯） -->
+                    <div id="group-topic-title-card" role="button" title="點擊直接編輯討論主題" class="cursor-pointer bg-white border-2 border-sky-300 hover:border-sky-500 hover:shadow-md rounded-xl p-4 mb-3 shadow-sm transition-all group">
+                        <div class="text-[11px] uppercase tracking-wider text-sky-600 font-bold mb-1 flex items-center justify-between">
+                            <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-sky-500"></span> 今日核心主題</span>
+                            <span class="text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯主題</span>
+                        </div>
+                        <div id="group-topic-title-display" class="text-xl md:text-2xl font-black text-slate-800 leading-snug break-words">
+                            課文問題深究與小組討論
+                        </div>
+                    </div>
+
+                    <!-- 任務要求與步驟列表（可直接點擊編輯） -->
+                    <div id="group-tasks-card" role="button" title="點擊直接編輯進行步驟" class="cursor-pointer bg-white/90 border border-sky-100 hover:border-sky-300 hover:shadow-sm rounded-xl p-3.5 transition-all group">
+                        <div class="text-xs text-slate-500 font-bold mb-2 flex items-center justify-between">
+                            <span class="flex items-center gap-1">📌 進行步驟與要求：</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] text-slate-400">大屏即時提醒</span>
+                                <span class="text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯步驟</span>
+                            </div>
+                        </div>
+                        <div id="group-tasks-list-display" class="space-y-1.5 text-slate-700 text-sm font-medium">
+                            <div class="flex items-start gap-2"><span class="text-sky-600 font-bold">1.</span><span>全組輪流發表想法，每人發言至少 1 次</span></div>
+                            <div class="flex items-start gap-2"><span class="text-sky-600 font-bold">2.</span><span>記錄重點於小白板或學習單</span></div>
+                            <div class="flex items-start gap-2"><span class="text-sky-600 font-bold">3.</span><span>抽籤選出組員代表，準備全班分享</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 底部提示 -->
+                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>💡 提示：點擊上方標題、步驟或「編輯任務」即可修改並自動同步</span>
+                    <span id="group-last-synced-time"></span>
+                </div>
+            </div>
+
+            <!-- 專屬倒數計時卡片 (5 cols) -->
+            <div id="group-timer-card" class="lg:col-span-5 bg-gradient-to-br from-sky-600 via-sky-600 to-sky-700 text-white rounded-2xl p-5 shadow-md flex flex-col justify-between items-center text-center relative overflow-hidden transition-all duration-300">
+                <div class="w-full flex items-center justify-between text-sky-100 text-xs font-semibold">
+                    <span class="flex items-center gap-1"><span>⏱</span> 小組計時器</span>
+                    <label class="inline-flex items-center gap-1 cursor-pointer select-none text-[11px]">
+                        <input type="checkbox" id="group-sound-toggle" checked class="accent-emerald-400 rounded">
+                        <span>鈴聲與語音</span>
+                    </label>
+                </div>
+
+                <!-- 計時大數字 -->
+                <div class="my-2 text-center w-full">
+                    <div id="group-timer-clock" class="text-6xl md:text-7xl font-extrabold tracking-wider text-white select-none drop-shadow" style="font-variant-numeric: tabular-nums;">
+                        05:00
+                    </div>
+                    <!-- 進度條 -->
+                    <div class="w-full h-2 bg-sky-800/40 rounded-full overflow-hidden mt-2 p-0.5">
+                        <div id="group-timer-bar" class="h-full bg-emerald-400 rounded-full transition-all duration-300" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- 快速分鐘數切換 -->
+                <div class="w-full my-2">
+                    <div class="grid grid-cols-6 gap-1 w-full text-xs font-bold text-sky-800">
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white rounded-lg transition-all" data-mins="1">1分</button>
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white rounded-lg transition-all" data-mins="2">2分</button>
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white rounded-lg transition-all" data-mins="3">3分</button>
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-white text-sky-700 shadow-sm rounded-lg transition-all ring-2 ring-emerald-400" data-mins="5">5分</button>
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white rounded-lg transition-all" data-mins="8">8分</button>
+                        <button type="button" class="group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white rounded-lg transition-all" data-mins="10">10分</button>
+                    </div>
+                </div>
+
+                <!-- 計時操作按鈕列 -->
+                <div class="flex items-center justify-center gap-2 w-full pt-1">
+                    <button id="group-timer-toggle-btn" type="button" class="flex-1 py-2.5 bg-white text-sky-700 hover:bg-sky-50 font-bold rounded-xl text-base shadow transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                        <span id="group-timer-toggle-icon">▶</span> <span id="group-timer-toggle-text">開始計時</span>
+                    </button>
+                    <button id="group-timer-reset-btn" type="button" class="px-3.5 py-2.5 bg-sky-800/60 hover:bg-sky-800 text-white font-semibold rounded-xl text-sm transition-all active:scale-95" title="重設時間">
+                        🔄 重設
+                    </button>
+                    <button id="group-timer-add1-btn" type="button" class="px-3 py-2.5 bg-sky-800/60 hover:bg-sky-800 text-white font-semibold rounded-xl text-sm transition-all active:scale-95" title="增加 1 分鐘">
+                        +1分
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Section: 抽各組號碼的選項 (Random Draw Center) -->
+        <div class="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/90 rounded-2xl p-5 mb-6 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🎲</span>
+                    <div>
+                        <h3 class="text-slate-800 font-bold text-lg leading-tight">抽籤中心：課堂發表抽籤</h3>
+                        <p class="text-slate-400 text-xs mt-0.5">可抽各組代表號碼、抽報告組別，大屏公平隨機抽取</p>
+                    </div>
+                </div>
+
+                <!-- 模式切換按鈕組 -->
+                <div class="inline-flex p-1 bg-amber-100/70 border border-amber-200 rounded-xl text-xs font-bold gap-1">
+                    <button id="draw-mode-btn-number" type="button" class="px-3 py-1.5 rounded-lg transition-all bg-white text-amber-800 shadow-sm">
+                        🎲 抽各組號碼
+                    </button>
+                    <button id="draw-mode-btn-group" type="button" class="px-3 py-1.5 rounded-lg transition-all text-amber-700 hover:bg-white/60">
+                        🎯 抽報告組別
+                    </button>
+                    <button id="draw-mode-btn-both" type="button" class="px-3 py-1.5 rounded-lg transition-all text-amber-700 hover:bg-white/60">
+                        👥 抽組別＋號碼
+                    </button>
+                </div>
+            </div>
+
+            <!-- 控制選項列 -->
+            <div class="bg-white/80 border border-amber-200/70 rounded-xl p-4 mb-4">
+                <!-- 模式一選項：抽各組號碼 -->
+                <div id="draw-opts-number" class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <span class="text-slate-600 text-sm font-semibold">組內號碼範圍：</span>
+                        <div class="inline-flex gap-1">
+                            <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all" data-max="4">1~4 號</button>
+                            <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all" data-max="5">1~5 號</button>
+                            <button type="button" class="group-maxnum-btn px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all" data-max="6">1~6 號</button>
+                        </div>
+                        <span class="text-slate-400 text-xs">（抽出後各組該號組員代表發言）</span>
+                    </div>
+                    <button id="do-draw-number-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
+                        <span>🎲</span> 抽取各組發言號碼
+                    </button>
+                </div>
+
+                <!-- 模式二選項：抽報告組別 -->
+                <div id="draw-opts-group" class="hidden flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-4">
+                        <span class="text-slate-600 text-sm font-semibold">抽取組別：第 1 組 ～ <span id="draw-group-count-text">第 6 組</span></span>
+                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 font-medium cursor-pointer select-none">
+                            <input type="checkbox" id="draw-group-no-repeat" checked class="accent-amber-500 rounded">
+                            <span>不重複抽取（輪流發表）</span>
+                        </label>
+                        <span id="draw-group-history-tag" class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">已抽 0 組</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="draw-group-reset-btn" type="button" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition-all">
+                            重設輪抽
+                        </button>
+                        <button id="do-draw-group-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
+                            <span>🎯</span> 抽出一組
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 模式三選項：抽組別＋號碼 -->
+                <div id="draw-opts-both" class="hidden flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-slate-600 text-sm font-semibold">
+                        隨機抽出一組的特定組員（例如：第 3 組 4 號）
+                    </div>
+                    <button id="do-draw-both-btn" type="button" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 text-base">
+                        <span>👥</span> 抽出幸運同學
+                    </button>
+                </div>
+            </div>
+
+            <!-- 抽籤結果醒目展示卡片 -->
+            <div id="draw-result-container" class="bg-white border-2 border-amber-300 rounded-2xl p-5 text-center shadow-sm relative overflow-hidden">
+                <div id="draw-result-placeholder" class="py-4 text-slate-400 font-medium text-base">
+                    ✨ 點選上方按鈕開始抽籤，大屏將以生動動畫與語音揭曉結果！
+                </div>
+                <div id="draw-result-active" class="hidden py-2 flex flex-col items-center justify-center">
+                    <div id="draw-result-badge" class="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-xs font-extrabold rounded-full mb-2">
+                        抽籤結果揭曉
+                    </div>
+                    <div id="draw-result-display" class="text-4xl md:text-5xl font-black text-amber-700 tracking-wide my-1 select-none">
+                        各組【 3 號 】發表！
+                    </div>
+                    <div class="flex items-center gap-3 mt-3">
+                        <button id="draw-speak-again-btn" type="button" class="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold transition-all flex items-center gap-1">
+                            <span>🔊</span> 再次播報
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 抽籤歷史紀錄 -->
+            <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <div class="flex items-center gap-2 overflow-x-auto py-1">
+                    <span class="font-bold flex-shrink-0">抽籤紀錄：</span>
+                    <div id="draw-history-tags" class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-slate-400 italic">尚無紀錄</span>
+                    </div>
+                </div>
+                <button id="draw-clear-history-btn" type="button" class="text-slate-400 hover:text-red-500 text-xs ml-2 whitespace-nowrap transition-all">
+                    清空紀錄
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Section: 組別加分項目與各組計分看板 -->
+        <div class="mb-6">
+
+            <!-- ⭐ 加分項目列 -->
+            <div class="bg-white border border-sky-200/90 rounded-2xl p-5 mb-5 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⭐</span>
+                        <div>
+                            <h3 class="text-slate-800 font-bold text-base leading-tight">組別加分項目</h3>
+                            <p class="text-slate-400 text-xs">點選加分項目後，直接點擊下方組別卡片加分；亦可在組別卡片直接按 +1 / +2</p>
+                        </div>
+                    </div>
+                    <button id="group-bonus-edit-btn" type="button" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1">
+                        <span>✏️</span> 編輯加分項目
+                    </button>
+                </div>
+
+                <!-- 加分項目按鈕列表 -->
+                <div id="group-bonus-items-container" class="flex flex-wrap gap-2 pt-2">
+                    <!-- JS 動態產生項目按鈕 -->
+                </div>
+
+                <!-- 提示：當前選取之加分項目 -->
+                <div id="group-selected-bonus-hint" class="hidden mt-3 px-4 py-2 bg-sky-50 border border-sky-300 rounded-xl text-sm font-bold text-sky-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2.5 h-2.5 bg-sky-600 rounded-full animate-ping"></span>
+                        <span id="group-selected-bonus-text">👉 目前選取：【熱烈討論 +1】請點擊下方任意組別卡片加分！</span>
+                    </div>
+                    <button id="group-cancel-bonus-selection-btn" type="button" class="text-xs bg-white text-slate-500 hover:text-red-600 border border-sky-200 px-2 py-1 rounded-lg font-semibold transition-all">
+                        ✕ 取消選取
+                    </button>
+                </div>
+            </div>
+
+            <!-- 各組計分卡片工具列 -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <!-- 組數切換 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-600 font-bold text-sm">組數：</span>
+                    <div class="inline-flex p-1 bg-sky-100/70 border border-sky-200 rounded-xl text-xs font-bold gap-1">
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="4">4 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="5">5 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all bg-sky-600 text-white shadow-sm" data-count="6">6 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="7">7 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="8">8 組</button>
+                    </div>
+                </div>
+
+                <!-- 功能操作按鈕 -->
+                <div class="flex items-center gap-2">
+                    <button id="group-award-btn" type="button" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-extrabold shadow transition-all active:scale-95 flex items-center gap-1.5">
+                        <span>🏆</span> 結算頒獎
+                    </button>
+                    <button id="group-reset-scores-btn" type="button" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
+                        🔄 分數歸零
+                    </button>
+                </div>
+            </div>
+
+            <!-- 各組卡片網格 -->
+            <div id="group-cards-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <!-- JS 動態產生各組卡片 -->
+            </div>
+        </div>
+
+    </div><!-- end #panel-group -->
+
+
 
     <!-- ══════════════ CLEANING PANEL ══════════════ -->
     <div id="panel-cleaning" class="hidden p-6 md:p-8">
@@ -791,6 +1102,161 @@
     </div>
 </div>
 
+
+<!-- Group Discussion: Topic Edit Modal -->
+<div id="group-topic-modal" class="modal">
+    <div class="modal-content" style="max-width: 560px;">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div>
+                <h3 class="text-slate-800 text-xl font-bold flex items-center gap-2"><span>📋</span> 編輯討論事項與任務</h3>
+                <p class="text-slate-400 text-xs">設定大屏展示的討論主題與步驟（會自動同步至雲端）</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="group-topic-save-top-btn" type="button" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold text-xs shadow transition-all flex items-center gap-1">
+                    <span>💾</span> 儲存
+                </button>
+                <button id="group-topic-close-btn" type="button" class="text-slate-400 hover:text-slate-600 text-lg px-2 py-1 rounded-md transition-all">✕</button>
+            </div>
+        </div>
+        
+        <div class="flex flex-col gap-4">
+            <div>
+                <label class="block text-slate-700 text-sm font-bold mb-1">討論核心主題</label>
+                <input type="text" id="group-topic-input" placeholder="例如：課文問題深究與小組討論..."
+                    class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-800 font-semibold border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400 transition-all">
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-slate-700 text-sm font-bold">進行步驟與要求（每行一項）</label>
+                    <span class="text-slate-400 text-xs">大屏將依序編號顯示</span>
+                </div>
+                <textarea id="group-tasks-input" rows="4" placeholder="每行輸入一項步驟..."
+                    class="w-full px-4 py-2.5 rounded-lg text-sm bg-sky-50 text-slate-800 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 placeholder-slate-400 resize-y leading-relaxed font-medium transition-all"></textarea>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-slate-600 text-xs font-bold">📚 快速套用常用範本（點擊即填入）：</label>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <button type="button" class="group-template-btn p-2 text-left bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-lg border border-sky-200 hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between" data-tpl="reading">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-slate-800">📘 課文問題深究</span>
+                            <span class="text-[10px] bg-sky-200/60 text-sky-800 px-1.5 py-0.5 rounded font-semibold">套用</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500">輪流發表 / 記錄板書 / 派員發言</div>
+                    </button>
+                    <button type="button" class="group-template-btn p-2 text-left bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-lg border border-sky-200 hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between" data-tpl="math">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-slate-800">📐 數學合作解題</span>
+                            <span class="text-[10px] bg-sky-200/60 text-sky-800 px-1.5 py-0.5 rounded font-semibold">套用</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500">共同驗算 / 小白板書寫 / 解說代表</div>
+                    </button>
+                    <button type="button" class="group-template-btn p-2 text-left bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-lg border border-sky-200 hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between" data-tpl="creative">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-slate-800">💡 創意腦力激盪</span>
+                            <span class="text-[10px] bg-sky-200/60 text-sky-800 px-1.5 py-0.5 rounded font-semibold">套用</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500">自由提案 / 不批評 / 整理共識</div>
+                    </button>
+                    <button type="button" class="group-template-btn p-2 text-left bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-lg border border-sky-200 hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between" data-tpl="life">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-slate-800">🤝 生活情境探討</span>
+                            <span class="text-[10px] bg-sky-200/60 text-sky-800 px-1.5 py-0.5 rounded font-semibold">套用</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500">經驗分享 / 共同歸納 / 代表回答</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 justify-end items-center mt-5 pt-3 border-t border-slate-100">
+            <span class="text-xs text-slate-400 mr-auto hidden sm:inline">按 Enter 鍵可快速儲存</span>
+            <button id="group-topic-cancel-btn" type="button" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all text-sm font-semibold">取消</button>
+            <button id="group-topic-save-btn" type="button" class="px-5 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all text-sm shadow flex items-center gap-1.5">
+                <span>💾</span> 儲存並同步變更
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Group Discussion: Bonus Items Edit Modal -->
+<div id="group-bonus-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3 class="text-slate-800 text-xl font-bold mb-1">編輯組別加分項目</h3>
+        <p class="text-slate-400 text-sm mb-4">自訂課堂加分項目與分值，點擊加分項目可快速給組別加分。</p>
+
+        <div id="group-bonus-edit-list" class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1 mb-4">
+            <!-- JS 動態生成加分項目列表 -->
+        </div>
+
+        <div class="bg-sky-50/80 border border-sky-200 rounded-xl p-3 mb-4">
+            <div class="text-xs font-bold text-sky-700 mb-2">＋ 新增加分項目</div>
+            <div class="flex gap-2">
+                <input type="text" id="new-bonus-icon" placeholder="圖示(🌟)" value="🌟" maxlength="4"
+                    class="w-16 px-2.5 py-1.5 text-center text-sm rounded-lg bg-white border border-sky-200 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                <input type="text" id="new-bonus-label" placeholder="項目名稱（例如：迅速就緒）"
+                    class="flex-1 px-3 py-1.5 text-sm rounded-lg bg-white border border-sky-200 focus:outline-none focus:ring-1 focus:ring-sky-400">
+                <select id="new-bonus-pts" class="px-2 py-1.5 text-sm rounded-lg bg-white border border-sky-200 focus:outline-none focus:ring-1 focus:ring-sky-400 font-bold">
+                    <option value="1">+1 分</option>
+                    <option value="2" selected>+2 分</option>
+                    <option value="3">+3 分</option>
+                    <option value="-1">-1 分</option>
+                </select>
+                <button id="add-bonus-item-btn" type="button" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg text-xs font-bold hover:bg-sky-700 transition-all">新增</button>
+            </div>
+        </div>
+
+        <div class="flex gap-3 justify-between items-center mt-4 pt-3 border-t border-slate-100">
+            <button id="group-bonus-reset-defaults-btn" type="button" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-xs font-semibold transition-all">
+                還原預設項目
+            </button>
+            <div class="flex gap-2">
+                <button id="group-bonus-cancel-btn" type="button" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all text-sm font-semibold">取消</button>
+                <button id="group-bonus-save-btn" type="button" class="px-5 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all text-sm shadow">儲存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Group Discussion: Award Modal -->
+<div id="group-award-modal" class="modal">
+    <div class="modal-content text-center" style="max-width: 460px;">
+        <div class="text-5xl my-2">🏆</div>
+        <h3 class="text-slate-800 text-2xl font-black mb-1">小組討論榮譽榜</h3>
+        <p class="text-slate-400 text-xs mb-4">本次小組討論各組表現亮眼，恭喜獲勝組別！</p>
+
+        <!-- 前三名大牌位 -->
+        <div id="group-award-podium" class="space-y-2 mb-4">
+            <!-- JS 動態生成排名 -->
+        </div>
+
+        <div class="flex justify-center mt-5">
+            <button id="group-award-close-btn" type="button" class="px-8 py-2.5 bg-sky-600 text-white rounded-xl font-bold hover:bg-sky-700 transition-all shadow text-base">
+                太棒了！關閉
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Group Discussion: Rename Group Modal -->
+<div id="group-rename-modal" class="modal">
+    <div class="modal-content" style="max-width: 380px;">
+        <h3 class="text-slate-800 text-lg font-bold mb-2">修改組別名稱</h3>
+        <input type="text" id="group-rename-input" placeholder="例如：火箭隊、迅猛龍組..." maxlength="12"
+            class="w-full px-4 py-2.5 rounded-lg text-base bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400 mb-4">
+        <div class="flex gap-2 justify-end">
+            <button id="group-rename-cancel-btn" type="button" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-semibold">取消</button>
+            <button id="group-rename-save-btn" type="button" class="px-5 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 text-sm shadow">儲存</button>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Toast Notification for Group & Sync Actions -->
+<div id="group-toast" class="fixed bottom-6 right-6 z-[9999] px-4 py-2.5 rounded-xl shadow-xl text-sm font-bold opacity-0 pointer-events-none transition-all duration-300"></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -861,12 +1327,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Tabs ──────────────────────────────────────────────────
     document.getElementById('tab-timer-btn').addEventListener('click', () => switchTab('timer'));
+    document.getElementById('tab-group-btn').addEventListener('click', () => switchTab('group'));
     document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
     document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
     document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['timer', 'exam', 'seat', 'weekly'];
+    var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'weekly'];
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
 
@@ -882,7 +1349,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function applyTabOrder() {
         var bar = document.getElementById('tab-bar');
-        tabOrder.forEach(function (k) { bar.appendChild(document.getElementById('tab-' + k + '-btn')); });
+        tabOrder.forEach(function (k) {
+            var btn = document.getElementById('tab-' + k + '-btn');
+            if (btn) bar.appendChild(btn);
+        });
+        var sh150Link = bar.querySelector('a[href*="sh150"]');
+        if (sh150Link) bar.appendChild(sh150Link);
         bar.appendChild(document.getElementById('tab-order-btn'));
     }
 
@@ -972,6 +1444,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'weekly') {
             stopCleaningCountdown(); stopExamClock();
             renderWeeklyTable(); weeklySyncPull();
+        } else if (tab === 'group') {
+            stopCleaningCountdown(); stopExamClock();
+            if (typeof initGroupPanel === 'function') initGroupPanel();
+            if (typeof groupSyncPull === 'function') groupSyncPull();
         } else {
             stopCleaningCountdown(); stopExamClock();
         }
@@ -1727,6 +2203,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.setItem('timerTabOrder', JSON.stringify(bundle.settings.tabOrder));
                         tabOrder = loadTabOrder();
                         applyTabOrder();
+                    }
+                    if (bundle.settings.groupSettings && typeof applyGroupSettingsFromServer === 'function') {
+                        applyGroupSettingsFromServer(bundle.settings.groupSettings);
                     }
                 }
                 renderSeatModeButtons();
@@ -3470,8 +3949,1212 @@ document.addEventListener('DOMContentLoaded', () => {
         return lines.join(String.fromCharCode(10));
     }
 
+
+    // ==========================================================
+    // 👥 GROUP DISCUSSION MODULE (小組討論)
+    // ==========================================================
+
+    // --- State Variables ---
+    var groupDefaultTopic = {
+        title: '課文問題深究與小組討論',
+        tasks: [
+            '1. 全組輪流發表想法，每人發言至少 1 次',
+            '2. 記錄重點於小白板或學習單',
+            '3. 抽籤選出組員代表，準備全班分享'
+        ]
+    };
+
+    var groupDefaultBonusItems = [
+        { id: 'discuss', icon: '🌟', label: '熱烈討論', pts: 1 },
+        { id: 'collab', icon: '🤝', label: '全員合作', pts: 1 },
+        { id: 'smart', icon: '💡', label: '優質發言', pts: 1 },
+        { id: 'fast', icon: '⚡', label: '迅速就緒', pts: 1 },
+        { id: 'done', icon: '🎯', label: '率先完成', pts: 2 },
+        { id: 'present', icon: '🎤', label: '精采發表', pts: 2 },
+        { id: 'quiet', icon: '🤫', label: '專注安靜', pts: 1 }
+    ];
+
+    var groupTopic = loadGroupTopic();
+    var groupBonusItems = loadGroupBonusItems();
+    var groupCount = parseInt(localStorage.getItem('groupCount') || '6', 10);
+    if (isNaN(groupCount) || groupCount < 4 || groupCount > 8) groupCount = 6;
+    var groupScores = loadGroupScores();
+    var groupNames = loadGroupNames();
+    var groupLastBonuses = {};
+
+    var groupSelectedBonus = null; // Currently active bonus item from criteria bar
+    var groupMaxDrawNumber = parseInt(localStorage.getItem('groupMaxDrawNumber') || '5', 10);
+    var groupDrawHistory = loadGroupDrawHistory();
+    var groupDrawnGroups = new Set();
+    var groupCurrentDrawMode = 'number'; // 'number' | 'group' | 'both'
+    var groupLastDrawResultText = '';
+
+    // Timer variables
+    var groupTimerSeconds = parseInt(localStorage.getItem('groupTimerMinutes') || '5', 10) * 60;
+    var groupTimerInitialSeconds = groupTimerSeconds;
+    var groupTimerRunning = false;
+    var groupTimerInterval = null;
+
+    // --- Sound & Speech Synthesis ---
+    function playGroupChime(type) {
+        try {
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            var ctx = new AudioCtx();
+            if (type === 'bonus') {
+                [523.25, 659.25, 783.99].forEach(function (freq, idx) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.08);
+                    osc.stop(ctx.currentTime + idx * 0.08 + 0.4);
+                });
+            } else if (type === 'tick') {
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(750, ctx.currentTime);
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.06);
+            } else if (type === 'win') {
+                [523.25, 659.25, 783.99, 1046.5].forEach(function (freq, idx) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+                    gain.gain.setValueAtTime(0.22, ctx.currentTime + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.5);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.12);
+                    osc.stop(ctx.currentTime + idx * 0.12 + 0.55);
+                });
+            } else if (type === 'timeup') {
+                [880, 880, 880].forEach(function (freq, idx) {
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.2);
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime + idx * 0.2);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.2 + 0.18);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime + idx * 0.2);
+                    osc.stop(ctx.currentTime + idx * 0.2 + 0.2);
+                });
+            }
+        } catch (e) {}
+    }
+
+    function speakGroupText(text) {
+        var toggle = document.getElementById('group-sound-toggle');
+        if (toggle && !toggle.checked) return;
+        if (typeof speechSynthesis === 'undefined') return;
+        try {
+            speechSynthesis.cancel();
+            var u = new SpeechSynthesisUtterance(text);
+            u.lang = 'zh-TW';
+            u.rate = 1.0;
+            speechSynthesis.speak(u);
+        } catch (e) {}
+    }
+
+    // --- Cloud Sync & Storage Helpers ---
+    var GROUP_SYNC = (typeof google !== 'undefined' && google.script && google.script.run) ? true : false;
+    var groupSyncBusy = false;
+
+    function showGroupToast(msg, isSuccess) {
+        if (isSuccess === undefined) isSuccess = true;
+        var toast = document.getElementById('group-toast');
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.className = 'fixed bottom-6 right-6 z-[9999] px-4 py-2.5 rounded-xl shadow-xl text-sm font-bold transition-all duration-300 pointer-events-auto ' +
+            (isSuccess ? 'bg-sky-600 text-white shadow-sky-200' : 'bg-rose-600 text-white shadow-rose-200');
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        clearTimeout(toast._timeout);
+        toast._timeout = setTimeout(function () {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(10px)';
+        }, 2600);
+    }
+
+    function updateGroupSyncBadge(status, err) {
+        var badge = document.getElementById('group-sync-badge');
+        var timeEl = document.getElementById('group-last-synced-time');
+        if (!badge) return;
+        if (!GROUP_SYNC) {
+            badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-slate-100 text-slate-500 border border-slate-200';
+            badge.textContent = '💾 本機模式';
+            return;
+        }
+        if (status === 'busy') {
+            badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-600 border border-amber-200 animate-pulse';
+            badge.textContent = '☁️ 雲端同步中...';
+        } else if (status === 'synced') {
+            badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200';
+            badge.textContent = '☁️ 雲端已同步';
+            if (timeEl) {
+                var now = new Date();
+                var hh = String(now.getHours()).padStart(2, '0');
+                var mm = String(now.getMinutes()).padStart(2, '0');
+                timeEl.textContent = '最後同步：' + hh + ':' + mm;
+            }
+        } else if (status === 'error') {
+            badge.className = 'text-[11px] px-2 py-0.5 rounded-full font-semibold bg-rose-50 text-rose-600 border border-rose-200';
+            badge.textContent = '⚠️ 雲端同步失敗' + (err ? ' (' + (err.message || err) + ')' : '');
+        }
+    }
+
+    function packGroupSettings() {
+        return {
+            topic: groupTopic,
+            bonusItems: groupBonusItems,
+            groupCount: groupCount,
+            groupNames: groupNames,
+            updatedAt: new Date().toISOString()
+        };
+    }
+
+    function syncGroupSettingsToCloud(showToastOnSuccess) {
+        if (!GROUP_SYNC) {
+            updateGroupSyncBadge('local');
+            if (showToastOnSuccess) showGroupToast('💾 已儲存（本機）', true);
+            return;
+        }
+        updateGroupSyncBadge('busy');
+        groupSyncBusy = true;
+        google.script.run
+            .withSuccessHandler(function () {
+                groupSyncBusy = false;
+                updateGroupSyncBadge('synced');
+                if (showToastOnSuccess) showGroupToast('☁️ 已儲存並同步至雲端！', true);
+            })
+            .withFailureHandler(function (err) {
+                groupSyncBusy = false;
+                updateGroupSyncBadge('error', err);
+                if (showToastOnSuccess) showGroupToast('⚠️ 已儲存至本機（雲端同步失敗）', false);
+            })
+            .saveGroupSettings(packGroupSettings());
+    }
+
+    function applyGroupSettingsFromServer(gs) {
+        if (!gs || typeof gs !== 'object') return;
+        var changedTopic = false;
+        var changedBonus = false;
+        var changedGroups = false;
+
+        if (gs.topic && typeof gs.topic === 'object' && gs.topic.title) {
+            groupTopic = gs.topic;
+            localStorage.setItem('groupTopic', JSON.stringify(groupTopic));
+            changedTopic = true;
+        }
+        if (Array.isArray(gs.bonusItems) && gs.bonusItems.length) {
+            groupBonusItems = gs.bonusItems;
+            localStorage.setItem('groupBonusItems', JSON.stringify(groupBonusItems));
+            changedBonus = true;
+        }
+        if (gs.groupCount && gs.groupCount >= 4 && gs.groupCount <= 8) {
+            groupCount = gs.groupCount;
+            localStorage.setItem('groupCount', String(groupCount));
+            changedGroups = true;
+        }
+        if (gs.groupNames && typeof gs.groupNames === 'object') {
+            groupNames = gs.groupNames;
+            localStorage.setItem('groupNames', JSON.stringify(groupNames));
+            changedGroups = true;
+        }
+
+        if (changedTopic) renderGroupTopic();
+        if (changedBonus) renderGroupBonusItems();
+        if (changedGroups) renderGroupCards();
+        updateGroupSyncBadge('synced');
+    }
+
+    function groupSyncPull() {
+        if (!GROUP_SYNC) {
+            updateGroupSyncBadge('local');
+            return;
+        }
+        updateGroupSyncBadge('busy');
+        google.script.run
+            .withSuccessHandler(function (gs) {
+                if (gs) applyGroupSettingsFromServer(gs);
+                else updateGroupSyncBadge('synced');
+            })
+            .withFailureHandler(function (err) {
+                updateGroupSyncBadge('error', err);
+            })
+            .getGroupSettings();
+    }
+
+    function loadGroupTopic() {
+        try {
+            var raw = localStorage.getItem('groupTopic');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return JSON.parse(JSON.stringify(groupDefaultTopic));
+    }
+
+    function saveGroupTopic(topic) {
+        groupTopic = topic;
+        localStorage.setItem('groupTopic', JSON.stringify(topic));
+        renderGroupTopic();
+        syncGroupSettingsToCloud(true);
+    }
+
+    function loadGroupBonusItems() {
+        try {
+            var raw = localStorage.getItem('groupBonusItems');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return JSON.parse(JSON.stringify(groupDefaultBonusItems));
+    }
+
+    function saveGroupBonusItems(items) {
+        groupBonusItems = items;
+        localStorage.setItem('groupBonusItems', JSON.stringify(items));
+        renderGroupBonusItems();
+        syncGroupSettingsToCloud(true);
+    }
+
+    function loadGroupScores() {
+        try {
+            var raw = localStorage.getItem('groupScores');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        var sc = {};
+        for (var i = 1; i <= 8; i++) sc[i] = 0;
+        return sc;
+    }
+
+    function saveGroupScores() {
+        localStorage.setItem('groupScores', JSON.stringify(groupScores));
+    }
+
+    function loadGroupNames() {
+        try {
+            var raw = localStorage.getItem('groupNames');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        var names = {};
+        for (var i = 1; i <= 8; i++) names[i] = '第 ' + i + ' 組';
+        return names;
+    }
+
+    function saveGroupNames() {
+        localStorage.setItem('groupNames', JSON.stringify(groupNames));
+        syncGroupSettingsToCloud(false);
+    }
+
+    function loadGroupDrawHistory() {
+        try {
+            var raw = localStorage.getItem('groupDrawHistory');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return [];
+    }
+
+    function saveGroupDrawHistory() {
+        localStorage.setItem('groupDrawHistory', JSON.stringify(groupDrawHistory.slice(-15)));
+    }
+
+    // --- Render Functions ---
+    function renderGroupTopic() {
+        var titleEl = document.getElementById('group-topic-title-display');
+        var listEl = document.getElementById('group-tasks-list-display');
+        if (titleEl) titleEl.textContent = groupTopic.title || '課文問題深究與小組討論';
+        if (listEl) {
+            listEl.innerHTML = '';
+            var tasks = Array.isArray(groupTopic.tasks) && groupTopic.tasks.length ? groupTopic.tasks : groupDefaultTopic.tasks;
+            tasks.forEach(function (task, idx) {
+                var row = document.createElement('div');
+                row.className = 'flex items-start gap-2';
+                var cleanTask = task.replace(/^\d+[.、]\s*/, '');
+                row.innerHTML = '<span class="text-sky-600 font-bold">' + (idx + 1) + '.</span><span>' + cleanTask + '</span>';
+                listEl.appendChild(row);
+            });
+        }
+    }
+
+    function renderGroupBonusItems() {
+        var container = document.getElementById('group-bonus-items-container');
+        if (!container) return;
+        container.innerHTML = '';
+        groupBonusItems.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            var isSelected = groupSelectedBonus && groupSelectedBonus.id === item.id;
+            btn.className = 'group-bonus-pill px-3.5 py-2 border rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center gap-1.5 shadow-sm select-none ' +
+                (isSelected ? 'selected' : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200');
+            var ptsLabel = item.pts > 0 ? '+' + item.pts : item.pts;
+            btn.innerHTML = '<span>' + (item.icon || '⭐') + '</span><span>' + item.label + '</span><span class="text-xs bg-white/70 px-1.5 py-0.5 rounded-md ' + (isSelected ? 'text-sky-800' : 'text-sky-600 font-extrabold') + '">' + ptsLabel + '</span>';
+            btn.addEventListener('click', function () {
+                if (groupSelectedBonus && groupSelectedBonus.id === item.id) {
+                    groupSelectedBonus = null;
+                } else {
+                    groupSelectedBonus = item;
+                }
+                renderGroupBonusItems();
+                updateGroupBonusHint();
+            });
+            container.appendChild(btn);
+        });
+    }
+
+    function updateGroupBonusHint() {
+        var hintEl = document.getElementById('group-selected-bonus-hint');
+        var textEl = document.getElementById('group-selected-bonus-text');
+        if (!hintEl || !textEl) return;
+        if (groupSelectedBonus) {
+            hintEl.classList.remove('hidden');
+            var ptsStr = groupSelectedBonus.pts > 0 ? '+' + groupSelectedBonus.pts : groupSelectedBonus.pts;
+            textEl.textContent = '👉 目前選取：【' + (groupSelectedBonus.icon || '') + ' ' + groupSelectedBonus.label + ' ' + ptsStr + '】請點擊下方任一組別卡片即可加分！';
+        } else {
+            hintEl.classList.add('hidden');
+        }
+    }
+
+    function renderGroupCards() {
+        var grid = document.getElementById('group-cards-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        // Find max score among active groups
+        var maxScore = -999999;
+        for (var i = 1; i <= groupCount; i++) {
+            var s = groupScores[i] || 0;
+            if (s > maxScore) maxScore = s;
+        }
+
+        for (var gid = 1; gid <= groupCount; gid++) {
+            (function (id) {
+                var score = groupScores[id] || 0;
+                var name = groupNames[id] || ('第 ' + id + ' 組');
+                var isLeader = (maxScore > 0 && score === maxScore);
+
+                var card = document.createElement('div');
+                card.className = 'group-card bg-white border-2 ' +
+                    (isLeader ? 'border-amber-400 ring-2 ring-amber-100 shadow-md' : 'border-slate-200 hover:border-sky-300 shadow-sm') +
+                    ' rounded-2xl p-4 flex flex-col justify-between relative cursor-pointer select-none';
+
+                // Top: Group name and leader badge
+                var topRow = document.createElement('div');
+                topRow.className = 'flex items-center justify-between mb-1';
+
+                var nameWrap = document.createElement('div');
+                nameWrap.className = 'flex items-center gap-1 min-w-0';
+
+                var nameText = document.createElement('span');
+                nameText.className = 'font-bold text-slate-700 text-base md:text-lg truncate';
+                nameText.textContent = name;
+
+                var editNameBtn = document.createElement('button');
+                editNameBtn.type = 'button';
+                editNameBtn.className = 'text-slate-300 hover:text-sky-600 text-xs transition-all ml-1';
+                editNameBtn.innerHTML = '✏️';
+                editNameBtn.title = '修改組名';
+                editNameBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    openRenameModal(id);
+                });
+
+                nameWrap.appendChild(nameText);
+                nameWrap.appendChild(editNameBtn);
+                topRow.appendChild(nameWrap);
+
+                if (isLeader) {
+                    var leaderBadge = document.createElement('span');
+                    leaderBadge.className = 'px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-amber-500 text-white text-[11px] font-extrabold rounded-md shadow-xs flex-shrink-0';
+                    leaderBadge.textContent = '👑 領先';
+                    topRow.appendChild(leaderBadge);
+                }
+
+                // Center: Big Score
+                var scoreBox = document.createElement('div');
+                scoreBox.className = 'my-2 text-center';
+
+                var scoreText = document.createElement('div');
+                scoreText.className = 'text-5xl font-black ' + (isLeader ? 'text-amber-500' : 'text-sky-600') + ' tracking-tight';
+                scoreText.textContent = score;
+
+                // Stars display (e.g. ⭐ up to 5)
+                var starsDisplay = document.createElement('div');
+                starsDisplay.className = 'text-amber-400 text-xs min-h-[1.1rem] mt-0.5 tracking-wider';
+                var starCount = Math.max(0, Math.min(score, 8));
+                var starStr = '';
+                for (var s = 0; s < starCount; s++) starStr += '⭐';
+                starsDisplay.textContent = starStr;
+
+                // Recent bonus label
+                var recentLabel = document.createElement('div');
+                recentLabel.className = 'text-[11px] text-slate-400 mt-0.5 truncate min-h-[1rem]';
+                recentLabel.textContent = groupLastBonuses[id] ? ('最近：' + groupLastBonuses[id]) : '';
+
+                scoreBox.appendChild(scoreText);
+                scoreBox.appendChild(starsDisplay);
+                scoreBox.appendChild(recentLabel);
+
+                // Bottom: Action buttons
+                var btnRow = document.createElement('div');
+                btnRow.className = 'flex items-center justify-between gap-1 mt-2 pt-2 border-t border-slate-100';
+
+                var plus1Btn = document.createElement('button');
+                plus1Btn.type = 'button';
+                plus1Btn.className = 'flex-1 py-1 px-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded-lg text-xs border border-emerald-200 transition-all active:scale-95';
+                plus1Btn.textContent = '+1';
+                plus1Btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    applyGroupScore(id, 1, '加分', card);
+                });
+
+                var plus2Btn = document.createElement('button');
+                plus2Btn.type = 'button';
+                plus2Btn.className = 'flex-1 py-1 px-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-extrabold rounded-lg text-xs border border-sky-200 transition-all active:scale-95';
+                plus2Btn.textContent = '+2';
+                plus2Btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    applyGroupScore(id, 2, '加分', card);
+                });
+
+                var minus1Btn = document.createElement('button');
+                minus1Btn.type = 'button';
+                minus1Btn.className = 'py-1 px-1.5 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold rounded-lg text-[11px] border border-slate-200 transition-all active:scale-95';
+                minus1Btn.textContent = '-1';
+                minus1Btn.title = '扣回 1 分';
+                minus1Btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    applyGroupScore(id, -1, '微調', card);
+                });
+
+                btnRow.appendChild(plus1Btn);
+                btnRow.appendChild(plus2Btn);
+                btnRow.appendChild(minus1Btn);
+
+                card.appendChild(topRow);
+                card.appendChild(scoreBox);
+                card.appendChild(btnRow);
+
+                // Clicking card body applies selected bonus item or +1
+                card.addEventListener('click', function () {
+                    if (groupSelectedBonus) {
+                        applyGroupScore(id, groupSelectedBonus.pts, groupSelectedBonus.label, card);
+                    } else {
+                        applyGroupScore(id, 1, '表現良好', card);
+                    }
+                });
+
+                grid.appendChild(card);
+            })(gid);
+        }
+
+        // Update group count selector buttons
+        document.querySelectorAll('.group-count-btn').forEach(function (btn) {
+            var c = parseInt(btn.dataset.count, 10);
+            if (c === groupCount) {
+                btn.className = 'group-count-btn px-2.5 py-1 rounded-lg transition-all bg-sky-600 text-white shadow-sm font-bold';
+            } else {
+                btn.className = 'group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60 text-slate-700 font-semibold';
+            }
+        });
+
+        var countText = document.getElementById('draw-group-count-text');
+        if (countText) countText.textContent = '第 ' + groupCount + ' 組';
+    }
+
+    function applyGroupScore(groupId, pts, label, cardEl) {
+        groupScores[groupId] = (groupScores[groupId] || 0) + pts;
+        var ptsStr = pts > 0 ? '+' + pts : String(pts);
+        groupLastBonuses[groupId] = label ? (label + ' ' + ptsStr) : ptsStr;
+        saveGroupScores();
+        playGroupChime('bonus');
+
+        // Floating animated tag
+        if (cardEl) {
+            var tag = document.createElement('div');
+            tag.className = 'floating-bonus-tag px-3 py-1 bg-sky-600 text-white text-xs font-black rounded-full shadow-lg border border-white whitespace-nowrap';
+            tag.textContent = (label || '加分') + ' ' + ptsStr;
+            cardEl.appendChild(tag);
+            setTimeout(function () { if (tag.parentNode) tag.parentNode.removeChild(tag); }, 1100);
+        }
+
+        renderGroupCards();
+    }
+
+    // --- Timer Engine ---
+    function updateGroupTimerDisplay() {
+        var clockEl = document.getElementById('group-timer-clock');
+        var barEl = document.getElementById('group-timer-bar');
+        var cardEl = document.getElementById('group-timer-card');
+        if (!clockEl) return;
+
+        var m = Math.floor(groupTimerSeconds / 60);
+        var s = groupTimerSeconds % 60;
+        clockEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+        if (barEl && groupTimerInitialSeconds > 0) {
+            var pct = Math.max(0, Math.min(100, (groupTimerSeconds / groupTimerInitialSeconds) * 100));
+            barEl.style.width = pct + '%';
+            if (groupTimerSeconds <= 30) {
+                barEl.className = 'h-full bg-red-400 rounded-full transition-all duration-300';
+            } else if (groupTimerSeconds <= 60) {
+                barEl.className = 'h-full bg-amber-400 rounded-full transition-all duration-300';
+            } else {
+                barEl.className = 'h-full bg-emerald-400 rounded-full transition-all duration-300';
+            }
+        }
+
+        if (cardEl) {
+            if (groupTimerSeconds === 0) {
+                cardEl.classList.add('time-up');
+            } else {
+                cardEl.classList.remove('time-up');
+            }
+        }
+    }
+
+    function toggleGroupTimer() {
+        if (groupTimerRunning) {
+            pauseGroupTimer();
+        } else {
+            startGroupTimer();
+        }
+    }
+
+    function startGroupTimer() {
+        if (groupTimerSeconds <= 0) groupTimerSeconds = groupTimerInitialSeconds;
+        groupTimerRunning = true;
+        var toggleIcon = document.getElementById('group-timer-toggle-icon');
+        var toggleText = document.getElementById('group-timer-toggle-text');
+        if (toggleIcon) toggleIcon.textContent = '⏸';
+        if (toggleText) toggleText.textContent = '暫停計時';
+
+        clearInterval(groupTimerInterval);
+        groupTimerInterval = setInterval(function () {
+            if (groupTimerSeconds > 0) {
+                groupTimerSeconds--;
+                updateGroupTimerDisplay();
+            }
+            if (groupTimerSeconds <= 0) {
+                clearInterval(groupTimerInterval);
+                groupTimerRunning = false;
+                onGroupTimerEnd();
+            }
+        }, 1000);
+    }
+
+    function pauseGroupTimer() {
+        groupTimerRunning = false;
+        clearInterval(groupTimerInterval);
+        var toggleIcon = document.getElementById('group-timer-toggle-icon');
+        var toggleText = document.getElementById('group-timer-toggle-text');
+        if (toggleIcon) toggleIcon.textContent = '▶';
+        if (toggleText) toggleText.textContent = '繼續計時';
+    }
+
+    function resetGroupTimer() {
+        pauseGroupTimer();
+        groupTimerSeconds = groupTimerInitialSeconds;
+        updateGroupTimerDisplay();
+        var toggleIcon = document.getElementById('group-timer-toggle-icon');
+        var toggleText = document.getElementById('group-timer-toggle-text');
+        if (toggleIcon) toggleIcon.textContent = '▶';
+        if (toggleText) toggleText.textContent = '開始計時';
+    }
+
+    function setGroupTimerMinutes(mins) {
+        pauseGroupTimer();
+        groupTimerInitialSeconds = mins * 60;
+        groupTimerSeconds = groupTimerInitialSeconds;
+        localStorage.setItem('groupTimerMinutes', String(mins));
+        updateGroupTimerDisplay();
+        var toggleIcon = document.getElementById('group-timer-toggle-icon');
+        var toggleText = document.getElementById('group-timer-toggle-text');
+        if (toggleIcon) toggleIcon.textContent = '▶';
+        if (toggleText) toggleText.textContent = '開始計時';
+
+        // Update button active state
+        document.querySelectorAll('.group-preset-min-btn').forEach(function (b) {
+            var m = parseInt(b.dataset.mins, 10);
+            if (m === mins) {
+                b.className = 'group-preset-min-btn py-1.5 bg-white text-sky-700 shadow-sm rounded-lg transition-all ring-2 ring-emerald-400 font-bold';
+            } else {
+                b.className = 'group-preset-min-btn py-1.5 bg-sky-100/90 hover:bg-white text-sky-800 rounded-lg transition-all font-semibold';
+            }
+        });
+    }
+
+    function addGroupTimerMinutes(mins) {
+        groupTimerSeconds += mins * 60;
+        if (groupTimerSeconds > groupTimerInitialSeconds) {
+            groupTimerInitialSeconds = groupTimerSeconds;
+        }
+        updateGroupTimerDisplay();
+    }
+
+    function onGroupTimerEnd() {
+        var toggleIcon = document.getElementById('group-timer-toggle-icon');
+        var toggleText = document.getElementById('group-timer-toggle-text');
+        if (toggleIcon) toggleIcon.textContent = '▶';
+        if (toggleText) toggleText.textContent = '重新開始';
+        updateGroupTimerDisplay();
+        playGroupChime('timeup');
+        speakGroupText('小組討論時間結束，請安靜就座準備分享！');
+    }
+
+    // --- Drawing Center Engine ---
+    var isDrawingNow = false;
+
+    function initDrawingCenter() {
+        // Mode buttons
+        var btnNum = document.getElementById('draw-mode-btn-number');
+        var btnGrp = document.getElementById('draw-mode-btn-group');
+        var btnBoth = document.getElementById('draw-mode-btn-both');
+
+        var optNum = document.getElementById('draw-opts-number');
+        var optGrp = document.getElementById('draw-opts-group');
+        var optBoth = document.getElementById('draw-opts-both');
+
+        function setMode(mode) {
+            groupCurrentDrawMode = mode;
+            [btnNum, btnGrp, btnBoth].forEach(function (b) {
+                b.className = 'px-3 py-1.5 rounded-lg transition-all text-amber-700 hover:bg-white/60 font-semibold';
+            });
+            [optNum, optGrp, optBoth].forEach(function (o) { o.classList.add('hidden'); });
+
+            if (mode === 'number') {
+                btnNum.className = 'px-3 py-1.5 rounded-lg transition-all bg-white text-amber-800 shadow-sm font-bold';
+                optNum.classList.remove('hidden');
+            } else if (mode === 'group') {
+                btnGrp.className = 'px-3 py-1.5 rounded-lg transition-all bg-white text-amber-800 shadow-sm font-bold';
+                optGrp.classList.remove('hidden');
+            } else {
+                btnBoth.className = 'px-3 py-1.5 rounded-lg transition-all bg-white text-amber-800 shadow-sm font-bold';
+                optBoth.classList.remove('hidden');
+            }
+        }
+
+        if (btnNum) btnNum.addEventListener('click', function () { setMode('number'); });
+        if (btnGrp) btnGrp.addEventListener('click', function () { setMode('group'); });
+        if (btnBoth) btnBoth.addEventListener('click', function () { setMode('both'); });
+
+        // Max number buttons for mode 1
+        document.querySelectorAll('.group-maxnum-btn').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var max = parseInt(b.dataset.max, 10);
+                groupMaxDrawNumber = max;
+                localStorage.setItem('groupMaxDrawNumber', String(max));
+                document.querySelectorAll('.group-maxnum-btn').forEach(function (x) {
+                    if (parseInt(x.dataset.max, 10) === max) {
+                        x.className = 'group-maxnum-btn px-2.5 py-1 bg-amber-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all';
+                    } else {
+                        x.className = 'group-maxnum-btn px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold hover:bg-amber-200 transition-all';
+                    }
+                });
+            });
+        });
+
+        // Trigger draw buttons
+        var drawNumBtn = document.getElementById('do-draw-number-btn');
+        var drawGrpBtn = document.getElementById('do-draw-group-btn');
+        var drawBothBtn = document.getElementById('do-draw-both-btn');
+        if (drawNumBtn) drawNumBtn.addEventListener('click', function () { executeGroupDraw('number'); });
+        if (drawGrpBtn) drawGrpBtn.addEventListener('click', function () { executeGroupDraw('group'); });
+        if (drawBothBtn) drawBothBtn.addEventListener('click', function () { executeGroupDraw('both'); });
+
+        // Reset drawn groups in repeat mode
+        var resetGrpBtn = document.getElementById('draw-group-reset-btn');
+        if (resetGrpBtn) {
+            resetGrpBtn.addEventListener('click', function () {
+                groupDrawnGroups.clear();
+                updateDrawnGroupsTag();
+            });
+        }
+
+        // Clear history button
+        var clearHistBtn = document.getElementById('draw-clear-history-btn');
+        if (clearHistBtn) {
+            clearHistBtn.addEventListener('click', function () {
+                groupDrawHistory = [];
+                saveGroupDrawHistory();
+                renderDrawHistory();
+            });
+        }
+
+        // Speak again button
+        var speakAgainBtn = document.getElementById('draw-speak-again-btn');
+        if (speakAgainBtn) {
+            speakAgainBtn.addEventListener('click', function () {
+                if (groupLastDrawResultText) speakGroupText(groupLastDrawResultText);
+            });
+        }
+
+        renderDrawHistory();
+        updateDrawnGroupsTag();
+    }
+
+    function updateDrawnGroupsTag() {
+        var tag = document.getElementById('draw-group-history-tag');
+        if (tag) {
+            tag.textContent = '已抽 ' + groupDrawnGroups.size + ' / ' + groupCount + ' 組';
+        }
+    }
+
+    function renderDrawHistory() {
+        var container = document.getElementById('draw-history-tags');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!groupDrawHistory.length) {
+            container.innerHTML = '<span class="text-slate-400 italic">尚無紀錄</span>';
+            return;
+        }
+        groupDrawHistory.slice(-8).reverse().forEach(function (item) {
+            var pill = document.createElement('span');
+            pill.className = 'px-2 py-0.5 bg-amber-100/90 text-amber-900 font-semibold rounded-md text-[11px]';
+            pill.textContent = item;
+            container.appendChild(pill);
+        });
+    }
+
+    function executeGroupDraw(mode) {
+        if (isDrawingNow) return;
+        isDrawingNow = true;
+
+        var resultBox = document.getElementById('draw-result-container');
+        var placeholder = document.getElementById('draw-result-placeholder');
+        var activeView = document.getElementById('draw-result-active');
+        var displayEl = document.getElementById('draw-result-display');
+        var badgeEl = document.getElementById('draw-result-badge');
+
+        if (placeholder) placeholder.classList.add('hidden');
+        if (activeView) activeView.classList.remove('hidden');
+        if (displayEl) displayEl.classList.add('draw-animating');
+
+        // Determine candidate result
+        var targetText = '';
+        var speakText = '';
+        var historyItem = '';
+
+        if (mode === 'number') {
+            var chosenNum = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
+            targetText = '各組【 ' + chosenNum + ' 號 】發表！';
+            speakText = '請各組 ' + chosenNum + ' 號同學代表發表！';
+            historyItem = '各組 ' + chosenNum + ' 號';
+            if (badgeEl) badgeEl.textContent = '🎲 抽各組號碼結果';
+        } else if (mode === 'group') {
+            var noRepeat = document.getElementById('draw-group-no-repeat');
+            var pool = [];
+            for (var i = 1; i <= groupCount; i++) {
+                if (!noRepeat || !noRepeat.checked || !groupDrawnGroups.has(i)) {
+                    pool.push(i);
+                }
+            }
+            if (!pool.length) {
+                // If all drawn, reset pool
+                for (var j = 1; j <= groupCount; j++) pool.push(j);
+                groupDrawnGroups.clear();
+            }
+            var chosenGid = pool[Math.floor(Math.random() * pool.length)];
+            groupDrawnGroups.add(chosenGid);
+            updateDrawnGroupsTag();
+
+            var gName = groupNames[chosenGid] || ('第 ' + chosenGid + ' 組');
+            targetText = '🎉 抽中：【 ' + gName + ' 】！';
+            speakText = '恭喜 ' + gName + ' 代表報告！';
+            historyItem = gName;
+            if (badgeEl) badgeEl.textContent = '🎯 抽報告組別結果';
+        } else {
+            // Mode: both
+            var chosenG = Math.floor(Math.random() * groupCount) + 1;
+            var chosenN = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
+            var gn = groupNames[chosenG] || ('第 ' + chosenG + ' 組');
+            targetText = '🎉 抽中：【 ' + gn + ' ' + chosenN + ' 號 】！';
+            speakText = '請 ' + gn + ' ' + chosenN + ' 號同學代表發言！';
+            historyItem = gn + ' ' + chosenN + ' 號';
+            if (badgeEl) badgeEl.textContent = '👥 抽組別與號碼結果';
+        }
+
+        // Rolling animation
+        var rollCount = 0;
+        var maxRolls = 14;
+        var rollInterval = setInterval(function () {
+            rollCount++;
+            playGroupChime('tick');
+            if (mode === 'number') {
+                var rNum = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
+                if (displayEl) displayEl.textContent = '各組【 ' + rNum + ' 號 】...';
+            } else if (mode === 'group') {
+                var rG = Math.floor(Math.random() * groupCount) + 1;
+                var rName = groupNames[rG] || ('第 ' + rG + ' 組');
+                if (displayEl) displayEl.textContent = '【 ' + rName + ' 】...';
+            } else {
+                var rG2 = Math.floor(Math.random() * groupCount) + 1;
+                var rN2 = Math.floor(Math.random() * groupMaxDrawNumber) + 1;
+                if (displayEl) displayEl.textContent = '【 第 ' + rG2 + ' 組 ' + rN2 + ' 號 】...';
+            }
+
+            if (rollCount >= maxRolls) {
+                clearInterval(rollInterval);
+                if (displayEl) {
+                    displayEl.classList.remove('draw-animating');
+                    displayEl.textContent = targetText;
+                }
+                groupLastDrawResultText = speakText;
+                groupDrawHistory.push(historyItem);
+                saveGroupDrawHistory();
+                renderDrawHistory();
+                playGroupChime('win');
+                speakGroupText(speakText);
+                isDrawingNow = false;
+            }
+        }, 80);
+    }
+
+    // --- Modals Setup ---
+    function setupGroupModals() {
+        // 1. Topic Modal
+        var topicModal = document.getElementById('group-topic-modal');
+        var editTopicBtn = document.getElementById('group-topic-edit-btn');
+        var presetsTopicBtn = document.getElementById('group-topic-presets-btn');
+        var topicCardBox = document.getElementById('group-topic-title-card');
+        var tasksCardBox = document.getElementById('group-tasks-card');
+        var topicInput = document.getElementById('group-topic-input');
+        var tasksInput = document.getElementById('group-tasks-input');
+        var topicCancel = document.getElementById('group-topic-cancel-btn');
+        var topicClose = document.getElementById('group-topic-close-btn');
+        var topicSave = document.getElementById('group-topic-save-btn');
+        var topicSaveTop = document.getElementById('group-topic-save-top-btn');
+
+        function openTopicModal(focusField) {
+            if (topicInput) topicInput.value = groupTopic.title || '';
+            if (tasksInput) tasksInput.value = (groupTopic.tasks || []).join('\n');
+            if (topicModal) topicModal.classList.add('show');
+            setTimeout(function () {
+                if (focusField === 'tasks' && tasksInput) {
+                    tasksInput.focus();
+                } else if (topicInput) {
+                    topicInput.focus();
+                    topicInput.select();
+                }
+            }, 80);
+        }
+
+        function doSaveTopic() {
+            var t = (topicInput.value || '').trim() || groupDefaultTopic.title;
+            var lines = (tasksInput.value || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+            if (!lines.length) lines = groupDefaultTopic.tasks;
+            saveGroupTopic({ title: t, tasks: lines });
+            if (topicModal) topicModal.classList.remove('show');
+        }
+
+        if (editTopicBtn) editTopicBtn.addEventListener('click', function () { openTopicModal('topic'); });
+        if (presetsTopicBtn) presetsTopicBtn.addEventListener('click', function () { openTopicModal('topic'); });
+        if (topicCardBox) topicCardBox.addEventListener('click', function () { openTopicModal('topic'); });
+        if (tasksCardBox) tasksCardBox.addEventListener('click', function () { openTopicModal('tasks'); });
+
+        if (topicCancel) topicCancel.addEventListener('click', function () { topicModal.classList.remove('show'); });
+        if (topicClose) topicClose.addEventListener('click', function () { topicModal.classList.remove('show'); });
+        if (topicModal) topicModal.addEventListener('click', function (e) {
+            if (e.target === topicModal) topicModal.classList.remove('show');
+        });
+
+        if (topicSave) topicSave.addEventListener('click', doSaveTopic);
+        if (topicSaveTop) topicSaveTop.addEventListener('click', doSaveTopic);
+
+        if (topicInput) {
+            topicInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    doSaveTopic();
+                }
+            });
+        }
+        if (tasksInput) {
+            tasksInput.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    doSaveTopic();
+                }
+            });
+        }
+
+        // Topic template buttons inside modal
+        var templates = {
+            reading: {
+                title: '課文問題深究與小組討論',
+                tasks: ['1. 全組輪流發表想法，每人發言至少 1 次', '2. 記錄重點於小白板或學習單', '3. 抽籤選出組員代表，準備全班分享']
+            },
+            math: {
+                title: '數學合作解題思路分享',
+                tasks: ['1. 各組員先獨立思考，再與鄰近組員討論', '2. 共同在小白板書寫計算步驟與答案', '3. 驗算正確並推派解說代表']
+            },
+            creative: {
+                title: '小組創意腦力激盪與方案歸納',
+                tasks: ['1. 盡情提出創意想法，不批判他人觀點', '2. 記錄於便利貼或白板並進行分類', '3. 全組投票選出最具創意的最佳方案']
+            },
+            life: {
+                title: '生活情境問題探討與小組共識',
+                tasks: ['1. 輪流分享個人生活經驗或觀點', '2. 歸納全組共同認同的做法與理由', '3. 準備舉例說明全組達成的共識']
+            }
+        };
+
+        document.querySelectorAll('.group-template-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tplKey = btn.dataset.tpl;
+                if (templates[tplKey]) {
+                    topicInput.value = templates[tplKey].title;
+                    tasksInput.value = templates[tplKey].tasks.join('\n');
+                    btn.classList.add('ring-2', 'ring-sky-500');
+                    setTimeout(function () { btn.classList.remove('ring-2', 'ring-sky-500'); }, 400);
+                }
+            });
+        });
+
+        // 2. Bonus Items Modal
+        var bonusModal = document.getElementById('group-bonus-modal');
+        var editBonusBtn = document.getElementById('group-bonus-edit-btn');
+        var bonusCancel = document.getElementById('group-bonus-cancel-btn');
+        var bonusSave = document.getElementById('group-bonus-save-btn');
+        var bonusReset = document.getElementById('group-bonus-reset-defaults-btn');
+        var addBonusBtn = document.getElementById('add-bonus-item-btn');
+        var bonusListContainer = document.getElementById('group-bonus-edit-list');
+
+        var bonusDraft = [];
+
+        function renderBonusDraft() {
+            if (!bonusListContainer) return;
+            bonusListContainer.innerHTML = '';
+            bonusDraft.forEach(function (item, idx) {
+                var row = document.createElement('div');
+                row.className = 'flex items-center justify-between p-2 bg-sky-50/70 border border-sky-100 rounded-lg text-sm';
+
+                var left = document.createElement('div');
+                left.className = 'flex items-center gap-2';
+                left.innerHTML = '<span class="text-base">' + (item.icon || '⭐') + '</span><span class="font-bold text-slate-700">' + item.label + '</span><span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded font-extrabold">' + (item.pts > 0 ? '+' + item.pts : item.pts) + '分</span>';
+
+                var delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'text-slate-400 hover:text-red-500 text-xs px-2 py-1 rounded transition-all font-semibold';
+                delBtn.textContent = '✕ 刪除';
+                delBtn.addEventListener('click', function () {
+                    bonusDraft.splice(idx, 1);
+                    renderBonusDraft();
+                });
+
+                row.appendChild(left);
+                row.appendChild(delBtn);
+                bonusListContainer.appendChild(row);
+            });
+        }
+
+        if (editBonusBtn) {
+            editBonusBtn.addEventListener('click', function () {
+                bonusDraft = JSON.parse(JSON.stringify(groupBonusItems));
+                renderBonusDraft();
+                bonusModal.classList.add('show');
+            });
+        }
+        if (bonusCancel) bonusCancel.addEventListener('click', function () { bonusModal.classList.remove('show'); });
+        if (bonusModal) bonusModal.addEventListener('click', function (e) { if (e.target === bonusModal) bonusModal.classList.remove('show'); });
+
+        if (bonusReset) {
+            bonusReset.addEventListener('click', function () {
+                bonusDraft = JSON.parse(JSON.stringify(groupDefaultBonusItems));
+                renderBonusDraft();
+            });
+        }
+
+        if (addBonusBtn) {
+            addBonusBtn.addEventListener('click', function () {
+                var icon = (document.getElementById('new-bonus-icon').value || '🌟').trim();
+                var label = (document.getElementById('new-bonus-label').value || '').trim();
+                var pts = parseInt(document.getElementById('new-bonus-pts').value, 10) || 1;
+                if (!label) {
+                    alert('請輸入項目名稱！');
+                    return;
+                }
+                bonusDraft.push({
+                    id: 'custom_' + Date.now(),
+                    icon: icon,
+                    label: label,
+                    pts: pts
+                });
+                document.getElementById('new-bonus-label').value = '';
+                renderBonusDraft();
+            });
+        }
+
+        if (bonusSave) {
+            bonusSave.addEventListener('click', function () {
+                if (!bonusDraft.length) {
+                    alert('至少需要保留一個加分項目！');
+                    return;
+                }
+                saveGroupBonusItems(bonusDraft);
+                bonusModal.classList.remove('show');
+            });
+        }
+
+        // Cancel bonus selection pill button
+        var cancelSelectBtn = document.getElementById('group-cancel-bonus-selection-btn');
+        if (cancelSelectBtn) {
+            cancelSelectBtn.addEventListener('click', function () {
+                groupSelectedBonus = null;
+                renderGroupBonusItems();
+                updateGroupBonusHint();
+            });
+        }
+
+        // 3. Award Modal
+        var awardModal = document.getElementById('group-award-modal');
+        var awardBtn = document.getElementById('group-award-btn');
+        var awardClose = document.getElementById('group-award-close-btn');
+
+        if (awardBtn) {
+            awardBtn.addEventListener('click', function () {
+                var ranked = [];
+                for (var i = 1; i <= groupCount; i++) {
+                    ranked.push({
+                        id: i,
+                        name: groupNames[i] || ('第 ' + i + ' 組'),
+                        score: groupScores[i] || 0
+                    });
+                }
+                ranked.sort(function (a, b) { return b.score - a.score; });
+
+                var podium = document.getElementById('group-award-podium');
+                if (podium) {
+                    podium.innerHTML = '';
+                    var medals = ['🥇 第一名', '🥈 第二名', '🥉 第三名'];
+                    var medalBgs = ['bg-amber-100 border-amber-300 text-amber-900', 'bg-slate-100 border-slate-300 text-slate-800', 'bg-orange-100 border-orange-300 text-orange-900'];
+
+                    ranked.forEach(function (g, rank) {
+                        var card = document.createElement('div');
+                        card.className = 'flex items-center justify-between p-3 rounded-xl border ' +
+                            (rank < 3 ? medalBgs[rank] : 'bg-slate-50 border-slate-200 text-slate-700') +
+                            ' font-bold text-sm shadow-xs';
+
+                        var left = document.createElement('div');
+                        left.className = 'flex items-center gap-2';
+                        var badge = rank < 3 ? medals[rank] : ('第 ' + (rank + 1) + ' 名');
+                        left.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-white/70 font-black">' + badge + '</span><span class="text-base font-extrabold">' + g.name + '</span>';
+
+                        var right = document.createElement('div');
+                        right.className = 'text-xl font-black';
+                        right.textContent = g.score + ' 分';
+
+                        card.appendChild(left);
+                        card.appendChild(right);
+                        podium.appendChild(card);
+                    });
+                }
+
+                playGroupChime('win');
+                if (ranked.length && ranked[0].score > 0) {
+                    speakGroupText('恭喜獲勝組別：' + ranked[0].name + '，獲得全場最高分！');
+                }
+                awardModal.classList.add('show');
+            });
+        }
+        if (awardClose) awardClose.addEventListener('click', function () { awardModal.classList.remove('show'); });
+        if (awardModal) awardModal.addEventListener('click', function (e) { if (e.target === awardModal) awardModal.classList.remove('show'); });
+
+        // 4. Reset Scores Button
+        var resetScoresBtn = document.getElementById('group-reset-scores-btn');
+        if (resetScoresBtn) {
+            resetScoresBtn.addEventListener('click', function () {
+                if (confirm('確定要將所有組別的分數歸零嗎？')) {
+                    for (var i = 1; i <= 8; i++) groupScores[i] = 0;
+                    groupLastBonuses = {};
+                    saveGroupScores();
+                    renderGroupCards();
+                }
+            });
+        }
+
+        // 5. Group Count Selector
+        document.querySelectorAll('.group-count-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var c = parseInt(btn.dataset.count, 10);
+                if (c >= 4 && c <= 8) {
+                    groupCount = c;
+                    localStorage.setItem('groupCount', String(c));
+                    renderGroupCards();
+                    syncGroupSettingsToCloud(false);
+                }
+            });
+        });
+
+        // 6. Rename Modal
+        var renameModal = document.getElementById('group-rename-modal');
+        var renameInput = document.getElementById('group-rename-input');
+        var renameCancel = document.getElementById('group-rename-cancel-btn');
+        var renameSave = document.getElementById('group-rename-save-btn');
+        var currentRenamingGid = 1;
+
+        window.openRenameModal = function (gid) {
+            currentRenamingGid = gid;
+            if (renameInput) renameInput.value = groupNames[gid] || ('第 ' + gid + ' 組');
+            if (renameModal) renameModal.classList.add('show');
+        };
+
+        if (renameCancel) renameCancel.addEventListener('click', function () { renameModal.classList.remove('show'); });
+        if (renameModal) renameModal.addEventListener('click', function (e) { if (e.target === renameModal) renameModal.classList.remove('show'); });
+        if (renameSave) {
+            renameSave.addEventListener('click', function () {
+                var val = (renameInput.value || '').trim();
+                if (val) {
+                    groupNames[currentRenamingGid] = val;
+                    saveGroupNames();
+                    renderGroupCards();
+                }
+                renameModal.classList.remove('show');
+            });
+        }
+
+        // 7. Group Timer Buttons
+        var timerToggleBtn = document.getElementById('group-timer-toggle-btn');
+        var timerResetBtn = document.getElementById('group-timer-reset-btn');
+        var timerAddBtn = document.getElementById('group-timer-add1-btn');
+        if (timerToggleBtn) timerToggleBtn.addEventListener('click', toggleGroupTimer);
+        if (timerResetBtn) timerResetBtn.addEventListener('click', resetGroupTimer);
+        if (timerAddBtn) timerAddBtn.addEventListener('click', function () { addGroupTimerMinutes(1); });
+
+        document.querySelectorAll('.group-preset-min-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var m = parseInt(btn.dataset.mins, 10);
+                if (m > 0) setGroupTimerMinutes(m);
+            });
+        });
+    }
+
+    // --- Panel Entrypoint ---
+    var groupInitialized = false;
+    function initGroupPanel() {
+        renderGroupTopic();
+        renderGroupBonusItems();
+        renderGroupCards();
+        updateGroupTimerDisplay();
+        updateGroupSyncBadge(GROUP_SYNC ? 'synced' : 'local');
+        if (groupInitialized) return;
+        groupInitialized = true;
+        initDrawingCenter();
+        setupGroupModals();
+        if (typeof groupSyncPull === 'function') groupSyncPull();
+    }
+
     initWeeklyPanel();
     initSeatPanel();
+    initGroupPanel();
 
     // 分頁模組都就緒後，再切到使用者排的第一個分頁
     if (tabOrder[0] !== 'timer' && !localStorage.getItem('timerActiveState')) switchTab(tabOrder[0]);
