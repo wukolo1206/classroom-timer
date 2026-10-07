@@ -1349,8 +1349,37 @@
             </label>
         </div>
         <p class="text-slate-400 text-xs mt-3">還原會覆蓋目前全部資料，覆蓋前會先自動下載一份目前資料的備份。舊 SH150 網址的備份檔，請到「🏃 SH150 運動登記」分頁按「📥 載入」。</p>
+        <div class="mt-4 pt-4 border-t border-slate-100">
+            <button id="source-open" class="w-full px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-all">🛠 下載原始碼，自己修改這個工具</button>
+        </div>
         <div class="flex justify-end mt-4">
             <button id="backup-close" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">關閉</button>
+        </div>
+    </div>
+</div>
+
+<div id="source-modal" class="modal">
+    <div class="modal-content" style="max-width: 36rem;">
+        <h3 class="text-slate-800 text-xl font-bold mb-1">🛠 下載原始碼自己修改</h3>
+        <p class="text-slate-500 text-sm mb-3">整個工具就是一個 HTML 檔，不用安裝。下載後可以自己改，或把檔案交給 AI 說明想改什麼。目前版本：<b id="source-version"></b></p>
+        <ol class="text-slate-600 text-sm list-decimal pl-5 space-y-1.5 mb-3">
+            <li>先按「💾 備份與還原 → 下載完整備份」，保存這裡的資料。</li>
+            <li>按下方「下載原始碼」，得到 <code class="bg-slate-100 px-1 rounded">班級工具箱.html</code>。</li>
+            <li>用記事本或 VS Code 打開修改，存檔時用 UTF-8 編碼。</li>
+            <li>存檔後雙擊檔案，用瀏覽器打開。<b>第一次打開是空白的</b>（自己電腦上的檔案和這個網址各存各的資料），請到「💾 備份與還原」還原步驟 1 的備份。</li>
+        </ol>
+        <div class="bg-sky-50 border border-sky-100 rounded-lg p-3 text-sm text-slate-600 mb-3">
+            <b class="text-sky-700">常改的地方：</b>在檔案中搜尋 <code class="bg-white px-1 rounded">【可自行修改】</code>，有學期開學日與週數、預設秩序項目、含氟表單標題、備份提醒天數。
+        </div>
+        <ul class="text-slate-500 text-xs list-disc pl-5 space-y-1 mb-4">
+            <li>標示 <code class="bg-slate-100 px-1 rounded">【請勿直接修改】</code> 的 SH150 區塊有特殊跳脫字元，改錯會讓 SH150 分頁打不開。</li>
+            <li>讀寫資料請用 <code class="bg-slate-100 px-1 rounded">ctuStore</code>，它會自動加上 <code class="bg-slate-100 px-1 rounded">ctu_</code> 前綴；不要直接寫 localStorage，以免蓋掉 SH150 等其他工具的資料。</li>
+            <li>自己的版本不會收到這裡之後的更新；想要新功能，可以重新下載一份再改。</li>
+            <li>打開時需要網路（版面樣式從網路載入）。改壞了就重新下載一份，資料用備份還原。</li>
+        </ul>
+        <div class="flex justify-end gap-2">
+            <button id="source-close" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">關閉</button>
+            <button id="source-download" class="px-4 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">⬇️ 下載原始碼</button>
         </div>
     </div>
 </div>
@@ -1378,7 +1407,7 @@
     <button id="backup-reminder-btn" class="px-2 py-0.5 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 transition-all">立即備份</button>
 </div>
 
-<!-- SH150 運動登記原始碼（由 sh150-tracker/universal.html 移植；載入時還原 <\!-- 與 <\/script 跳脫） -->
+<!-- 【請勿直接修改】SH150 運動登記原始碼（由 sh150-tracker/universal.html 移植；載入時還原 <\!-- 與 <\/script 跳脫） -->
 <script type="text/plain" id="sh150-source">
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -2669,7 +2698,10 @@
         }
     };
 
-    // ── 學期週次：每學期由維護者更新一次並 push ──
+    // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
+    window.CTU_VERSION = 'v1.2（2026-10-07）';
+
+    // ── 【可自行修改】學期週次：每學期更新一次（label 學年-學期、開學週星期一、SH150 週數）──
     window.CTU_SEMESTER = { label: '115-1', startMonday: '2026-08-31', weeks: 22 };
     window.CTU_WEEKLY_WEEKS = 20;   // 含氟紀錄列印表固定 20 欄
 
@@ -2691,6 +2723,7 @@
         var n = parseInt(window.ctuSemesterOverride().weeks, 10);
         return n >= 1 && n <= 30 ? n : window.CTU_SEMESTER.weeks;
     };
+    // 【可自行修改】含氟紀錄的預設表單標題（已存過的標題可直接在含氟分頁修改）
     window.ctuWeeklyDefaultTitle = function () {
         var p = String(window.CTU_SEMESTER.label).split('-');
         return '新北市三重區碧華國小' + p[0] + '學年第' + (p[1] || '1') + '學期含氟漱口水實施記錄表';
@@ -4424,6 +4457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { dot: 'bg-pink-500',    text: 'text-pink-600',    soft: 'bg-pink-50 border-pink-300' },
         { dot: 'bg-lime-600',    text: 'text-lime-700',    soft: 'bg-lime-50 border-lime-300' }
     ];
+    // 【可自行修改】預設秩序項目（老師還沒自訂時使用；key 是比對用代碼，不要重複）
     var defaultSeatItems = [
         { key: 'tilt',  label: '座位歪了',   color: 0 },
         { key: 'trash', label: '地上有垃圾', color: 1 },
@@ -6798,7 +6832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var SH150_RECORDS_KEY = 'sh150_universal_all_records';
     // 有這些紀錄才算「有資料需要備份」
     var RECORD_KEYS = ['ctu_seatCheckRecords', 'ctu_timerHistory', 'ctu_weeklyRecordData', 'ctu_sh150_records', 'ctu_groupScores', 'ctu_groupDrawHistory'];
-    var REMIND_DAYS = 14;
+    var REMIND_DAYS = 14;   // 【可自行修改】幾天沒備份就提醒
 
     function $(id) { return document.getElementById(id); }
     function pad(n) { return String(n).padStart(2, '0'); }
@@ -6887,6 +6921,34 @@ document.addEventListener('DOMContentLoaded', () => {
         var show = hasUserData() && (days === null || days >= REMIND_DAYS);
         el.classList.toggle('hidden', !show);
         if (show) $('backup-reminder-text').textContent = days === null ? '這台電腦的資料還沒有備份過' : '已 ' + days + ' 天沒有備份';
+    }
+
+    // ── 下載原始碼 ──
+    // 線上版直接取目前網址的原始檔；從自己電腦打開（file://）時瀏覽器不允許讀取，改從 GitHub 取最新版
+    var SOURCE_RAW = 'https:/' + '/raw.githubusercontent.com/wukolo1206/classroom-timer/master/universal.html';
+    function downloadSource() {
+        var btn = $('source-download');
+        btn.disabled = true; btn.textContent = '下載中…';
+        function done() { btn.disabled = false; btn.textContent = '⬇️ 下載原始碼'; }
+        function get(url) {
+            return fetch(url, { cache: 'no-store' }).then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.text();
+            });
+        }
+        var here = location.protocol.indexOf('http') === 0 ? get(location.href.split('#')[0]) : Promise.reject(new Error('file'));
+        here.catch(function () { return get(SOURCE_RAW); }).then(function (text) {
+            var blob = new Blob([text], { type: 'text/html;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = '班級工具箱.html';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+            done();
+        }).catch(function () {
+            done();
+            alert('下載失敗，請確認網路連線後再試一次。');
+        });
     }
 
     // ── 班級設定 ──
@@ -7036,6 +7098,14 @@ document.addEventListener('DOMContentLoaded', () => {
         $('backup-close').addEventListener('click', function () { $('backup-modal').classList.remove('show'); });
         $('backup-modal').addEventListener('click', function (e) { if (e.target === $('backup-modal')) $('backup-modal').classList.remove('show'); });
         $('backup-download').addEventListener('click', function () { window.ctuFullBackup(''); });
+        $('source-open').addEventListener('click', function () {
+            $('backup-modal').classList.remove('show');
+            $('source-version').textContent = window.CTU_VERSION;
+            $('source-modal').classList.add('show');
+        });
+        $('source-close').addEventListener('click', function () { $('source-modal').classList.remove('show'); });
+        $('source-modal').addEventListener('click', function (e) { if (e.target === $('source-modal')) $('source-modal').classList.remove('show'); });
+        $('source-download').addEventListener('click', downloadSource);
         $('backup-restore-input').addEventListener('change', function (e) {
             if (e.target.files[0]) window.ctuRestoreFromFile(e.target.files[0]);
             e.target.value = '';
