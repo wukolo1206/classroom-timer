@@ -838,14 +838,6 @@
 
     <!-- ══════════════ WEEKLY RECORD PANEL ══════════════ -->
     <div id="panel-weekly" class="hidden p-4 md:p-8">
-        <div class="flex flex-wrap items-start gap-3 mb-5">
-            <div class="flex-1 min-w-[16rem]">
-                <h2 class="text-slate-700 font-bold text-xl">🗓 含氟每週紀錄</h2>
-                <p class="text-slate-400 text-sm mt-1">依照參考表格，每位學生一列、每週一格；點格子會循環顯示空白 → ✓ 已實施 → X 未執行。</p>
-            </div>
-            <span id="weekly-sync-status" class="text-slate-400 text-sm"></span>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <label class="text-slate-500 text-sm font-medium">表單名稱
                 <input id="weekly-title" type="text" maxlength="80"
@@ -1860,8 +1852,8 @@
                 <span id="headerDateRange" style="font-size:0.95rem; color:#1e40af; font-weight:bold; margin: 0 4px;">(8/31 ~ 9/4)</span>
                 <button class="btn btn-outline" onclick="exportData()">💾 備份</button>
                 <button class="btn btn-outline" onclick="importData()">📥 載入</button>
-                <button class="btn btn-outline" onclick="clearCurrentWeek()">🗑️ 清空本週</button>
                 <button class="btn btn-primary" onclick="window.print()">🖨️ A4 直接列印</button>
+                <button class="btn btn-outline" onclick="clearCurrentWeek()">🗑️ 清空本週</button>
             </div>
         </div>
 
@@ -2090,6 +2082,11 @@
         let teacherRuns = { 1:0, 2:0, 3:0, 4:0, 5:0 }; // 當前選中週次之 teacherRuns
 
         // 姓名遮罩（中間字轉為 ○ 保護學生隱私，A4列印自動維持全名）
+        // 插入 HTML 前跳脫（名冊與紀錄可能來自備份檔）
+        function escHtml(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         function maskName(name) {
             if (!name) return '';
             if (name.length <= 1) return name;
@@ -2221,8 +2218,9 @@
                 if (savedConfig) {
                     const parsed = JSON.parse(savedConfig);
                     classConfig = { ...DEFAULT_CONFIG, ...parsed };
-                    if (!classConfig.studentCount || parseInt(classConfig.studentCount) < 10) {
-                        classConfig.studentCount = 35;
+                    // 與外層班級設定相同：1～60 人
+                    if (!classConfig.studentCount || parseInt(classConfig.studentCount) < 1) {
+                        classConfig.studentCount = 30;
                     }
                     if (Array.isArray(classConfig.studentNames)) {
                         while (classConfig.studentNames.length > 0 && classConfig.studentNames[classConfig.studentNames.length - 1] === '') {
@@ -2347,8 +2345,8 @@
 
                 card.innerHTML = `
                     <div class="student-seat">${String(i).padStart(2, '0')} 號</div>
-                    <div class="student-name">${displayName}</div>
-                    <div class="student-badge">${badgeText}</div>
+                    <div class="student-name">${escHtml(displayName)}</div>
+                    <div class="student-badge">${escHtml(badgeText)}</div>
                 `;
                 grid.appendChild(card);
             }
@@ -2445,7 +2443,7 @@
 
             const namesList = classConfig.studentNames || [];
             // 列印總表至少 35 列（官方標準單頁 A4 規格）
-            const printRowCount = Math.max(35, namesList.length);
+            const printRowCount = Math.max(35, namesList.length, parseInt(classConfig.studentCount) || 0);
 
             for (let i = 1; i <= printRowCount; i++) {
                 const sName = namesList[i - 1] || '';
@@ -2594,6 +2592,14 @@
                     if (!data || typeof data !== 'object') {
                         throw new Error('Invalid JSON');
                     }
+                    // 先檢查格式，確定可以載入才動資料
+                    const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+                    const weeksOk = isObj(data.allWeeksData) && Object.keys(data.allWeeksData).every(w => isObj(data.allWeeksData[w]));
+                    const oldOk = !('allWeeksData' in data) && isObj(data.records);
+                    if (!weeksOk && !oldOk) throw new Error('Invalid records');
+                    if ('classConfig' in data && !isObj(data.classConfig)) throw new Error('Invalid classConfig');
+                    // 覆蓋前先下載一份目前全部資料的備份
+                    if (CTU_PARENT && CTU_PARENT.ctuFullBackup) CTU_PARENT.ctuFullBackup('_SH150載入前');
                     if (data.classConfig && typeof data.classConfig === 'object') {
                         classConfig = { ...DEFAULT_CONFIG, ...data.classConfig };
                         try {
@@ -2688,9 +2694,23 @@
     function rawGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
     window.ctuRawGet = rawGet;
 
+    // 寫入失敗（空間已滿或被封鎖）時提醒一次，避免老師以為已存檔
+    var warnedWriteFail = false;
+    function warnWriteFail() {
+        if (warnedWriteFail) return;
+        warnedWriteFail = true;
+        setTimeout(function () {
+            alert('⚠ 資料沒有存進去：這台電腦的瀏覽器儲存空間已滿或被封鎖。\n請先按「💾 備份與還原 → 下載完整備份」保存資料，再清除不需要的紀錄。');
+        }, 0);
+    }
+
     window.ctuStore = {
+        // 回傳 true 表示確實寫入
+        setItem: function (k, v) {
+            try { window.localStorage.setItem(PREFIX + k, String(v)); return true; }
+            catch (e) { warnWriteFail(); return false; }
+        },
         getItem: function (k) { return rawGet(PREFIX + k); },
-        setItem: function (k, v) { try { window.localStorage.setItem(PREFIX + k, String(v)); } catch (e) {} },
         removeItem: function (k) { try { window.localStorage.removeItem(PREFIX + k); } catch (e) {} },
         keys: function () {
             var out = [];
@@ -2705,7 +2725,31 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.5（2026-10-07）';
+    window.CTU_VERSION = 'v1.6（2026-10-07）';
+
+    // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
+    window.ctuEsc = function (v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+
+    // 安全讀取 JSON 設定：壞掉或型別不符時回到預設值，原值另存 ctu_corrupt_* 供救援，不讓整個程式停住
+    window.ctuParse = function (key, fallbackText) {
+        var def = JSON.parse(fallbackText);
+        var raw = window.ctuStore.getItem(key);
+        if (raw === null || raw === '') return def;
+        var val;
+        try { val = JSON.parse(raw); } catch (e) { val = undefined; }
+        var ok = val !== undefined && (
+            Array.isArray(def) ? Array.isArray(val)
+            : def !== null && typeof def === 'object' ? (val !== null && typeof val === 'object' && !Array.isArray(val))
+            : def === null ? (val === null || typeof val === 'object')
+            : typeof val === typeof def);
+        if (ok) return val;
+        try { window.localStorage.setItem(PREFIX + 'corrupt_' + key, raw); } catch (e) {}
+        return def;
+    };
 
     // ── 【可自行修改】學期週次：每學期更新一次（label 學年-學期、開學週星期一、SH150 週數）──
     window.CTU_SEMESTER = { label: '115-1', startMonday: '2026-08-31', weeks: 22 };
@@ -2715,7 +2759,9 @@
         var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(s || '').trim());
         if (!m) return null;
         var d = new Date(+m[1], +m[2] - 1, +m[3]);
-        return isNaN(d.getTime()) ? null : d;
+        // 拒絕 2/31 這類不存在的日期（Date 會自動進位成 3/3）
+        if (isNaN(d.getTime()) || d.getFullYear() !== +m[1] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3]) return null;
+        return d;
     }
     window.ctuSemesterOverride = function () {
         try { return JSON.parse(rawGet(PREFIX + 'semester_override') || 'null') || {}; } catch (e) { return {}; }
@@ -2840,8 +2886,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPaused = false, isFullscreen = false;
     let currentEvent = '', currentActions = '';
     let selectedSound = '時間到了', selectedLang = 'zh-TW';
-    let customPresets = JSON.parse(ctuStore.getItem('timerCustomPresets') || '[]');
-    let studentCountPresets = JSON.parse(ctuStore.getItem('timerStudentCountPresets') || '["20","25","30"]');
+    let customPresets = ctuParse('timerCustomPresets', '[]');
+    let studentCountPresets = ctuParse('timerStudentCountPresets', '["20","25","30"]');
     let registeredStudents = new Set();
 
     const defaultCleaningTasks = {
@@ -2851,7 +2897,7 @@ document.addEventListener('DOMContentLoaded', () => {
         4: ["桌面收乾淨、整理抽屜","搬椅子","每組3號掃地","每個人擦地板15格兩次","椅子搬下來、桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
         5: ["整理抽屜、櫃子","擦桌子、椅子、抽屜2次","桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
     };
-    let cleaningTasks = JSON.parse(ctuStore.getItem('timerCleaningTasks') || 'null') || defaultCleaningTasks;
+    let cleaningTasks = ctuParse('timerCleaningTasks', 'null') || defaultCleaningTasks;
     const todayDow = new Date().getDay();
     let currentCleaningDay = String(todayDow >= 1 && todayDow <= 5 ? todayDow : 1);
     let cleaningCountdownInterval = null;
@@ -2896,7 +2942,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadTabOrder() {
         var saved;
-        try { saved = JSON.parse(ctuStore.getItem('timerTabOrder') || 'null'); } catch (e) { saved = null; }
+        try { saved = ctuParse('timerTabOrder', 'null'); } catch (e) { saved = null; }
         if (!Array.isArray(saved)) return defaultTabOrder.slice();
         var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
         defaultTabOrder.forEach(function (k) { if (out.indexOf(k) === -1) out.push(k); });
@@ -3089,7 +3135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentActions.split('\n').filter(a => a.trim()).forEach((a, i) => {
                 const el = document.createElement('div');
                 el.className = 'flex items-center text-sky-800 bg-sky-100 rounded-lg p-3 border border-sky-200';
-                el.innerHTML = `<div class="w-7 h-7 bg-sky-200 rounded-full flex items-center justify-center font-bold mr-3 shrink-0">${i+1}</div><div>${a.trim()}</div>`;
+                el.innerHTML = `<div class="w-7 h-7 bg-sky-200 rounded-full flex items-center justify-center font-bold mr-3 shrink-0">${i+1}</div><div>${ctuEsc(a.trim())}</div>`;
                 al.appendChild(el);
             });
             ad.classList.remove('hidden');
@@ -3309,7 +3355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Feature 2: Student registration history ────────────────
     function saveRegistrationRecord() {
         if (registeredStudents.size === 0) return;
-        const h = JSON.parse(ctuStore.getItem('timerHistory') || '[]');
+        const h = ctuParse('timerHistory', '[]');
         const now = new Date(), pad = n => String(n).padStart(2,'0');
         h.unshift({
             id: now.getTime(), timestamp: now.getTime(),
@@ -3325,7 +3371,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('history-list');
         const empty = document.getElementById('history-empty');
         if (!list) return;
-        const h = JSON.parse(ctuStore.getItem('timerHistory') || '[]');
+        const h = ctuParse('timerHistory', '[]');
         list.innerHTML = '';
         if (h.length === 0) { if (empty) empty.classList.remove('hidden'); return; }
         if (empty) empty.classList.add('hidden');
@@ -3335,8 +3381,8 @@ document.addEventListener('DOMContentLoaded', () => {
             item.innerHTML = `
                 <div class="flex justify-between items-start mb-2 gap-2">
                     <div>
-                        <div class="text-slate-700 font-bold">${rec.event}</div>
-                        <div class="text-slate-400 text-sm">${rec.date}　班級人數：${rec.totalStudents}人</div>
+                        <div class="text-slate-700 font-bold">${ctuEsc(rec.event)}</div>
+                        <div class="text-slate-400 text-sm">${ctuEsc(rec.date)}　班級人數：${ctuEsc(rec.totalStudents)}人</div>
                     </div>
                     <div class="flex gap-2 shrink-0">
                         <button class="copy-record-btn px-3 py-1 bg-sky-100 text-sky-700 rounded text-sm hover:bg-sky-200">複製</button>
@@ -3344,7 +3390,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center">
-                    ${rec.students.map(n => `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${n}號</span>`).join('')}
+                    ${rec.students.map(n => `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${ctuEsc(n)}號</span>`).join('')}
                     <span class="text-slate-400 text-sm ml-1">（共${rec.students.length}人）</span>
                 </div>`;
             item.querySelector('.copy-record-btn').addEventListener('click', () => {
@@ -3352,7 +3398,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigator.clipboard.writeText(txt).then(() => { copyFeedback.classList.add('show'); setTimeout(() => copyFeedback.classList.remove('show'), 2000); });
             });
             item.querySelector('.delete-record-btn').addEventListener('click', () => {
-                let hh = JSON.parse(ctuStore.getItem('timerHistory') || '[]');
+                let hh = ctuParse('timerHistory', '[]');
                 hh = hh.filter(r => r.id !== rec.id);
                 ctuStore.setItem('timerHistory', JSON.stringify(hh)); renderHistoryPanel();
             });
@@ -3394,7 +3440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.dataset.text = preset.text; btn.dataset.minutes = preset.minutes;
             if (preset.actions) btn.dataset.actions = preset.actions;
             if (preset.studentCount) btn.dataset.studentCount = preset.studentCount;
-            const label = preset.studentCount ? `${preset.text} (${preset.minutes}分 / ${preset.studentCount}人)` : `${preset.text} (${preset.minutes}分鐘)`;
+            const label = ctuEsc(preset.studentCount ? `${preset.text} (${preset.minutes}分 / ${preset.studentCount}人)` : `${preset.text} (${preset.minutes}分鐘)`);
             btn.innerHTML = `${label}<button class="delete-preset" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
             btn.querySelector('.delete-preset').addEventListener('click', e => {
                 e.stopPropagation();
@@ -3410,17 +3456,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date(), pad = n => String(n).padStart(2,'0');
         const data = {
             exportedAt: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
-            customPresets: JSON.parse(ctuStore.getItem('timerCustomPresets') || '[]'),
-            studentCountPresets: JSON.parse(ctuStore.getItem('timerStudentCountPresets') || '[]'),
-            timerHistory: JSON.parse(ctuStore.getItem('timerHistory') || '[]'),
-            cleaningTasks: JSON.parse(ctuStore.getItem('timerCleaningTasks') || 'null') || cleaningTasks,
+            customPresets: ctuParse('timerCustomPresets', '[]'),
+            studentCountPresets: ctuParse('timerStudentCountPresets', '[]'),
+            timerHistory: ctuParse('timerHistory', '[]'),
+            cleaningTasks: ctuParse('timerCleaningTasks', 'null') || cleaningTasks,
             cleanTargetTime: ctuStore.getItem('cleanTargetTime') || '10:25',
-            cleaningBehaviorRecords: JSON.parse(ctuStore.getItem('cleaningBehaviorRecords') || '{}'),
-            examInfo: JSON.parse(ctuStore.getItem('examInfo') || '{}'),
+            cleaningBehaviorRecords: ctuParse('cleaningBehaviorRecords', '{}'),
+            examInfo: ctuParse('examInfo', '{}'),
             seatLayout: ctuStore.getItem('seatLayout') || null,
-            seatCheckRecords: JSON.parse(ctuStore.getItem('seatCheckRecords') || '{}'),
-            seatCheckItems: JSON.parse(ctuStore.getItem('seatCheckItems') || 'null'),
-            tabOrder: JSON.parse(ctuStore.getItem('timerTabOrder') || 'null'),
+            seatCheckRecords: ctuParse('seatCheckRecords', '{}'),
+            seatCheckItems: ctuParse('seatCheckItems', 'null'),
+            tabOrder: ctuParse('timerTabOrder', 'null'),
             weeklySettings: typeof getWeeklySettings === 'function' ? getWeeklySettings() : null,
             weeklyRecords: typeof getWeeklyRecords === 'function' ? getWeeklyRecords() : {}
         };
@@ -3436,16 +3482,16 @@ document.addEventListener('DOMContentLoaded', () => {
             let data;
             try { data = JSON.parse(e.target.result); } catch { alert('匯入失敗：檔案格式不正確'); return; }
             if (data.customPresets) {
-                const ex = JSON.parse(ctuStore.getItem('timerCustomPresets') || '[]');
+                const ex = ctuParse('timerCustomPresets', '[]');
                 const merged = [...ex]; data.customPresets.forEach(p => { if (!merged.some(ep => ep.text === p.text)) merged.push(p); });
                 customPresets = merged; ctuStore.setItem('timerCustomPresets', JSON.stringify(merged)); loadCustomPresets();
             }
             if (data.studentCountPresets) {
-                const ex = JSON.parse(ctuStore.getItem('timerStudentCountPresets') || '[]');
+                const ex = ctuParse('timerStudentCountPresets', '[]');
                 studentCountPresets = [...new Set([...ex, ...data.studentCountPresets])]; loadStudentCountPresets();
             }
             if (data.timerHistory) {
-                const ex = JSON.parse(ctuStore.getItem('timerHistory') || '[]');
+                const ex = ctuParse('timerHistory', '[]');
                 const ids = new Set(ex.map(r => r.id));
                 const merged = [...ex, ...data.timerHistory.filter(r => !ids.has(r.id))].sort((a,b) => b.timestamp - a.timestamp);
                 ctuStore.setItem('timerHistory', JSON.stringify(merged)); renderHistoryPanel();
@@ -3534,7 +3580,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('clean-clear-behavior-btn').addEventListener('click', () => {
             const key = getTodayKey();
-            const records = JSON.parse(ctuStore.getItem('cleaningBehaviorRecords') || '{}');
+            const records = ctuParse('cleaningBehaviorRecords', '{}');
             records[key] = [];
             ctuStore.setItem('cleaningBehaviorRecords', JSON.stringify(records));
             renderBehaviorGrid();
@@ -3564,7 +3610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tasks.forEach(task => {
             const li = document.createElement('li');
             li.className = 'flex items-start gap-2 text-slate-700';
-            li.innerHTML = `<svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${task}</span>`;
+            li.innerHTML = `<svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${ctuEsc(task)}</span>`;
             list.appendChild(li);
         });
     }
@@ -3584,7 +3630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!grid) return;
         const count = parseInt(studentCountInput.value) || 20;
         const key = getTodayKey();
-        const records = JSON.parse(ctuStore.getItem('cleaningBehaviorRecords') || '{}');
+        const records = ctuParse('cleaningBehaviorRecords', '{}');
         const today = records[key] || [];
         grid.innerHTML = '';
         for (let i = 1; i <= count; i++) {
@@ -3593,7 +3639,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const sel = today.includes(i);
             btn.className = `w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all ${sel ? 'bg-red-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
             btn.addEventListener('click', () => {
-                const r = JSON.parse(ctuStore.getItem('cleaningBehaviorRecords') || '{}');
+                const r = ctuParse('cleaningBehaviorRecords', '{}');
                 if (!r[key]) r[key] = [];
                 const idx = r[key].indexOf(i);
                 if (idx > -1) r[key].splice(idx, 1); else r[key].push(i);
@@ -3609,7 +3655,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initExamPanel() {
         const fields = ['exam-subject', 'exam-start-time', 'exam-end-time', 'exam-expected', 'exam-actual', 'exam-notes'];
-        const saved = JSON.parse(ctuStore.getItem('examInfo') || '{}');
+        const saved = ctuParse('examInfo', '{}');
         fields.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -3722,7 +3768,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatRetryTimer = null;
 
     function seatQueue() {
-        try { return JSON.parse(ctuStore.getItem('seatSyncQueue') || '[]'); } catch (e) { return []; }
+        try { return ctuParse('seatSyncQueue', '[]'); } catch (e) { return []; }
     }
     function saveSeatQueue(q) { ctuStore.setItem('seatSyncQueue', JSON.stringify(q)); }
 
@@ -3977,7 +4023,9 @@ document.addEventListener('DOMContentLoaded', () => {
         var out = {};
         if (!raw || typeof raw !== 'object') return out;
         Object.keys(raw).forEach(function (seat) {
-            if (!seatRoster[seat] || !raw[seat] || typeof raw[seat] !== 'object') return;
+            // 保留名冊外的座號（例如暫時減少人數），只在畫面上依名冊顯示，避免存檔時刪掉舊紀錄
+            var seatNo = parseInt(seat, 10);
+            if (!(seatNo >= 1 && seatNo <= 60) || String(seatNo) !== String(seat) || !raw[seat] || typeof raw[seat] !== 'object') return;
             Object.keys(raw[seat]).forEach(function (week) {
                 var n = parseInt(week, 10);
                 var state = raw[seat][week];
@@ -4030,7 +4078,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function weeklyQueue() {
-        try { return JSON.parse(ctuStore.getItem('weeklySyncQueue') || '[]'); } catch (e) { return []; }
+        try { return ctuParse('weeklySyncQueue', '[]'); } catch (e) { return []; }
     }
 
     function saveWeeklyQueue(q) { ctuStore.setItem('weeklySyncQueue', JSON.stringify(q)); }
@@ -4567,7 +4615,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function getSeatRecords() {
         var all;
-        try { all = JSON.parse(ctuStore.getItem('seatCheckRecords') || '{}'); } catch (e) { all = {}; }
+        try { all = ctuParse('seatCheckRecords', '{}'); } catch (e) { all = {}; }
         var out = {};
         Object.keys(all).forEach(function (d) { out[d] = normalizeSeatDay(all[d]); });
         return out;
@@ -4614,7 +4662,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.getElementById('seat-copy-btn').addEventListener('click', function () {
-            navigator.clipboard.writeText(buildSeatReport()).then(function () {
+            navigator.clipboard.writeText(buildSeatReport(true)).then(function () {
                 copyFeedback.classList.add('show');
                 setTimeout(function () { copyFeedback.classList.remove('show'); }, 2000);
             });
@@ -4734,7 +4782,7 @@ document.addEventListener('DOMContentLoaded', () => {
             var box = document.getElementById('seat-text-box');
             box.classList.toggle('hidden');
             if (!box.classList.contains('hidden')) {
-                document.getElementById('seat-report-text').textContent = buildSeatReport();
+                document.getElementById('seat-report-text').textContent = buildSeatReport(false);
             }
         });
 
@@ -4826,13 +4874,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hint) hint.classList.toggle('hidden', seatSummaryRange !== 'all');
         chart.innerHTML = '';
 
-        seatLayout.forEach(function (row, ri) {
+        // 座位表存過之後新增的座號：不改老師的排法，另外放在最後的「待安排」列
+        var placed = {};
+        seatLayout.forEach(function (row) { row.forEach(function (zone) { zone.forEach(function (n) { if (n !== null) placed[n] = true; }); }); });
+        var unplaced = {};
+        Object.keys(seatRoster).forEach(function (n) { if (!placed[n]) unplaced[n] = seatRoster[n]; });
+        var extraRows = Object.keys(unplaced).length ? parseSeatLayout(window.ctuDefaultSeatLayout(unplaced)) : [];
+
+        seatLayout.concat(extraRows).forEach(function (row, ri) {
             var rowEl = document.createElement('div');
             rowEl.className = 'flex items-stretch gap-2';
 
             var label = document.createElement('div');
             label.className = 'w-8 flex items-center justify-end text-slate-300 text-xs font-bold';
-            label.textContent = (ri + 1);
+            var isExtra = ri >= seatLayout.length;
+            label.textContent = isExtra ? '待安排' : (ri + 1);
+            if (isExtra) label.title = '這些座號還沒排進座位表，可按「✏️ 編輯座位排列」加入';
             rowEl.appendChild(label);
 
             row.forEach(function (zone) {
@@ -4863,17 +4920,17 @@ document.addEventListener('DOMContentLoaded', () => {
             var n = seatCountOf(today, num, it.key);
             if (!n) return '<span class="seat-dot bg-slate-200"></span>';
             return '<span class="inline-flex items-center gap-0.5">' +
-                   '<span class="seat-dot ' + seatColor(it).dot + '" title="' + it.label + '"></span>' +
+                   '<span class="seat-dot ' + seatColor(it).dot + '" title="' + ctuEsc(it.label) + '"></span>' +
                    (n > 1 ? '<span class="' + seatColor(it).text + ' text-[10px] font-bold leading-none">' + n + '</span>' : '') +
                    '</span>';
         }).join('');
 
         cell.innerHTML =
             '<div class="flex items-baseline gap-1.5">' +
-                '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + num + '</span>' +
-                '<span class="text-slate-700 font-bold text-base leading-tight">' + info[0] + '</span>' +
+                '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + ctuEsc(num) + '</span>' +
+                '<span class="text-slate-700 font-bold text-base leading-tight">' + ctuEsc(info[0]) + '</span>' +
             '</div>' +
-            '<div class="text-slate-400 text-[11px] leading-tight truncate">' + info[1] + '</div>' +
+            '<div class="text-slate-400 text-[11px] leading-tight truncate">' + ctuEsc(info[1]) + '</div>' +
             '<div class="flex flex-wrap items-center gap-1 mt-1.5">' + marks + '</div>';
 
         cell.addEventListener('click', function () {
@@ -4973,17 +5030,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         var txt = document.getElementById('seat-report-text');
         if (txt && !document.getElementById('seat-text-box').classList.contains('hidden')) {
-            txt.textContent = buildSeatReport();
+            txt.textContent = buildSeatReport(false);
         }
     }
 
-    function seatNamesFor(key, rec) {
+    // full = true 用全名（複製、匯出）；否則用遮罩姓名（投影畫面）
+    function seatNamesFor(key, rec, full) {
         return Object.keys(rec)
             .filter(function (n) { return seatCountOf(rec, n, key) > 0; })
             .sort(function (a, b) { return a - b; })
             .map(function (n) {
                 var c = seatCountOf(rec, n, key);
-                return n + ' ' + (seatRoster[n] ? seatRoster[n][0] : '') + (c > 1 ? '×' + c : '');
+                return n + ' ' + (seatRoster[n] ? seatRoster[n][full ? 2 : 0] : '') + (c > 1 ? '×' + c : '');
             });
     }
 
@@ -5019,7 +5077,7 @@ document.addEventListener('DOMContentLoaded', () => {
             add.innerHTML =
                 '<span class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold ' +
                     (n ? c.dot : 'bg-slate-200') + '" style="font-variant-numeric:tabular-nums;">' + (n ? n : '＋') + '</span>' +
-                '<span class="font-semibold ' + (n ? c.text : 'text-slate-600') + '">' + it.label + '</span>';
+                '<span class="font-semibold ' + (n ? c.text : 'text-slate-600') + '">' + ctuEsc(it.label) + '</span>';
             add.addEventListener('click', function () { addSeatCount(num, it.key, 1); });
 
             var minus = document.createElement('button');
@@ -5244,15 +5302,15 @@ document.addEventListener('DOMContentLoaded', () => {
             '<th class="text-left font-semibold py-2 px-2">座號</th>' +
             '<th class="text-left font-semibold py-2 px-2">姓名</th>' +
             seatItems.map(function (it) {
-                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
+                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + ctuEsc(it.label) + '</th>';
             }).join('') +
             '<th class="py-2 px-2 font-semibold text-slate-600">總計</th>' +
             '<th class="py-2 px-2"></th></tr>';
 
         var body = data.rows.map(function (r) {
             return '<tr class="border-t border-sky-100">' +
-                '<td class="py-2 px-2 text-slate-400 font-bold" style="font-variant-numeric:tabular-nums;">' + r.num + '</td>' +
-                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + r.name + '</td>' +
+                '<td class="py-2 px-2 text-slate-400 font-bold" style="font-variant-numeric:tabular-nums;">' + ctuEsc(r.num) + '</td>' +
+                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + ctuEsc(r.name) + '</td>' +
                 seatItems.map(function (it) {
                     var n = r.counts[it.key] || 0;
                     return '<td class="py-2 px-2 text-center ' + (n ? seatColor(it).text + ' font-bold' : 'text-slate-200') +
@@ -5260,7 +5318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('') +
                 '<td class="py-2 px-2 text-center text-sky-700 font-bold text-lg" style="font-variant-numeric:tabular-nums;">' + r.sum + '</td>' +
                 '<td class="py-2 px-2 text-center">' +
-                    '<button class="seat-purge-row px-2 text-slate-300 hover:text-red-500 transition-all" data-seat="' + r.num + '" title="清除這位學生在目前期間的紀錄">✕</button>' +
+                    '<button class="seat-purge-row px-2 text-slate-300 hover:text-red-500 transition-all" data-seat="' + ctuEsc(r.num) + '" title="清除這位學生在目前期間的紀錄">✕</button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -5285,12 +5343,12 @@ document.addEventListener('DOMContentLoaded', () => {
             '<th class="text-left font-semibold py-2 px-2 whitespace-nowrap">週次</th>' +
             '<th class="text-center font-semibold py-2 px-2 whitespace-nowrap">登記人數</th>' +
             seatItems.map(function (it) {
-                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
+                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + ctuEsc(it.label) + '</th>';
             }).join('') +
             '<th class="py-2 px-2 font-semibold text-slate-600">總計</th></tr>';
         var body = data.map(function (r) {
             return '<tr class="border-t border-sky-100">' +
-                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + r.label + '</td>' +
+                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + ctuEsc(r.label) + '</td>' +
                 '<td class="py-2 px-2 text-center text-slate-500" style="font-variant-numeric:tabular-nums;">' + r.people + '</td>' +
                 seatItems.map(function (it) {
                     var n = r.counts[it.key] || 0;
@@ -5379,7 +5437,8 @@ document.addEventListener('DOMContentLoaded', () => {
         var rangeName = { all: '全部', today: '今日', '7': '近7天', '30': '近30天' }[seatStatsRange];
         var lines = [['座號', '姓名'].concat(seatItems.map(function (it) { return it.label; })).concat(['總計']).join(',')];
         data.rows.forEach(function (r) {
-            var cols = [r.num, r.name].concat(seatItems.map(function (it) { return r.counts[it.key] || 0; })).concat([r.sum]);
+            var fullName = seatRoster[r.num] ? seatRoster[r.num][2] : r.name;
+            var cols = [r.num, fullName].concat(seatItems.map(function (it) { return r.counts[it.key] || 0; })).concat([r.sum]);
             lines.push(cols.map(function (c) {
                 var v = String(c);
                 return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
@@ -5505,7 +5564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 報告 ──
-    function buildSeatReport() {
+    function buildSeatReport(full) {
         var today = seatSummaryData();
         var lines = [seatSummaryRange === 'all'
             ? '秩序登記報告（全部累計，至 ' + getTodayKey() + '）'
@@ -5514,7 +5573,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : '秩序登記報告（' + seatDateLabel(seatActiveDate) + '）'];
         var any = false;
         seatItems.forEach(function (it) {
-            var names = seatNamesFor(it.key, today);
+            var names = seatNamesFor(it.key, today, full);
             var times = 0;
             Object.keys(today).forEach(function (n) { times += seatCountOf(today, n, it.key); });
             lines.push('');
@@ -5528,7 +5587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lines.push('', '【未被登記】');
         if (unregistered.length) {
             unregistered.forEach(function (n) {
-                lines.push(n + ' ' + (seatRoster[n] ? seatRoster[n][2] : ''));
+                lines.push(n + ' ' + (seatRoster[n] ? seatRoster[n][full ? 2 : 0] : ''));
             });
         } else {
             lines.push('全部都有登記 👍');
@@ -5870,7 +5929,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 var row = document.createElement('div');
                 row.className = 'flex items-start gap-2';
                 var cleanTask = task.replace(/^\d+[.、]\s*/, '');
-                row.innerHTML = '<span class="text-sky-600 font-bold">' + (idx + 1) + '.</span><span>' + cleanTask + '</span>';
+                row.innerHTML = '<span class="text-sky-600 font-bold">' + (idx + 1) + '.</span><span>' + ctuEsc(cleanTask) + '</span>';
                 listEl.appendChild(row);
             });
         }
@@ -5887,7 +5946,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'group-bonus-pill px-3.5 py-2 border rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center gap-1.5 shadow-sm select-none ' +
                 (isSelected ? 'selected' : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200');
             var ptsLabel = item.pts > 0 ? '+' + item.pts : item.pts;
-            btn.innerHTML = '<span>' + (item.icon || '⭐') + '</span><span>' + item.label + '</span><span class="text-xs bg-white/70 px-1.5 py-0.5 rounded-md ' + (isSelected ? 'text-sky-800' : 'text-sky-600 font-extrabold') + '">' + ptsLabel + '</span>';
+            btn.innerHTML = '<span>' + ctuEsc(item.icon || '⭐') + '</span><span>' + ctuEsc(item.label) + '</span><span class="text-xs bg-white/70 px-1.5 py-0.5 rounded-md ' + (isSelected ? 'text-sky-800' : 'text-sky-600 font-extrabold') + '">' + ctuEsc(ptsLabel) + '</span>';
             btn.addEventListener('click', function () {
                 if (groupSelectedBonus && groupSelectedBonus.id === item.id) {
                     groupSelectedBonus = null;
@@ -6637,7 +6696,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 var left = document.createElement('div');
                 left.className = 'flex items-center gap-2';
-                left.innerHTML = '<span class="text-base">' + (item.icon || '⭐') + '</span><span class="font-bold text-slate-700">' + item.label + '</span><span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded font-extrabold">' + (item.pts > 0 ? '+' + item.pts : item.pts) + '分</span>';
+                left.innerHTML = '<span class="text-base">' + ctuEsc(item.icon || '⭐') + '</span><span class="font-bold text-slate-700">' + ctuEsc(item.label) + '</span><span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded font-extrabold">' + (item.pts > 0 ? '+' + item.pts : item.pts) + '分</span>';
 
                 var delBtn = document.createElement('button');
                 delBtn.type = 'button';
@@ -6744,7 +6803,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         var left = document.createElement('div');
                         left.className = 'flex items-center gap-2';
                         var badge = rank < 3 ? medals[rank] : ('第 ' + (rank + 1) + ' 名');
-                        left.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-white/70 font-black">' + badge + '</span><span class="text-base font-extrabold">' + g.name + '</span>';
+                        left.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-white/70 font-black">' + badge + '</span><span class="text-base font-extrabold">' + ctuEsc(g.name) + '</span>';
 
                         var right = document.createElement('div');
                         right.className = 'text-xl font-black';
@@ -6875,7 +6934,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function ymd(d) { return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()); }
 
     function getMeta() {
-        try { return JSON.parse(ctuStore.getItem('meta') || '{}') || {}; } catch (e) { return {}; }
+        try { return ctuParse('meta', '{}') || {}; } catch (e) { return {}; }
     }
     function setMeta(patch) {
         var m = getMeta();
@@ -6919,26 +6978,66 @@ document.addEventListener('DOMContentLoaded', () => {
         updateBackupReminder();
     };
 
+    // 備份檔內容摘要（給確認視窗看實際紀錄量）
+    function summarizeBackup(data) {
+        function parse(k) { try { return JSON.parse(data[k] || 'null'); } catch (e) { return null; } }
+        var parts = [];
+        var seat = parse('ctu_seatCheckRecords');
+        if (seat && typeof seat === 'object') parts.push('秩序登記 ' + Object.keys(seat).length + ' 天');
+        var weekly = parse('ctu_weeklyRecordData'), cells = 0;
+        if (weekly && typeof weekly === 'object') Object.keys(weekly).forEach(function (k) { cells += Object.keys(weekly[k] || {}).length; });
+        if (cells) parts.push('含氟 ' + cells + ' 格');
+        var sh = parse('ctu_sh150_records');
+        if (sh && sh.allWeeksData && typeof sh.allWeeksData === 'object') parts.push('SH150 ' + Object.keys(sh.allWeeksData).length + ' 週');
+        var hist = parse('ctu_timerHistory');
+        if (Array.isArray(hist) && hist.length) parts.push('計時登記 ' + hist.length + ' 筆');
+        return parts.length ? parts.join('、') : '沒有登記紀錄（只有設定）';
+    }
+
     window.ctuRestoreFromFile = function (file) {
         var reader = new FileReader();
         reader.onload = function (e) {
             var obj;
             try { obj = JSON.parse(e.target.result); } catch (err) { alert('還原失敗：檔案不是正確的備份格式。'); return; }
-            if (!obj || obj.app !== 'classroom-timer-universal' || !obj.data || typeof obj.data !== 'object') {
+            if (!obj || obj.app !== 'classroom-timer-universal' || !obj.data || typeof obj.data !== 'object' || Array.isArray(obj.data)) {
                 alert('還原失敗：這不是「班級工具箱」的完整備份檔。\n（舊 SH150 網址的備份檔，請到 SH150 分頁按「📥 載入」）');
                 return;
             }
-            if ((parseInt(obj.schema, 10) || 1) > 1) { alert('這份備份來自較新的版本，請重新整理網頁後再試。'); return; }
+            if (Number(obj.schema) !== 1) {
+                alert(Number(obj.schema) > 1 ? '這份備份來自較新的版本，請重新整理網頁後再試。' : '還原失敗：備份檔缺少版本資訊，無法確認格式。');
+                return;
+            }
             var keys = Object.keys(obj.data).filter(function (k) {
                 return k.indexOf('ctu_') === 0 && k !== 'ctu_reopenTab' && typeof obj.data[k] === 'string';
             });
+            var cls = null;
+            try { cls = JSON.parse(obj.data.ctu_class || 'null'); } catch (err) { cls = null; }
+            if (!keys.length || !cls || typeof cls !== 'object' || Array.isArray(cls)) {
+                alert('還原失敗：備份檔裡沒有班級設定，可能是空的或已損壞。目前的資料沒有被改動。');
+                return;
+            }
             var when = obj.exportedAt ? new Date(obj.exportedAt).toLocaleString('zh-TW') : '未知';
-            if (!confirm('要用這份備份覆蓋目前全部資料嗎？\n\n班級：' + (obj.className || '未命名') +
-                         '\n備份時間：' + when + '\n資料項目：' + keys.length + ' 項' +
-                         '\n\n按「確定」後會先自動下載一份目前資料的備份。')) return;
+            if (!confirm('要用這份備份覆蓋目前全部資料嗎？\n\n班級：' + (cls.className || obj.className || '未命名') +
+                         '\n備份時間：' + when + '\n內容：' + summarizeBackup(obj.data) +
+                         '\n\n按「確定」後會先下載一份目前資料的備份。')) return;
+
+            var snapshot = {};
+            ctuStore.keys().forEach(function (k) { snapshot[k] = ctuRawGet(k); });
             window.ctuFullBackup('_還原前');
+            if (!confirm('已開始下載目前資料的備份（檔名結尾是「_還原前」）。\n\n請確認檔案已經存好，再按「確定」開始還原；按「取消」就不還原。')) return;
+
             removeAllCtuKeys();
-            keys.forEach(function (k) { try { window.localStorage.setItem(k, obj.data[k]); } catch (er) {} });
+            var failed = keys.filter(function (k) {
+                try { window.localStorage.setItem(k, obj.data[k]); } catch (er) { return true; }
+                return ctuRawGet(k) !== obj.data[k];
+            });
+            if (failed.length) {
+                removeAllCtuKeys();
+                Object.keys(snapshot).forEach(function (k) { try { window.localStorage.setItem(k, snapshot[k]); } catch (er) {} });
+                alert('還原失敗：瀏覽器沒辦法寫入全部資料（可能是儲存空間不足），已恢復成還原前的資料。');
+                reloadTo('');
+                return;
+            }
             setMeta({ lastBackupAt: new Date().toISOString() });
             alert('還原完成！');
             reloadTo('');
@@ -7017,6 +7116,18 @@ document.addEventListener('DOMContentLoaded', () => {
         var count = parseInt($('cfg-count').value, 10);
         if (names.length) count = names.length;
         if (!(count >= 1 && count <= 60)) { alert('人數請填 1～60。'); return; }
+        // 紀錄依座號保存：姓名對應改變（例如刪掉一行讓後面的人往前移）時先讓老師確認
+        if (ctuHasClass() && hasUserData()) {
+            var oldNames = ctuGetClass().studentNames;
+            var changes = [];
+            for (var i = 0; i < Math.max(oldNames.length, names.length); i++) {
+                var before = oldNames[i] || '', after = names[i] || '';
+                if (before && before !== after) changes.push((i + 1) + ' 號：' + before + ' → ' + (after || '（空白）'));
+            }
+            if (changes.length && !confirm('以下座號的姓名會改變，這些座號原本的紀錄會跟著新姓名顯示：\n\n' +
+                    changes.slice(0, 10).join('\n') + (changes.length > 10 ? '\n…共 ' + changes.length + ' 位' : '') +
+                    '\n\n紀錄是依「座號」保存的。只是改正錯字可以按「確定」；\n如果是刪掉一行讓後面的人往前移，請按「取消」，改成在原位置留空行。')) return;
+        }
         var cls = {
             className: $('cfg-class').value.trim() || '4XX',
             teacherName: $('cfg-teacher').value.trim() || 'OOO 老師',
@@ -7039,9 +7150,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typed.trim() !== c.className) { alert('班級名稱不符，沒有清除任何資料。'); return; }
         var keepImport = getMeta().sh150Import;
         window.ctuFullBackup('_清除前');
+        if (!confirm('已開始下載備份（檔名結尾是「_清除前」）。\n\n請確認檔案已經存好，再按「確定」清除；按「取消」就不清除。')) return;
         removeAllCtuKeys();
         if (keepImport) setMeta({ sh150Import: keepImport });
-        alert('已下載備份並清除資料。');
+        alert('已清除這台電腦上的班級工具箱資料。');
         reloadTo('');
     }
 
@@ -7084,6 +7196,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function importSh150() {
         var s = readSh150();
+        if (ctuHasClass() || hasUserData()) window.ctuFullBackup('_帶入SH150前');
         if (s.cls && typeof s.cls === 'object') {
             ctuStore.setItem('class', JSON.stringify({
                 className: s.cls.className || '4XX',
