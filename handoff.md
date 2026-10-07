@@ -10,11 +10,11 @@
 
 ## 本次驗證
 
-- `python -m unittest discover -s tests -p test_sh150_school_form.py -v`：26 項通過（headless Chromium；C01～C07、S01～S07、U01～U08、D01～D03、R01～R02）。
+- `python -m unittest discover -s tests -p test_sh150_school_form.py -v`：27 項通過（headless Chromium；C01～C07、S01～S07、U01～U08、D01～D03、R01～R02、S04b）。
 - Firefox 抽測：計算 4／3 圈與複製正常、無 JS 錯誤；未跑完整矩陣。
 - 先前回歸（scratchpad 腳本）：46 項、v1.6 審查 24 項、下載原始碼 9 項、含氟捲軸 6 項皆通過。
 - 使用者以學校帳號實測（未提交）：四個核心欄位、填報日期時間 19:31 與 2027-01-01 00:05、數字 0 皆正確；採用日期寫法 A。測試總數 27 項。
-- 未 push、未部署 GAS、未開啟或提交學校表單。
+- 未 push、未部署 GAS；學校表單只由使用者開啟測試連結核對後清除，未提交、未上傳照片。
 
 ## 下次接續
 
