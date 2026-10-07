@@ -144,6 +144,7 @@
         .weekly-print-table thead th { height: 6mm; font-weight: 700; }
         .weekly-print-table tbody td { height: 6.4mm; font-size: 10pt; }
         .weekly-print-table .print-label { width: 4%; font-weight: 700; }
+        .weekly-print-table thead .print-week-cell { font-size: 7.5pt; letter-spacing: -0.3px; overflow: hidden; white-space: nowrap; }
         .weekly-print-table .print-class-cell { width: 17%; font-size: 19pt; line-height: 1.25; font-weight: 700; white-space: pre-line; }
         .weekly-print-table .print-name-cell { text-align: left; padding-left: 2mm; font-size: 10pt; }
         .weekly-print-table .print-mark { font-size: 11pt; font-weight: 700; }
@@ -4166,7 +4167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var thead = document.createElement('thead');
         var years = document.createElement('tr');
         var classCell = document.createElement('th');
-        classCell.colSpan = 4; classCell.rowSpan = 3; classCell.className = 'print-class-cell';
+        classCell.colSpan = 3; classCell.rowSpan = 3; classCell.className = 'print-class-cell';
         classCell.textContent = weeklyPrintClassLabel(); years.appendChild(classCell);
         var dateLabels = ['年', '月', '日'];
         dateLabels.forEach(function (label, rowIdx) {
