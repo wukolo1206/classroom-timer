@@ -2,7 +2,7 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @24
+version: GAS @25
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
 next_action: 決定 408 計時器是否內建 SH150／學校填報；換學期前處理含氟與 SH150 舊紀錄套新日期問題
 updated: 2026-10-07
