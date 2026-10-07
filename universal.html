@@ -973,6 +973,7 @@
     </div><!-- end #panel-seat -->
 
 </div><!-- end card -->
+<footer id="ctu-version" class="text-center text-slate-400 text-xs mt-3" aria-label="系統版本"></footer>
 </div><!-- end max-w -->
 
 <!-- 列印時只顯示這份 A4 繳交版表格 -->
@@ -2699,7 +2700,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.2（2026-10-07）';
+    window.CTU_VERSION = 'v1.3（2026-10-07）';
 
     // ── 【可自行修改】學期週次：每學期更新一次（label 學年-學期、開學週星期一、SH150 週數）──
     window.CTU_SEMESTER = { label: '115-1', startMonday: '2026-08-31', weeks: 22 };
@@ -7079,6 +7080,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.ctuOnSh150Import = function () { reloadTo('sh150'); };
 
     document.addEventListener('DOMContentLoaded', function () {
+        var ver = $('ctu-version');
+        if (ver) ver.textContent = '班級工具箱 ' + window.CTU_VERSION;
         var label = $('ctu-class-label');
         if (label) label.textContent = ctuHasClass() ? ctuGetClass().className + ' 班' : '尚未設定班級';
 
