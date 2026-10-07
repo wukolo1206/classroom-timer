@@ -2700,7 +2700,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.3（2026-10-07）';
+    window.CTU_VERSION = 'v1.4（2026-10-07）';
 
     // ── 【可自行修改】學期週次：每學期更新一次（label 學年-學期、開學週星期一、SH150 週數）──
     window.CTU_SEMESTER = { label: '115-1', startMonday: '2026-08-31', weeks: 22 };
@@ -2868,7 +2868,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['timer', 'seat', 'sh150', 'weekly', 'group'];
+    var defaultTabOrder = ['sh150', 'weekly', 'timer', 'seat', 'group'];
+    // 【可自行修改】預設只顯示 SH150 與含氟紀錄，其餘分頁老師可在 ⚙️ 打開
+    var defaultTabHidden = ['timer', 'seat', 'group'];
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
     var tabHidden = loadTabHidden();
@@ -2876,7 +2878,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadTabHidden() {
         var saved;
-        try { saved = JSON.parse(ctuStore.getItem('timerTabHidden') || '[]'); } catch (e) { saved = []; }
+        var raw = ctuStore.getItem('timerTabHidden');
+        if (raw === null) return defaultTabHidden.slice();   // 從沒調整過分頁 → 用預設
+        try { saved = JSON.parse(raw); } catch (e) { saved = []; }
         if (!Array.isArray(saved)) return [];
         var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
         return out.length >= defaultTabOrder.length ? [] : out;
@@ -2981,7 +2985,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tabOrderModal.addEventListener('click', function (e) { if (e.target === tabOrderModal) tabOrderModal.classList.remove('show'); });
     document.getElementById('tab-order-reset').addEventListener('click', function () {
         tabOrderDraft = defaultTabOrder.slice();
-        tabHiddenDraft = [];
+        tabHiddenDraft = defaultTabHidden.slice();
         renderTabOrderEditor();
     });
     document.getElementById('tab-order-save').addEventListener('click', function () {
