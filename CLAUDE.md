@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @24
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: universal v1.7 學校表單填報已實測四欄與日期，待使用者同意 push
+next_action: 決定 408 計時器是否內建 SH150／學校填報；換學期前處理含氟與 SH150 舊紀錄套新日期問題
 updated: 2026-10-07
 ---
 
