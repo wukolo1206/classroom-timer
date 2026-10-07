@@ -838,14 +838,6 @@
 
     <!-- ══════════════ WEEKLY RECORD PANEL ══════════════ -->
     <div id="panel-weekly" class="hidden p-4 md:p-8">
-        <div class="flex flex-wrap items-start gap-3 mb-5">
-            <div class="flex-1 min-w-[16rem]">
-                <h2 class="text-slate-700 font-bold text-xl">🗓 含氟每週紀錄</h2>
-                <p class="text-slate-400 text-sm mt-1">依照參考表格，每位學生一列、每週一格；點格子會循環顯示空白 → ✓ 已實施 → X 未執行。</p>
-            </div>
-            <span id="weekly-sync-status" class="text-slate-400 text-sm"></span>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
             <label class="text-slate-500 text-sm font-medium">表單名稱
                 <input id="weekly-title" type="text" maxlength="80"
@@ -868,16 +860,22 @@
             <button id="weekly-fill-done" class="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">✓ 全班標記已實施</button>
             <button id="weekly-fill-missed" class="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">X 全班標記未執行</button>
             <button id="weekly-clear-week" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all">清除本週</button>
+            <span class="flex-1"></span>
+            <span id="weekly-sync-status" class="text-slate-400 text-sm"></span>
+            <button id="weekly-print-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">🖨 列印繳交版</button>
+            <button id="weekly-export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">⬇️ 匯出每週資料</button>
         </div>
 
-        <div class="overflow-x-auto pb-2">
+        <!-- 表格上方的橫向捲軸，與下方表格同步捲動 -->
+        <div id="weekly-scroll-top" class="overflow-x-auto mb-1" aria-hidden="true">
+            <div id="weekly-scroll-top-inner" style="height: 1px;"></div>
+        </div>
+        <div id="weekly-scroll-bottom" class="overflow-x-auto pb-2">
             <table id="weekly-table" class="weekly-table text-sm"></table>
         </div>
         <p class="text-slate-400 text-xs mt-2">週次欄下方可填日期；「實施次數」會自動統計 ✓。缺席、不同意或當天未執行，可用 X 標記。</p>
 
         <div class="flex flex-wrap gap-3 mt-5 pt-5 border-t border-sky-100">
-            <button id="weekly-print-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">🖨 列印繳交版</button>
-            <button id="weekly-export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">⬇️ 匯出每週資料</button>
             <button id="weekly-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除全部每週紀錄</button>
         </div>
     </div><!-- end #panel-weekly -->
@@ -1280,6 +1278,31 @@
 <div id="group-toast" class="fixed bottom-6 right-6 z-[9999] px-4 py-2.5 rounded-xl shadow-xl text-sm font-bold opacity-0 pointer-events-none transition-all duration-300"></div>
 
 <script>
+// 插入 HTML 前一律跳脫，避免名稱或匯入檔內容被當成程式執行
+window.ctuEsc = function (v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+};
+// 安全讀取 JSON 設定：壞掉或型別不符時回到預設值，原值另存 corrupt_* 供救援，不讓整個程式停住
+window.ctuParse = function (key, fallbackText) {
+    var def = JSON.parse(fallbackText);
+    var raw = null;
+    try { raw = window.localStorage.getItem(key); } catch (e) {}
+    if (raw === null || raw === '') return def;
+    var val;
+    try { val = JSON.parse(raw); } catch (e) { val = undefined; }
+    var ok = val !== undefined && (
+        Array.isArray(def) ? Array.isArray(val)
+        : def !== null && typeof def === 'object' ? (val !== null && typeof val === 'object' && !Array.isArray(val))
+        : def === null ? (val === null || typeof val === 'object')
+        : typeof val === typeof def);
+    if (ok) return val;
+    try { window.localStorage.setItem('corrupt_' + key, raw); } catch (e) {}
+    return def;
+};
+</script>
+<script>
 document.addEventListener('DOMContentLoaded', () => {
 
     // ── DOM refs ──────────────────────────────────────────────
@@ -1322,8 +1345,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPaused = false, isFullscreen = false;
     let currentEvent = '', currentActions = '';
     let selectedSound = '時間到了', selectedLang = 'zh-TW';
-    let customPresets = JSON.parse(localStorage.getItem('timerCustomPresets') || '[]');
-    let studentCountPresets = JSON.parse(localStorage.getItem('timerStudentCountPresets') || '["20","25","30"]');
+    let customPresets = ctuParse('timerCustomPresets', '[]');
+    let studentCountPresets = ctuParse('timerStudentCountPresets', '["20","25","30"]');
     let registeredStudents = new Set();
 
     const defaultCleaningTasks = {
@@ -1333,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         4: ["桌面收乾淨、整理抽屜","搬椅子","每組3號掃地","每個人擦地板15格兩次","椅子搬下來、桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
         5: ["整理抽屜、櫃子","擦桌子、椅子、抽屜2次","桌子對齊","喝水、上廁所","準備下一節課的書本在桌上"],
     };
-    let cleaningTasks = JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || defaultCleaningTasks;
+    let cleaningTasks = ctuParse('timerCleaningTasks', 'null') || defaultCleaningTasks;
     const todayDow = new Date().getDay();
     let currentCleaningDay = String(todayDow >= 1 && todayDow <= 5 ? todayDow : 1);
     let cleaningCountdownInterval = null;
@@ -1361,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadTabOrder() {
         var saved;
-        try { saved = JSON.parse(localStorage.getItem('timerTabOrder') || 'null'); } catch (e) { saved = null; }
+        try { saved = ctuParse('timerTabOrder', 'null'); } catch (e) { saved = null; }
         if (!Array.isArray(saved)) return defaultTabOrder.slice();
         var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
         defaultTabOrder.forEach(function (k) { if (out.indexOf(k) === -1) out.push(k); });
@@ -1527,7 +1550,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentActions.split('\n').filter(a => a.trim()).forEach((a, i) => {
                 const el = document.createElement('div');
                 el.className = 'flex items-center text-sky-800 bg-sky-100 rounded-lg p-3 border border-sky-200';
-                el.innerHTML = `<div class="w-7 h-7 bg-sky-200 rounded-full flex items-center justify-center font-bold mr-3 shrink-0">${i+1}</div><div>${a.trim()}</div>`;
+                el.innerHTML = `<div class="w-7 h-7 bg-sky-200 rounded-full flex items-center justify-center font-bold mr-3 shrink-0">${i+1}</div><div>${ctuEsc(a.trim())}</div>`;
                 al.appendChild(el);
             });
             ad.classList.remove('hidden');
@@ -1747,7 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Feature 2: Student registration history ────────────────
     function saveRegistrationRecord() {
         if (registeredStudents.size === 0) return;
-        const h = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+        const h = ctuParse('timerHistory', '[]');
         const now = new Date(), pad = n => String(n).padStart(2,'0');
         h.unshift({
             id: now.getTime(), timestamp: now.getTime(),
@@ -1763,7 +1786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const list = document.getElementById('history-list');
         const empty = document.getElementById('history-empty');
         if (!list) return;
-        const h = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+        const h = ctuParse('timerHistory', '[]');
         list.innerHTML = '';
         if (h.length === 0) { if (empty) empty.classList.remove('hidden'); return; }
         if (empty) empty.classList.add('hidden');
@@ -1773,8 +1796,8 @@ document.addEventListener('DOMContentLoaded', () => {
             item.innerHTML = `
                 <div class="flex justify-between items-start mb-2 gap-2">
                     <div>
-                        <div class="text-slate-700 font-bold">${rec.event}</div>
-                        <div class="text-slate-400 text-sm">${rec.date}　班級人數：${rec.totalStudents}人</div>
+                        <div class="text-slate-700 font-bold">${ctuEsc(rec.event)}</div>
+                        <div class="text-slate-400 text-sm">${ctuEsc(rec.date)}　班級人數：${ctuEsc(rec.totalStudents)}人</div>
                     </div>
                     <div class="flex gap-2 shrink-0">
                         <button class="copy-record-btn px-3 py-1 bg-sky-100 text-sky-700 rounded text-sm hover:bg-sky-200">複製</button>
@@ -1782,7 +1805,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center">
-                    ${rec.students.map(n => `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${n}號</span>`).join('')}
+                    ${rec.students.map(n => `<span class="inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded mr-1 mb-1 text-sm">${ctuEsc(n)}號</span>`).join('')}
                     <span class="text-slate-400 text-sm ml-1">（共${rec.students.length}人）</span>
                 </div>`;
             item.querySelector('.copy-record-btn').addEventListener('click', () => {
@@ -1790,7 +1813,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigator.clipboard.writeText(txt).then(() => { copyFeedback.classList.add('show'); setTimeout(() => copyFeedback.classList.remove('show'), 2000); });
             });
             item.querySelector('.delete-record-btn').addEventListener('click', () => {
-                let hh = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+                let hh = ctuParse('timerHistory', '[]');
                 hh = hh.filter(r => r.id !== rec.id);
                 localStorage.setItem('timerHistory', JSON.stringify(hh)); renderHistoryPanel();
             });
@@ -1832,7 +1855,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.dataset.text = preset.text; btn.dataset.minutes = preset.minutes;
             if (preset.actions) btn.dataset.actions = preset.actions;
             if (preset.studentCount) btn.dataset.studentCount = preset.studentCount;
-            const label = preset.studentCount ? `${preset.text} (${preset.minutes}分 / ${preset.studentCount}人)` : `${preset.text} (${preset.minutes}分鐘)`;
+            const label = ctuEsc(preset.studentCount ? `${preset.text} (${preset.minutes}分 / ${preset.studentCount}人)` : `${preset.text} (${preset.minutes}分鐘)`);
             btn.innerHTML = `${label}<button class="delete-preset" data-index="${index}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
             btn.querySelector('.delete-preset').addEventListener('click', e => {
                 e.stopPropagation();
@@ -1848,17 +1871,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const now = new Date(), pad = n => String(n).padStart(2,'0');
         const data = {
             exportedAt: `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
-            customPresets: JSON.parse(localStorage.getItem('timerCustomPresets') || '[]'),
-            studentCountPresets: JSON.parse(localStorage.getItem('timerStudentCountPresets') || '[]'),
-            timerHistory: JSON.parse(localStorage.getItem('timerHistory') || '[]'),
-            cleaningTasks: JSON.parse(localStorage.getItem('timerCleaningTasks') || 'null') || cleaningTasks,
+            customPresets: ctuParse('timerCustomPresets', '[]'),
+            studentCountPresets: ctuParse('timerStudentCountPresets', '[]'),
+            timerHistory: ctuParse('timerHistory', '[]'),
+            cleaningTasks: ctuParse('timerCleaningTasks', 'null') || cleaningTasks,
             cleanTargetTime: localStorage.getItem('cleanTargetTime') || '10:25',
-            cleaningBehaviorRecords: JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}'),
-            examInfo: JSON.parse(localStorage.getItem('examInfo') || '{}'),
+            cleaningBehaviorRecords: ctuParse('cleaningBehaviorRecords', '{}'),
+            examInfo: ctuParse('examInfo', '{}'),
             seatLayout: localStorage.getItem('seatLayout') || null,
-            seatCheckRecords: JSON.parse(localStorage.getItem('seatCheckRecords') || '{}'),
-            seatCheckItems: JSON.parse(localStorage.getItem('seatCheckItems') || 'null'),
-            tabOrder: JSON.parse(localStorage.getItem('timerTabOrder') || 'null'),
+            seatCheckRecords: ctuParse('seatCheckRecords', '{}'),
+            seatCheckItems: ctuParse('seatCheckItems', 'null'),
+            tabOrder: ctuParse('timerTabOrder', 'null'),
             weeklySettings: typeof getWeeklySettings === 'function' ? getWeeklySettings() : null,
             weeklyRecords: typeof getWeeklyRecords === 'function' ? getWeeklyRecords() : {}
         };
@@ -1874,16 +1897,16 @@ document.addEventListener('DOMContentLoaded', () => {
             let data;
             try { data = JSON.parse(e.target.result); } catch { alert('匯入失敗：檔案格式不正確'); return; }
             if (data.customPresets) {
-                const ex = JSON.parse(localStorage.getItem('timerCustomPresets') || '[]');
+                const ex = ctuParse('timerCustomPresets', '[]');
                 const merged = [...ex]; data.customPresets.forEach(p => { if (!merged.some(ep => ep.text === p.text)) merged.push(p); });
                 customPresets = merged; localStorage.setItem('timerCustomPresets', JSON.stringify(merged)); loadCustomPresets();
             }
             if (data.studentCountPresets) {
-                const ex = JSON.parse(localStorage.getItem('timerStudentCountPresets') || '[]');
+                const ex = ctuParse('timerStudentCountPresets', '[]');
                 studentCountPresets = [...new Set([...ex, ...data.studentCountPresets])]; loadStudentCountPresets();
             }
             if (data.timerHistory) {
-                const ex = JSON.parse(localStorage.getItem('timerHistory') || '[]');
+                const ex = ctuParse('timerHistory', '[]');
                 const ids = new Set(ex.map(r => r.id));
                 const merged = [...ex, ...data.timerHistory.filter(r => !ids.has(r.id))].sort((a,b) => b.timestamp - a.timestamp);
                 localStorage.setItem('timerHistory', JSON.stringify(merged)); renderHistoryPanel();
@@ -1972,7 +1995,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('clean-clear-behavior-btn').addEventListener('click', () => {
             const key = getTodayKey();
-            const records = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+            const records = ctuParse('cleaningBehaviorRecords', '{}');
             records[key] = [];
             localStorage.setItem('cleaningBehaviorRecords', JSON.stringify(records));
             renderBehaviorGrid();
@@ -2002,7 +2025,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tasks.forEach(task => {
             const li = document.createElement('li');
             li.className = 'flex items-start gap-2 text-slate-700';
-            li.innerHTML = `<svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${task}</span>`;
+            li.innerHTML = `<svg class="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${ctuEsc(task)}</span>`;
             list.appendChild(li);
         });
     }
@@ -2022,7 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!grid) return;
         const count = parseInt(studentCountInput.value) || 20;
         const key = getTodayKey();
-        const records = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+        const records = ctuParse('cleaningBehaviorRecords', '{}');
         const today = records[key] || [];
         grid.innerHTML = '';
         for (let i = 1; i <= count; i++) {
@@ -2031,7 +2054,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const sel = today.includes(i);
             btn.className = `w-10 h-10 flex items-center justify-center rounded-lg font-bold transition-all ${sel ? 'bg-red-500 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
             btn.addEventListener('click', () => {
-                const r = JSON.parse(localStorage.getItem('cleaningBehaviorRecords') || '{}');
+                const r = ctuParse('cleaningBehaviorRecords', '{}');
                 if (!r[key]) r[key] = [];
                 const idx = r[key].indexOf(i);
                 if (idx > -1) r[key].splice(idx, 1); else r[key].push(i);
@@ -2047,7 +2070,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initExamPanel() {
         const fields = ['exam-subject', 'exam-start-time', 'exam-end-time', 'exam-expected', 'exam-actual', 'exam-notes'];
-        const saved = JSON.parse(localStorage.getItem('examInfo') || '{}');
+        const saved = ctuParse('examInfo', '{}');
         fields.forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -2160,7 +2183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatRetryTimer = null;
 
     function seatQueue() {
-        try { return JSON.parse(localStorage.getItem('seatSyncQueue') || '[]'); } catch (e) { return []; }
+        try { return ctuParse('seatSyncQueue', '[]'); } catch (e) { return []; }
     }
     function saveSeatQueue(q) { localStorage.setItem('seatSyncQueue', JSON.stringify(q)); }
 
@@ -2439,7 +2462,9 @@ document.addEventListener('DOMContentLoaded', () => {
         var out = {};
         if (!raw || typeof raw !== 'object') return out;
         Object.keys(raw).forEach(function (seat) {
-            if (!seatRoster[seat] || !raw[seat] || typeof raw[seat] !== 'object') return;
+            // 保留名冊外的座號，只在畫面上依名冊顯示，避免存檔時刪掉舊紀錄
+            var seatNo = parseInt(seat, 10);
+            if (!(seatNo >= 1 && seatNo <= 60) || String(seatNo) !== String(seat) || !raw[seat] || typeof raw[seat] !== 'object') return;
             Object.keys(raw[seat]).forEach(function (week) {
                 var n = parseInt(week, 10);
                 var state = raw[seat][week];
@@ -2492,7 +2517,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function weeklyQueue() {
-        try { return JSON.parse(localStorage.getItem('weeklySyncQueue') || '[]'); } catch (e) { return []; }
+        try { return ctuParse('weeklySyncQueue', '[]'); } catch (e) { return []; }
     }
 
     function saveWeeklyQueue(q) { localStorage.setItem('weeklySyncQueue', JSON.stringify(q)); }
@@ -2626,7 +2651,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         table.appendChild(tbody);
         renderWeeklySyncStatus();
+        syncWeeklyTopScroll();
     }
+
+    // 上方捲軸寬度跟著表格；兩條捲軸互相同步
+    function syncWeeklyTopScroll() {
+        var top = document.getElementById('weekly-scroll-top');
+        var bottom = document.getElementById('weekly-scroll-bottom');
+        var inner = document.getElementById('weekly-scroll-top-inner');
+        if (!top || !bottom || !inner) return;
+        inner.style.width = bottom.scrollWidth + 'px';
+        top.style.display = bottom.scrollWidth > bottom.clientWidth + 1 ? '' : 'none';
+        top.scrollLeft = bottom.scrollLeft;
+    }
+    (function () {
+        var top = document.getElementById('weekly-scroll-top');
+        var bottom = document.getElementById('weekly-scroll-bottom');
+        var lock = false;
+        function follow(from, to) {
+            return function () {
+                if (lock) { lock = false; return; }
+                if (to.scrollLeft !== from.scrollLeft) { lock = true; to.scrollLeft = from.scrollLeft; }
+            };
+        }
+        top.addEventListener('scroll', follow(top, bottom));
+        bottom.addEventListener('scroll', follow(bottom, top));
+        window.addEventListener('resize', syncWeeklyTopScroll);
+    })();
 
     function weeklyPrintDateParts(week, idx) {
         var year = String(week.year || (idx < 17 ? '115' : '116'));
@@ -3001,7 +3052,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function getSeatRecords() {
         var all;
-        try { all = JSON.parse(localStorage.getItem('seatCheckRecords') || '{}'); } catch (e) { all = {}; }
+        try { all = ctuParse('seatCheckRecords', '{}'); } catch (e) { all = {}; }
         var out = {};
         Object.keys(all).forEach(function (d) { out[d] = normalizeSeatDay(all[d]); });
         return out;
@@ -3297,17 +3348,17 @@ document.addEventListener('DOMContentLoaded', () => {
             var n = seatCountOf(today, num, it.key);
             if (!n) return '<span class="seat-dot bg-slate-200"></span>';
             return '<span class="inline-flex items-center gap-0.5">' +
-                   '<span class="seat-dot ' + seatColor(it).dot + '" title="' + it.label + '"></span>' +
+                   '<span class="seat-dot ' + seatColor(it).dot + '" title="' + ctuEsc(it.label) + '"></span>' +
                    (n > 1 ? '<span class="' + seatColor(it).text + ' text-[10px] font-bold leading-none">' + n + '</span>' : '') +
                    '</span>';
         }).join('');
 
         cell.innerHTML =
             '<div class="flex items-baseline gap-1.5">' +
-                '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + num + '</span>' +
-                '<span class="text-slate-700 font-bold text-base leading-tight">' + info[0] + '</span>' +
+                '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + ctuEsc(num) + '</span>' +
+                '<span class="text-slate-700 font-bold text-base leading-tight">' + ctuEsc(info[0]) + '</span>' +
             '</div>' +
-            '<div class="text-slate-400 text-[11px] leading-tight truncate">' + info[1] + '</div>' +
+            '<div class="text-slate-400 text-[11px] leading-tight truncate">' + ctuEsc(info[1]) + '</div>' +
             '<div class="flex flex-wrap items-center gap-1 mt-1.5">' + marks + '</div>';
 
         cell.addEventListener('click', function () {
@@ -3453,7 +3504,7 @@ document.addEventListener('DOMContentLoaded', () => {
             add.innerHTML =
                 '<span class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold ' +
                     (n ? c.dot : 'bg-slate-200') + '" style="font-variant-numeric:tabular-nums;">' + (n ? n : '＋') + '</span>' +
-                '<span class="font-semibold ' + (n ? c.text : 'text-slate-600') + '">' + it.label + '</span>';
+                '<span class="font-semibold ' + (n ? c.text : 'text-slate-600') + '">' + ctuEsc(it.label) + '</span>';
             add.addEventListener('click', function () { addSeatCount(num, it.key, 1); });
 
             var minus = document.createElement('button');
@@ -3678,15 +3729,15 @@ document.addEventListener('DOMContentLoaded', () => {
             '<th class="text-left font-semibold py-2 px-2">座號</th>' +
             '<th class="text-left font-semibold py-2 px-2">姓名</th>' +
             seatItems.map(function (it) {
-                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
+                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + ctuEsc(it.label) + '</th>';
             }).join('') +
             '<th class="py-2 px-2 font-semibold text-slate-600">總計</th>' +
             '<th class="py-2 px-2"></th></tr>';
 
         var body = data.rows.map(function (r) {
             return '<tr class="border-t border-sky-100">' +
-                '<td class="py-2 px-2 text-slate-400 font-bold" style="font-variant-numeric:tabular-nums;">' + r.num + '</td>' +
-                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + r.name + '</td>' +
+                '<td class="py-2 px-2 text-slate-400 font-bold" style="font-variant-numeric:tabular-nums;">' + ctuEsc(r.num) + '</td>' +
+                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + ctuEsc(r.name) + '</td>' +
                 seatItems.map(function (it) {
                     var n = r.counts[it.key] || 0;
                     return '<td class="py-2 px-2 text-center ' + (n ? seatColor(it).text + ' font-bold' : 'text-slate-200') +
@@ -3694,7 +3745,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }).join('') +
                 '<td class="py-2 px-2 text-center text-sky-700 font-bold text-lg" style="font-variant-numeric:tabular-nums;">' + r.sum + '</td>' +
                 '<td class="py-2 px-2 text-center">' +
-                    '<button class="seat-purge-row px-2 text-slate-300 hover:text-red-500 transition-all" data-seat="' + r.num + '" title="清除這位學生在目前期間的紀錄">✕</button>' +
+                    '<button class="seat-purge-row px-2 text-slate-300 hover:text-red-500 transition-all" data-seat="' + ctuEsc(r.num) + '" title="清除這位學生在目前期間的紀錄">✕</button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -3719,12 +3770,12 @@ document.addEventListener('DOMContentLoaded', () => {
             '<th class="text-left font-semibold py-2 px-2 whitespace-nowrap">週次</th>' +
             '<th class="text-center font-semibold py-2 px-2 whitespace-nowrap">登記人數</th>' +
             seatItems.map(function (it) {
-                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + it.label + '</th>';
+                return '<th class="font-semibold py-2 px-2 whitespace-nowrap ' + seatColor(it).text + '">' + ctuEsc(it.label) + '</th>';
             }).join('') +
             '<th class="py-2 px-2 font-semibold text-slate-600">總計</th></tr>';
         var body = data.map(function (r) {
             return '<tr class="border-t border-sky-100">' +
-                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + r.label + '</td>' +
+                '<td class="py-2 px-2 text-slate-700 font-semibold whitespace-nowrap">' + ctuEsc(r.label) + '</td>' +
                 '<td class="py-2 px-2 text-center text-slate-500" style="font-variant-numeric:tabular-nums;">' + r.people + '</td>' +
                 seatItems.map(function (it) {
                     var n = r.counts[it.key] || 0;
@@ -4304,7 +4355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 var row = document.createElement('div');
                 row.className = 'flex items-start gap-2';
                 var cleanTask = task.replace(/^\d+[.、]\s*/, '');
-                row.innerHTML = '<span class="text-sky-600 font-bold">' + (idx + 1) + '.</span><span>' + cleanTask + '</span>';
+                row.innerHTML = '<span class="text-sky-600 font-bold">' + (idx + 1) + '.</span><span>' + ctuEsc(cleanTask) + '</span>';
                 listEl.appendChild(row);
             });
         }
@@ -4321,7 +4372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'group-bonus-pill px-3.5 py-2 border rounded-xl font-bold text-sm transition-all cursor-pointer flex items-center gap-1.5 shadow-sm select-none ' +
                 (isSelected ? 'selected' : 'bg-sky-50 hover:bg-sky-100 text-sky-700 border-sky-200');
             var ptsLabel = item.pts > 0 ? '+' + item.pts : item.pts;
-            btn.innerHTML = '<span>' + (item.icon || '⭐') + '</span><span>' + item.label + '</span><span class="text-xs bg-white/70 px-1.5 py-0.5 rounded-md ' + (isSelected ? 'text-sky-800' : 'text-sky-600 font-extrabold') + '">' + ptsLabel + '</span>';
+            btn.innerHTML = '<span>' + ctuEsc(item.icon || '⭐') + '</span><span>' + ctuEsc(item.label) + '</span><span class="text-xs bg-white/70 px-1.5 py-0.5 rounded-md ' + (isSelected ? 'text-sky-800' : 'text-sky-600 font-extrabold') + '">' + ctuEsc(ptsLabel) + '</span>';
             btn.addEventListener('click', function () {
                 if (groupSelectedBonus && groupSelectedBonus.id === item.id) {
                     groupSelectedBonus = null;
@@ -5071,7 +5122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 var left = document.createElement('div');
                 left.className = 'flex items-center gap-2';
-                left.innerHTML = '<span class="text-base">' + (item.icon || '⭐') + '</span><span class="font-bold text-slate-700">' + item.label + '</span><span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded font-extrabold">' + (item.pts > 0 ? '+' + item.pts : item.pts) + '分</span>';
+                left.innerHTML = '<span class="text-base">' + ctuEsc(item.icon || '⭐') + '</span><span class="font-bold text-slate-700">' + ctuEsc(item.label) + '</span><span class="text-xs text-sky-600 bg-sky-100 px-1.5 py-0.5 rounded font-extrabold">' + (item.pts > 0 ? '+' + item.pts : item.pts) + '分</span>';
 
                 var delBtn = document.createElement('button');
                 delBtn.type = 'button';
@@ -5178,7 +5229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         var left = document.createElement('div');
                         left.className = 'flex items-center gap-2';
                         var badge = rank < 3 ? medals[rank] : ('第 ' + (rank + 1) + ' 名');
-                        left.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-white/70 font-black">' + badge + '</span><span class="text-base font-extrabold">' + g.name + '</span>';
+                        left.innerHTML = '<span class="text-xs px-2 py-0.5 rounded-full bg-white/70 font-black">' + badge + '</span><span class="text-base font-extrabold">' + ctuEsc(g.name) + '</span>';
 
                         var right = document.createElement('div');
                         right.className = 'text-xl font-black';

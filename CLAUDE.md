@@ -2,7 +2,7 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @23
+version: GAS @24
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
 next_action: 讓老師試用全校通用版 universal.html；取得 408 現用秩序項目後換上預設
 updated: 2026-10-07
