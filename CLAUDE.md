@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @24
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 讓老師試用全校通用版 universal.html；取得 408 現用秩序項目後換上預設
+next_action: universal v1.7 學校表單填報本機完成；用學校帳號現場核對四個欄位與日期參數後再決定 push
 updated: 2026-10-07
 ---
 
@@ -46,6 +46,7 @@ updated: 2026-10-07
 - **不可寫入 408 學生姓名或 GAS 網址**；名冊一律來自老師自己的班級設定。
 - 每學期更新程式頂端 `CTU_SEMESTER`（開學週星期一、SH150 週數）。
 - SH150 分頁是嵌入的原版原始碼（`#sh150-source`），更新方式見 DECISIONS。
+- SH150 學校表單填報只能寫 `ctu_school_form_config`；計分規則不可放進設定。說明見 `docs/sh150-school-form-guide.md`。
 
 ## 部署後驗證清單
 

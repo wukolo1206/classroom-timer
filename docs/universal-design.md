@@ -243,6 +243,15 @@ SH150 和含氟紀錄都需要「第幾週」與每週日期。
 - 程式中以【可自行修改】標出常改處，【請勿直接修改】標出 SH150 嵌入區塊；版本號 `CTU_VERSION` 顯示在說明視窗
 - 每次發佈新版時更新 `CTU_VERSION`
 
+## 11.6 SH150 學校表單填報（v1.7）
+
+- SH150 框架提供唯讀深拷貝 `ctuGetSh150ReportSnapshot()`（所選週、記憶體中的紀錄、名冊人數、含年份的五天日期）；按鈕呼叫外層 `ctuOpenSchoolReport()`
+- 外層純函式集中在 `window.ctuSchoolForm`：`summarizeWeek`、`validateConfig`、`parsePrefillTemplate`、`buildPrefillUrl`、`buildReportText`
+- 唯一新 key：`ctu_school_form_config`（schema 1）；完整備份自動包含，舊備份沒有時用內建設定
+- 只輸出白名單參數（`usp=pp_url` 與四個核心 entry；日期需實測核對後才輸出）；不帶學生姓名
+- 介面只會說「已產生連結」，不會說「已繳交」；正式提交、照片、登入都在 Google 表單由老師完成
+- 使用說明：`docs/sh150-school-form-guide.md`；計畫與驗收紀錄：`docs/superpowers/plans/2026-10-07-sh150-school-form.md`
+
 ## 12. 不做的事（本階段）
 
 - 雲端同步、跨裝置自動同步、登入
