@@ -868,16 +868,21 @@
             <button id="weekly-fill-done" class="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">✓ 全班標記已實施</button>
             <button id="weekly-fill-missed" class="px-3 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">X 全班標記未執行</button>
             <button id="weekly-clear-week" class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-200 transition-all">清除本週</button>
+            <span class="flex-1"></span>
+            <button id="weekly-print-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">🖨 列印繳交版</button>
+            <button id="weekly-export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">⬇️ 匯出每週資料</button>
         </div>
 
-        <div class="overflow-x-auto pb-2">
+        <!-- 表格上方的橫向捲軸，與下方表格同步捲動 -->
+        <div id="weekly-scroll-top" class="overflow-x-auto mb-1" aria-hidden="true">
+            <div id="weekly-scroll-top-inner" style="height: 1px;"></div>
+        </div>
+        <div id="weekly-scroll-bottom" class="overflow-x-auto pb-2">
             <table id="weekly-table" class="weekly-table text-sm"></table>
         </div>
         <p class="text-slate-400 text-xs mt-2">週次欄下方可填日期；「實施次數」會自動統計 ✓。缺席、不同意或當天未執行，可用 X 標記。</p>
 
         <div class="flex flex-wrap gap-3 mt-5 pt-5 border-t border-sky-100">
-            <button id="weekly-print-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">🖨 列印繳交版</button>
-            <button id="weekly-export-btn" class="px-4 py-2 bg-sky-100 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-200 transition-all">⬇️ 匯出每週資料</button>
             <button id="weekly-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除全部每週紀錄</button>
         </div>
     </div><!-- end #panel-weekly -->
@@ -2700,7 +2705,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.4（2026-10-07）';
+    window.CTU_VERSION = 'v1.5（2026-10-07）';
 
     // ── 【可自行修改】學期週次：每學期更新一次（label 學年-學期、開學週星期一、SH150 週數）──
     window.CTU_SEMESTER = { label: '115-1', startMonday: '2026-08-31', weeks: 22 };
@@ -4159,7 +4164,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         table.appendChild(tbody);
         renderWeeklySyncStatus();
+        syncWeeklyTopScroll();
     }
+
+    // 上方捲軸寬度跟著表格；兩條捲軸互相同步
+    function syncWeeklyTopScroll() {
+        var top = document.getElementById('weekly-scroll-top');
+        var bottom = document.getElementById('weekly-scroll-bottom');
+        var inner = document.getElementById('weekly-scroll-top-inner');
+        if (!top || !bottom || !inner) return;
+        inner.style.width = bottom.scrollWidth + 'px';
+        top.style.display = bottom.scrollWidth > bottom.clientWidth + 1 ? '' : 'none';
+        top.scrollLeft = bottom.scrollLeft;
+    }
+    (function () {
+        var top = document.getElementById('weekly-scroll-top');
+        var bottom = document.getElementById('weekly-scroll-bottom');
+        var lock = false;
+        function follow(from, to) {
+            return function () {
+                if (lock) { lock = false; return; }
+                if (to.scrollLeft !== from.scrollLeft) { lock = true; to.scrollLeft = from.scrollLeft; }
+            };
+        }
+        top.addEventListener('scroll', follow(top, bottom));
+        bottom.addEventListener('scroll', follow(bottom, top));
+        window.addEventListener('resize', syncWeeklyTopScroll);
+    })();
 
     function weeklyPrintDateParts(week, idx) {
         var year = String(week.year || (idx < 17 ? '115' : '116'));
