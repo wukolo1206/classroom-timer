@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>班級工具箱 使用說明</title>
+<style>
+    :root {
+        --bg: #f0f9ff; --card: #ffffff; --text: #1e293b; --muted: #64748b; --line: #e2e8f0;
+        --primary: #0284c7; --primary-soft: #e0f2fe; --warn-bg: #fffbeb; --warn-line: #fde68a; --warn-text: #92400e;
+        --ok-bg: #ecfdf5; --ok-line: #a7f3d0; --ok-text: #065f46;
+    }
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --line: #334155;
+            --primary: #38bdf8; --primary-soft: #0c4a6e; --warn-bg: #422006; --warn-line: #854d0e; --warn-text: #fde68a;
+            --ok-bg: #052e16; --ok-line: #166534; --ok-text: #bbf7d0;
+        }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif; line-height: 1.75; font-size: 16px; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { background: var(--primary); color: #fff; border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    header h1 { margin: 0 0 4px; font-size: 1.8rem; }
+    header p { margin: 0; opacity: .9; }
+    header a { color: #fff; font-weight: 700; }
+    nav, section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-bottom: 16px; }
+    nav ol { margin: 6px 0 0; padding-left: 1.4em; columns: 2; column-gap: 32px; }
+    nav a { color: var(--primary); text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    h2 { margin: 0 0 10px; font-size: 1.35rem; color: var(--primary); }
+    h3 { margin: 18px 0 6px; font-size: 1.1rem; }
+    p { margin: 6px 0; }
+    ul, ol { margin: 6px 0; padding-left: 1.4em; }
+    li { margin: 3px 0; }
+    .btn { display: inline-block; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--primary-soft); font-weight: 600; white-space: nowrap; }
+    .tip, .warn { border-radius: 10px; padding: 10px 14px; margin: 10px 0; }
+    .tip { background: var(--ok-bg); border: 1px solid var(--ok-line); color: var(--ok-text); }
+    .warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-text); }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .95rem; }
+    th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+    th { background: var(--primary-soft); }
+    .faq dt { font-weight: 700; margin-top: 12px; }
+    .faq dd { margin: 2px 0 0 0; color: var(--text); }
+    footer { color: var(--muted); font-size: .85rem; text-align: center; margin-top: 24px; }
+    @media (max-width: 600px) { nav ol { columns: 1; } header h1 { font-size: 1.5rem; } }
+    @media print {
+        body { background: #fff; color: #000; font-size: 12pt; }
+        header { background: none; color: #000; border: 2px solid #000; }
+        header a { color: #000; }
+        nav { display: none; }
+        section { break-inside: avoid-page; border-color: #999; }
+        .tip, .warn { color: #000; background: #fff; border-color: #999; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+    <h1>🏫 班級工具箱 使用說明</h1>
+    <p>適用版本：v1.10（2026-10-07）｜工具網址：<a href="https://wukolo1206.github.io/classroom-timer/universal.html">wukolo1206.github.io/classroom-timer/universal.html</a></p>
+</header>
+
+<nav aria-label="目錄">
+    <b>目錄</b>
+    <ol>
+        <li><a href="#about">這是什麼</a></li>
+        <li><a href="#start">第一次使用</a></li>
+        <li><a href="#tabs">分頁與顯示設定</a></li>
+        <li><a href="#sh150">SH150 運動登記</a></li>
+        <li><a href="#report">填報學校本週資料</a></li>
+        <li><a href="#weekly">含氟每週紀錄</a></li>
+        <li><a href="#timer">倒數計時</a></li>
+        <li><a href="#seat">秩序登記</a></li>
+        <li><a href="#group">小組討論</a></li>
+        <li><a href="#backup">備份與還原（重要）</a></li>
+        <li><a href="#source">進階：自己修改工具</a></li>
+        <li><a href="#faq">常見問題</a></li>
+    </ol>
+</nav>
+
+<section id="about">
+    <h2>1. 這是什麼</h2>
+    <p>班級工具箱是一個打開網頁就能用的班級小工具，適合放在<b>教室大屏</b>上使用，不用安裝、不用登入。</p>
+    <ul>
+        <li>包含：SH150 運動登記（含每週填報學校表單）、含氟每週紀錄、倒數計時、秩序登記、小組討論。</li>
+        <li><b>資料只存在這台電腦的瀏覽器裡</b>，不會上傳到任何地方，其他人看不到。</li>
+        <li>也因為這樣，換一台電腦或換一個瀏覽器，資料不會跟過去，要靠「備份與還原」搬（見第 10 節）。</li>
+        <li>投影畫面上的學生姓名會自動遮住中間的字（例如「王○明」），列印與複製報告時才顯示全名。</li>
+    </ul>
+    <div class="tip">建議固定用<b>同一台教室電腦、同一個瀏覽器</b>（例如 Chrome）開啟，並把網址加入書籤。</div>
+</section>
+
+<section id="start">
+    <h2>2. 第一次使用</h2>
+    <p>第一次打開時會自動跳出「🏫 班級設定」。之後要修改，按畫面右上角的 <span class="btn">🏫 班級設定</span>。</p>
+    <table>
+        <tr><th>欄位</th><th>怎麼填</th></tr>
+        <tr><td>班級</td><td>填<b>數字</b>，例如 <code>408</code>（不要寫「四年八班」或「408 班」）。學校填報表單只認這種格式。</td></tr>
+        <tr><td>導師</td><td>填真實姓名。學校填報表單會用到。</td></tr>
+        <tr><td>體育股長</td><td>SH150 列印表會用到，可以不填。</td></tr>
+        <tr><td>人數</td><td>沒有貼姓名時，依這個人數產生座號 1～N。</td></tr>
+        <tr><td>學生姓名</td><td>一行一位，第 1 行是 1 號。可以直接從 Excel 或學籍系統複製貼上，「1. 王小明」這種有座號的格式也可以，會自動去掉座號。<b>空號請留一個空行</b>，不要直接刪掉那一行，不然後面的人座號會往前移。</td></tr>
+    </table>
+    <h3>已經在用舊的 SH150 通用版？</h3>
+    <p>如果這台電腦用過 SH150 通用版，第一次打開時會問要不要<b>複製一份</b>資料過來：</p>
+    <ul>
+        <li>按 <span class="btn">帶入</span>：班級設定與 SH150 紀錄複製到這裡。舊網址的資料不會被改動。</li>
+        <li>帶入後兩邊各自獨立：之後在這裡登記的，舊網址看不到，反之亦然。建議帶入後就改用這裡。</li>
+        <li>按 <span class="btn">不要，從空白開始</span>：以後不會再問。之後想帶入，可以在「🏫 班級設定」按「從這台電腦的 SH150 帶入」。</li>
+    </ul>
+</section>
+
+<section id="tabs">
+    <h2>3. 分頁與顯示設定</h2>
+    <p>預設只顯示 <b>🏃 SH150 運動登記</b> 和 <b>🗓 含氟每週紀錄</b>。其他分頁要用時再打開：</p>
+    <ol>
+        <li>按分頁列最右邊的 <span class="btn">⚙️</span>。</li>
+        <li>勾選要顯示的分頁（倒數計時、秩序登記、小組討論），用 ▲▼ 調整順序。</li>
+        <li>按 <span class="btn">儲存</span>。排在第一個的分頁就是打開網頁時的預設畫面。</li>
+    </ol>
+</section>
+
+<section id="sh150">
+    <h2>4. 🏃 SH150 運動登記</h2>
+    <ol>
+        <li>用 <span class="btn">◀ 上一週</span>／<span class="btn">下一週 ▶</span> 或直接輸入週次，選要登記的那一週。打開時會自動跳到本週。</li>
+        <li>點星期一～星期五切換日期，預設是今天。</li>
+        <li>點學生卡片，輸入<b>跑步圈數</b>和<b>跳繩下數</b>（可用 +1圈、+200下 等快速按鈕），按儲存。</li>
+        <li>下方「導師每日跑步圈數」填導師當天跑的圈數。</li>
+    </ol>
+    <ul>
+        <li><b>計算規則</b>：跳繩依每天全班加總，每 200 下換算 1 圈；導師圈數乘 2 計入班級總圈數。</li>
+        <li><span class="btn">🖨️ A4 直接列印</span>：印出體育組格式的 A4 紙本（列印時顯示全名）。</li>
+        <li><span class="btn">💾 備份</span>／<span class="btn">📥 載入</span>：只備份或載入 SH150 這一個分頁（也能載入舊 SH150 網址的備份檔）。要備份全部分頁請用第 10 節的「完整備份」。</li>
+        <li><span class="btn">🗑️ 清空本週</span>：清除這一週的登記，其他週不受影響。</li>
+    </ul>
+</section>
+
+<section id="report">
+    <h2>5. 📤 填報學校本週資料</h2>
+    <p>每週五放學前要填報學校的 SH150 Google 表單。這個按鈕會幫你算好數字並填進表單，你只要<b>補照片、按提交</b>。</p>
+    <h3>步驟</h3>
+    <ol>
+        <li>在 SH150 分頁選好要填報的那一週，按 <span class="btn">📤 填報學校本週資料</span>。</li>
+        <li>核對畫面上的內容：班級、導師、週次與日期、每天明細，以及兩個數字：
+            <ul>
+                <li><b>學生填報圈數</b>（跑步＋跳繩換算）</li>
+                <li><b>導師填報圈數（尚未乘 2）</b>：學校後台會自動乘 2，這裡不要先乘。</li>
+            </ul>
+        </li>
+        <li>如果出現黃色提醒，看完後勾選「我已核對」。</li>
+        <li>按 <span class="btn">🚀 開啟預填表單</span>，學校表單會在新分頁打開，導師、班級、兩個圈數、填報時間都已經填好。</li>
+        <li>在 Google 表單：用<b>學校帳號</b>登入 → 再看一次數字 → 上傳 <b>1～2 張活動照片</b> → <b>自己按「提交」</b>。</li>
+    </ol>
+    <div class="warn">按「開啟預填表單」<b>不代表已經繳交</b>。一定要在 Google 表單按「提交」才算完成。工具看不到學校有沒有收到。</div>
+    <h3>其他說明</h3>
+    <ul>
+        <li><b>導師另有跳繩</b>：在「導師額外換算圈數」填<b>尚未乘 2</b> 的換算圈數。這個數字只用在這一次填報，不會存進紀錄。</li>
+        <li><b>不含體育課</b>：工具無法分辨哪些是體育課的運動，請確認登記的內容符合學校規定。</li>
+        <li><b>按鈕是灰色的</b>：看紅色框的原因，通常是班級不是 <code>408</code> 這種格式，或導師還是「OOO 老師」。到「🏫 班級設定」改好就可以了。</li>
+        <li><b>表單沒有自動填好，或學校換了表單</b>：按 <span class="btn">📋 複製填報資料</span>，對照文字自己填；可以按「開啟空白表單」。</li>
+        <li><b>新分頁沒有出現</b>：按畫面上的「點這裡再次開啟」。</li>
+        <li>學校表單沒有「週次」欄位，請確認畫面上的「運動期間」就是要填報的那一週。</li>
+    </ul>
+</section>
+
+<section id="weekly">
+    <h2>6. 🗓 含氟每週紀錄</h2>
+    <ul>
+        <li>每位學生一列、每週一格。點格子會循環切換：空白 → <b>✓ 已實施</b> → <b>X 未執行</b>。</li>
+        <li>「目前操作週次」選好後，可以按 <span class="btn">✓ 全班標記已實施</span>、<span class="btn">X 全班標記未執行</span> 或 <span class="btn">清除本週</span>。</li>
+        <li>「不參加含氟座號」填座號（例如 9,20），列印時那幾列會劃線。</li>
+        <li>表單名稱、學期／班級、每週日期都可以直接修改。</li>
+        <li><span class="btn">🖨 列印繳交版</span>：印出 A4 直式繳交表。<span class="btn">⬇️ 匯出每週資料</span>：只匯出含氟資料。</li>
+        <li>表格很寬時，表格<b>上方和下方</b>都有橫向捲軸可以拉。</li>
+    </ul>
+</section>
+
+<section id="timer">
+    <h2>7. ⏱ 倒數計時</h2>
+    <ol>
+        <li>「等待事項」選常用選項或自己輸入（例如「上課鐘響結束計時」）。</li>
+        <li>「提醒事項」可以列出學生要完成的事，一行一項，會大字顯示。</li>
+        <li>確認「班級人數」與「設定分鐘數」，選提醒鈴聲，按 <span class="btn">開始計時</span>。</li>
+        <li>計時畫面右邊可以點座號，記下還沒完成的學生；時間到會自動存進「登記紀錄」。</li>
+    </ol>
+    <ul>
+        <li><span class="btn">全螢幕</span>、<span class="btn">暫停</span>、<span class="btn">重設</span> 在計時畫面上。</li>
+        <li><span class="btn">+ 新增常用選項</span> 可以把常用的事項、分鐘數、人數存起來，下次一鍵套用。</li>
+        <li>計時中切換分頁或重新整理頁面，計時會接續，不會中斷。</li>
+    </ul>
+</section>
+
+<section id="seat">
+    <h2>8. 🪑 秩序登記</h2>
+    <ul>
+        <li>上方選日期（本週週一～週五），預設是今天。</li>
+        <li>「點學生卡片」可選：
+            <ul>
+                <li><b>✋ 逐項登記</b>：點學生後跳出清單，勾選這次的項目。</li>
+                <li><b>直接選某個項目</b>（例如「座位歪了」）：之後點學生就直接記一次，適合巡堂快速登記。</li>
+            </ul>
+        </li>
+        <li>按錯了：按 <span class="btn">↩ 按錯？減回一筆</span>。</li>
+        <li>右側可看「當日／當週累計／全部累計」與「表現良好：未被登記」名單。</li>
+        <li><span class="btn">📝 文字報告</span> 在畫面上顯示（姓名遮罩）；<span class="btn">📋 複製秩序報告</span> 複製全名版本，可以貼到聯絡簿或通訊軟體。</li>
+        <li><span class="btn">📊 秩序統計</span>：看每位學生的累計次數，可匯出 CSV。</li>
+        <li><span class="btn">⚙️ 編輯秩序項目</span>：新增、改名、刪除檢查項目。</li>
+        <li><span class="btn">✏️ 編輯座位排列</span>：一行一排，三區用「|」分隔，同區座號用逗號分隔。新增的學生如果還沒排進去，會先出現在最後的「待安排」那一排。</li>
+    </ul>
+</section>
+
+<section id="group">
+    <h2>9. 👥 小組討論</h2>
+    <ul>
+        <li><b>今日核心主題、進行步驟與要求</b>：直接點文字就能編輯，大字投影給全班看。</li>
+        <li><b>小組計時器</b>：選 1～10 分鐘，按開始，時間到有鈴聲與語音。</li>
+        <li><b>抽籤中心</b>：可以抽各組號碼、抽報告組別、抽組別＋號碼。勾選「不重複抽取」就會輪流抽，抽完一輪自動重來。</li>
+        <li><b>組別加分項目</b>：先選加分項目，再點組別卡片加分；可調整組數、改組名。</li>
+        <li><span class="btn">🏆 結算頒獎</span>：依分數顯示排名。</li>
+    </ul>
+</section>
+
+<section id="backup">
+    <h2>10. 💾 備份與還原（重要）</h2>
+    <div class="warn">資料只存在這台電腦的瀏覽器裡。<b>清除瀏覽紀錄、重灌電腦、換電腦，資料都會不見</b>。請養成定期備份的習慣。</div>
+    <ul>
+        <li>按右上角 <span class="btn">💾 備份與還原</span> → <span class="btn">⬇️ 下載完整備份</span>，會下載一個「班級工具_班級_日期.json」檔，包含所有分頁的資料。建議存到雲端硬碟。</li>
+        <li>超過 14 天沒備份時，畫面左下角會出現提醒，按「立即備份」即可。</li>
+        <li><b>換電腦</b>：在舊電腦下載完整備份 → 新電腦打開工具 → 「💾 備份與還原」→ <span class="btn">⬆️ 從備份檔還原</span>。</li>
+        <li>還原會覆蓋目前的全部資料。還原前工具會<b>先自動下載一份目前資料的備份</b>，再請你確認一次。</li>
+        <li>「🏫 班級設定」最下方的「清除全部資料」：要輸入班級名稱才能執行，也會先下載備份。</li>
+    </ul>
+</section>
+
+<section id="source">
+    <h2>11. 進階：自己修改工具</h2>
+    <p>「💾 備份與還原」最下方的 <span class="btn">🛠 下載原始碼，自己修改這個工具</span>，可以下載整個工具（一個 HTML 檔），用記事本、VS Code 或請 AI 幫忙修改。</p>
+    <ul>
+        <li>常改的地方，在檔案裡搜尋「【可自行修改】」：學期開學日與週數、預設秩序項目、含氟表單標題、備份提醒天數。</li>
+        <li>自己電腦上打開的檔案和網址版各存各的資料，請先下載完整備份，再到自己的版本還原。</li>
+        <li>自己改的版本收不到之後的更新。</li>
+    </ul>
+</section>
+
+<section id="faq">
+    <h2>12. 常見問題</h2>
+    <dl class="faq">
+        <dt>資料不見了？</dt>
+        <dd>先確認是不是同一台電腦、同一個瀏覽器、同一個網址。換了任何一個，資料都不會出現。如果有備份檔，用「從備份檔還原」救回。</dd>
+        <dt>網站更新後，我的資料還在嗎？</dt>
+        <dd>在。更新只換掉網頁程式，資料存在你的瀏覽器裡，不受影響。</dd>
+        <dt>看不到新功能？</dt>
+        <dd>重新整理頁面（Ctrl＋F5）。頁面最下方會顯示目前版本，例如「班級工具箱 v1.10」。</dd>
+        <dt>其他老師看得到我的資料嗎？</dt>
+        <dd>看不到。資料只在你的瀏覽器裡，不會上傳。</dd>
+        <dt>學生姓名為什麼是「王○明」？</dt>
+        <dd>為了投影時保護學生隱私，畫面上會遮住中間的字。列印、複製報告、匯出 CSV 時會用全名。</dd>
+        <dt>填報按鈕按了沒反應？</dt>
+        <dd>重新整理頁面再試一次。如果是灰色的，看紅色框的原因（通常是班級或導師姓名要改）。</dd>
+        <dt>可以用手機或平板嗎？</dt>
+        <dd>可以，畫面會自動調整。但資料只存在那台裝置上，跟教室電腦不會同步。</dd>
+    </dl>
+</section>
+
+<footer>班級工具箱 使用說明 ・ v1.10 ・ 2026-10-07<br>工具右上角的「❓ 使用說明」也能打開這一頁</footer>
+</div>
+</body>
+</html>
