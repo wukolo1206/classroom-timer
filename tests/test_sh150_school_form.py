@@ -4,7 +4,7 @@
 執行：python -m unittest discover -s tests -p test_sh150_school_form.py -v
 只用虛構資料；Google 表單網址一律由 Playwright 攔截，不連正式學校表單。
 """
-import functools, hashlib, http.server, io, json, os, shutil, socketserver, tempfile, threading, unittest
+import functools, hashlib, http.server, io, json, os, re, shutil, socketserver, tempfile, threading, unittest
 from urllib.parse import urlparse, parse_qs
 
 from playwright.sync_api import sync_playwright
@@ -589,7 +589,8 @@ class TestRegression(UIBase):
         for t in ['timer', 'seat', 'sh150', 'weekly', 'group']:
             p.click('#tab-%s-btn' % t); p.wait_for_timeout(150)
             self.assertFalse(p.is_hidden('#panel-%s' % t))
-        self.assertIn('v1.7', p.inner_text('#ctu-version'))
+        ver = re.search(r"CTU_VERSION = '([^']+)'", io.open(SRC, encoding='utf-8').read()).group(1)
+        self.assertIn(ver, p.inner_text('#ctu-version'))
         src = io.open(SRC, encoding='utf-8').read()
         self.assertIn('ctuGetSh150ReportSnapshot', src); self.assertIn('ctuSchoolForm', src)
         self.assertEqual(p._errs, [])

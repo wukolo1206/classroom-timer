@@ -198,7 +198,7 @@
     </style>
 </head>
 <body class="bg-sky-50 min-h-screen p-4 md:p-6">
-<div class="max-w-5xl mx-auto">
+<div class="max-w-[1200px] mx-auto">
 <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
 
     <!-- Header -->
@@ -1887,7 +1887,7 @@
                 <p id="uiHeaderSub">體育股長：<span id="uiLeaderName">OOO、OOO</span> ｜ 導師：<span id="uiTeacherName">OOO 老師</span> ｜ 支援學生平板自填與大螢幕觸控</p>
             </div>
             <div class="controls">
-                <button class="btn btn-settings" onclick="openSettingsModal()" title="設定年級班級與名冊">⚙️ 班級設定 / 貼上名冊</button>
+                <\!-- 班級設定統一用外層上方的「🏫 班級設定」，這裡不再重複放按鈕 -->
                 <button class="btn btn-outline" onclick="changeWeek(-1)" title="上一週">◀ 上一週</button>
                 <label style="font-weight:bold; font-size:1.05rem;">
                     第 <input type="number" id="weekNum" value="1" min="1" max="22" style="width:50px; padding:4px; font-size:1.1rem; text-align:center; font-weight:bold;" onchange="onWeekChange()"> 週
@@ -2787,7 +2787,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.7（2026-10-07）';
+    window.CTU_VERSION = 'v1.8（2026-10-07）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
