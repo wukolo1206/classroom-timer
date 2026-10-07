@@ -248,7 +248,7 @@ SH150 和含氟紀錄都需要「第幾週」與每週日期。
 - SH150 框架提供唯讀深拷貝 `ctuGetSh150ReportSnapshot()`（所選週、記憶體中的紀錄、名冊人數、含年份的五天日期）；按鈕呼叫外層 `ctuOpenSchoolReport()`
 - 外層純函式集中在 `window.ctuSchoolForm`：`summarizeWeek`、`validateConfig`、`parsePrefillTemplate`、`buildPrefillUrl`、`buildReportText`
 - 唯一新 key：`ctu_school_form_config`（schema 1）；完整備份自動包含，舊備份沒有時用內建設定
-- 只輸出白名單參數（`usp=pp_url` 與四個核心 entry；日期需實測核對後才輸出）；不帶學生姓名
+- 只輸出白名單參數（`usp=pp_url`、四個核心 entry、填報日期時間五個參數）；不帶學生姓名。內建設定 2026-10-07 已用學校帳號實測
 - 介面只會說「已產生連結」，不會說「已繳交」；正式提交、照片、登入都在 Google 表單由老師完成
 - 使用說明：`docs/sh150-school-form-guide.md`；計畫與驗收紀錄：`docs/superpowers/plans/2026-10-07-sh150-school-form.md`
 

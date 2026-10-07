@@ -7374,9 +7374,11 @@ document.addEventListener('DOMContentLoaded', () => {
         schema: 1, revision: 1,
         formUrl: 'https:/' + '/docs.google.com/forms/d/e/1FAIpQLScMjfAwV9ZSrQt0eS_qd9Aku18SX_txnINZXc6sE5lAQ3PX2Q/viewform',
         bindings: { teacherName: 'entry.1346505626', className: 'entry.1762303383', studentTotal: 'entry.1337826514', teacherTotal: 'entry.1653264987' },
-        reportedAtBindings: {},
+        // 填報日期時間：拆成年／月／日／時（24 小時）／分五個參數，2026-10-07 已在學校表單實測可帶入
+        reportedAtBindings: { 'entry.682543904_year': 'year', 'entry.682543904_month': 'month', 'entry.682543904_day': 'day', 'entry.682543904_hour': 'hour', 'entry.682543904_minute': 'minute' },
         classOptions: CLASS_OPTIONS,
-        verification: { status: 'unverified', verifiedAt: null, reportedAt: 'unverified' },
+        // 維護者 2026-10-07 已用學校帳號實測四個欄位、日期時間（含午夜、跨年）與數字 0；換表單後會回到未核對
+        verification: { status: 'verified', verifiedAt: '2026-10-07T00:00:00.000Z', reportedAt: 'verified' },
         updatedAt: null
     };
 
@@ -7587,7 +7589,8 @@ document.addEventListener('DOMContentLoaded', () => {
         u.searchParams.set(cfg.bindings.teacherTotal, String(report.teacherTotal));
         if (cfg.verification.reportedAt === 'verified' && reportedAtTaipei) {
             Object.keys(cfg.reportedAtBindings).forEach(function (param) {
-                u.searchParams.set(param, String(reportedAtTaipei[cfg.reportedAtBindings[param]]));
+                // 用不補零的數字（實測格式為 month=1、hour=0、minute=5）
+                u.searchParams.set(param, String(Number(reportedAtTaipei[cfg.reportedAtBindings[param]])));
             });
         } else {
             omitted.unshift('填報日期時間（請在表單手動填寫）');

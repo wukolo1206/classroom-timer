@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'universal.html')
 FORM = 'https://docs.google.com/forms/d/e/1FAIpQLScMjfAwV9ZSrQt0eS_qd9Aku18SX_txnINZXc6sE5lAQ3PX2Q/viewform'
+DATE_PARAMS = ['entry.682543904_' + x for x in ('year', 'month', 'day', 'hour', 'minute')]
 CORE = {'teacherName': 'entry.1346505626', 'className': 'entry.1762303383',
         'studentTotal': 'entry.1337826514', 'teacherTotal': 'entry.1653264987'}
 
@@ -193,6 +194,11 @@ class UIBase(Base):
     def body(self, page):
         return page.inner_text('#school-report-body')
 
+    def confirm(self, page):
+        # 只有出現提醒時才需要勾選核對
+        if page.is_visible('#school-report-confirm'):
+            page.check('#school-report-confirm')
+
     def non_form_keys(self, page):
         return {k: v for k, v in self.storage(page).items() if k != 'ctu_school_form_config'}
 
@@ -202,11 +208,12 @@ class TestConfig(UIBase):
         p = self.open(SPORT_KEYS_SAMPLE)
         before = self.storage(p)
         self.open_report(p)
-        self.assertIn('尚未核對', self.body(p))
         self.assertNotIn('ctu_school_form_config', self.storage(p))
         v = p.evaluate('() => ctuSchoolForm.validateConfig(ctuSchoolForm.defaultConfig())')
         self.assertTrue(v['valid'])
-        self.assertEqual(v['normalized']['verification']['status'], 'unverified')
+        self.assertEqual(v['normalized']['verification']['status'], 'verified')     # 內建設定已由維護者實測
+        self.assertEqual(v['normalized']['verification']['reportedAt'], 'verified')
+        self.assertFalse(p.is_disabled('#school-report-open'))                       # 沒有提醒時不必勾選即可開啟
         self.assertEqual(self.non_form_keys(p), {k: v for k, v in before.items()})
 
     def test_S02_reject_bad_urls(self):
@@ -265,8 +272,23 @@ class TestConfig(UIBase):
         self.assertEqual(q[CORE['studentTotal']], ['4'])
         self.assertEqual(q[CORE['teacherTotal']], ['3'])
         self.assertEqual(q['usp'], ['pp_url'])
-        self.assertEqual(set(q), {'usp'} | set(CORE.values()))
+        self.assertEqual(set(q), {'usp'} | set(CORE.values()) | set(DATE_PARAMS))
         self.assertTrue(r['url'].startswith(FORM + '?'))
+
+    def test_S04b_reported_at_taipei(self):
+        p = self.open()
+        # 2026-12-31 16:05 UTC = 2027-01-01 00:05 臺灣：午夜＋跨年，數字不補零
+        r = p.evaluate('''() => {
+            const rep = ctuSchoolForm.summarizeWeek({week: 6, records: {}, teacherRuns: {}, dates: []}, 30, 0);
+            rep.classInfo = {className: '101', teacherName: '示範老師'};
+            return ctuSchoolForm.buildPrefillUrl(ctuSchoolForm.defaultConfig(), rep, ctuSchoolForm.taipeiNow(new Date(Date.UTC(2026, 11, 31, 16, 5))));
+        }''')
+        q = parse_qs(urlparse(r['url']).query)
+        got = {k.split('_')[1]: q[k][0] for k in DATE_PARAMS}
+        self.assertEqual(got, {'year': '2027', 'month': '1', 'day': '1', 'hour': '0', 'minute': '5'})
+        self.assertEqual(q[CORE['studentTotal']], ['0'])
+        r2 = p.evaluate('''() => ctuSchoolForm.taipeiNow(new Date(Date.UTC(2026, 9, 7, 5, 5)))''')
+        self.assertEqual((r2['hour'], r2['minute']), ('13', '05'))
 
     def test_S05_template_whitelist(self):
         p = self.open(SPORT_KEYS_SAMPLE)
@@ -293,7 +315,7 @@ class TestConfig(UIBase):
         self.assertEqual(cfg['formUrl'], FORM)
         url = p.evaluate('''c => { const r = ctuSchoolForm.summarizeWeek({week: 6, records: {}, teacherRuns: {'1': 1}, dates: []}, 30, 0);
             r.classInfo = {className: '101', teacherName: '示範老師'}; return ctuSchoolForm.buildPrefillUrl(c, r, ctuSchoolForm.taipeiNow()).url; }''', cfg)
-        self.assertEqual(set(parse_qs(urlparse(url).query)), {'usp'} | set(CORE.values()))
+        self.assertEqual(set(parse_qs(urlparse(url).query)), {'usp'} | set(CORE.values()))   # 新範本沒有選日期欄位 → 不輸出日期
 
     def test_S06_change_cancel_fail_reset(self):
         p = self.open(SPORT_KEYS_SAMPLE)
@@ -380,9 +402,13 @@ class TestUI(UIBase):
         self.assertIn('導師姓名還是預設值', self.body(p2))
         p3 = self.open(SPORT_KEYS_SAMPLE, {'className': '413', 'teacherName': '王示範老師', 'studentCount': 30, 'studentNames': []})
         self.open_report(p3)
-        self.assertTrue(p3.is_disabled('#school-report-open'))   # 首次核對要先勾選
-        p3.check('#school-report-confirm')
         self.assertFalse(p3.is_disabled('#school-report-open'))
+        # 名冊外座號有紀錄 → 有提醒 → 要先勾選核對
+        p4 = self.open(dict(SPORT_KEYS_SAMPLE, ctu_sh150_records=compact(week_records({'40_1': {'run': 2}}))), {'className': '413', 'teacherName': '王示範老師', 'studentCount': 30})
+        self.open_report(p4)
+        self.assertTrue(p4.is_disabled('#school-report-open'))
+        p4.check('#school-report-confirm')
+        self.assertFalse(p4.is_disabled('#school-report-open'))
         self.assertIn('學生填報圈數', self.body(p3)); self.assertIn('4 圈', self.body(p3)); self.assertIn('3 圈', self.body(p3))
         self.assertNotIn('408', self.body(p3))
 
@@ -420,7 +446,7 @@ class TestUI(UIBase):
     def test_U04_open_link_and_offline(self):
         p = self.open(SPORT_KEYS_SAMPLE)
         self.open_report(p)
-        p.check('#school-report-confirm')
+        self.confirm(p)
         with p.context.expect_page() as pop:
             p.click('#school-report-open')
         pop.value.wait_for_load_state()
@@ -432,6 +458,14 @@ class TestUI(UIBase):
         whole = p.inner_text('body')
         for bad in ['已完成繳交', '繳交成功', '同步成功', '提交成功', '學校已收到']:
             self.assertNotIn(bad, whole)
+        self.assertFalse(p.is_visible('#school-report-verify'))      # 內建設定已核對
+        q = parse_qs(urlparse(self.opened[0]).query)
+        self.assertIn('entry.682543904_hour', q)                       # 自動帶入填報時間
+        # 換過表單（未核對）時，開啟後才出現「記錄為已核對」
+        p.evaluate("() => { const c = ctuSchoolForm.defaultConfig(); c.verification.status = 'unverified'; localStorage.setItem('ctu_school_form_config', JSON.stringify(c)); }")
+        p.click('#school-report-close'); self.open_report(p); self.confirm(p)
+        with p.context.expect_page():
+            p.click('#school-report-open')
         self.assertTrue(p.is_visible('#school-report-verify'))
         p.click('#school-report-verify'); p.wait_for_timeout(200)
         self.assertEqual(json.loads(self.storage(p)['ctu_school_form_config'])['verification']['status'], 'verified')
@@ -460,7 +494,7 @@ class TestUI(UIBase):
             p.click('#school-report-close')
             p.click('#tab-weekly-btn'); p.click('#tab-sh150-btn')
             f.locator('button:has-text("填報學校本週資料")').click(); p.wait_for_timeout(60)
-        p.check('#school-report-confirm')
+        self.confirm(p)
         with p.context.expect_page():
             p.click('#school-report-open')
         p.wait_for_timeout(500)
@@ -488,7 +522,7 @@ class TestUI(UIBase):
         p.evaluate('() => window.ctuOpenSchoolReport()'); p.wait_for_timeout(200)
         self.assertTrue(any('還沒載入' in m for m in p._dialogs))
         f = self.open_report(p)
-        p.check('#school-report-confirm')
+        self.confirm(p)
         p.evaluate("() => document.getElementById('sh150-frame').contentWindow.eval('records[\"5_3\"] = {run: 7, jump: 0}')")
         p.click('#school-report-open'); p.wait_for_timeout(300)
         self.assertEqual(self.opened, [])
@@ -507,7 +541,7 @@ class TestIsolation(UIBase):
         before = self.storage(p)
         p.context.grant_permissions(['clipboard-read', 'clipboard-write'])
         self.open_report(p)
-        p.click('#school-report-copy'); p.check('#school-report-confirm')
+        p.click('#school-report-copy'); self.confirm(p)
         with p.context.expect_page():
             p.click('#school-report-open')
         p.click('#school-report-settings'); p.wait_for_timeout(200)

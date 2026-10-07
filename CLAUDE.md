@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @24
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: universal v1.7 學校表單填報本機完成；用學校帳號現場核對四個欄位與日期參數後再決定 push
+next_action: universal v1.7 學校表單填報已實測四欄與日期，待使用者同意 push
 updated: 2026-10-07
 ---
 
