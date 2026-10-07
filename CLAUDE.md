@@ -1,11 +1,11 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 已部署（GAS @22；小組討論抽籤中心不重複勾選與進度追蹤功能完成）
-version: GAS 部署 @22；抽籤中心各模式新增「不重複抽取」勾選框、輪抽進度徽章（已抽 X / Y）與重設按鈕
+status: 維護中
+version: GAS @22
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 實際上課運用小組討論分頁進行課堂分組計時、組別加分與不重複抽籤發表
-updated: 2026-10-06
+next_action: 確認全校本機通用版的跨裝置搬移方式與班級設定範圍，再定稿設計
+updated: 2026-10-07
 ---
 
 # CLAUDE.md — 班級計時器
