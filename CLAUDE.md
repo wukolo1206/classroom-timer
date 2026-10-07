@@ -48,6 +48,15 @@ updated: 2026-10-07
 - SH150 分頁是嵌入的原版原始碼（`#sh150-source`），更新方式見 DECISIONS。
 - SH150 學校表單填報只能寫 `ctu_school_form_config`；計分規則不可放進設定。說明見 `docs/sh150-school-form-guide.md`。
 
+## 子資料夾 sh150-tracker/（獨立 repo）
+
+- `sh150-tracker/` 是 **另一個 git repo**（`wukolo1206/sh150-tracker`，分支 `main`），外層已用 `.gitignore` 排除；在外層 commit 不會包含它，**要進到 `sh150-tracker/` 裡另外 commit、push**。
+- 網址：408 版 `https://wukolo1206.github.io/sh150-tracker/`；全校各班通用版 `…/sh150-tracker/universal.html`（**已分享給其他老師在用**）。
+- **舊資料名稱不可改**：408 版 `408_sh150_records`；通用版 `sh150_class_config`、`sh150_universal_all_records`。填報設定另存 `408_sh150_school_form_config`／`sh150_school_form_config`。
+- 填報功能在 `school-form.js`（兩頁共用）；計算邏輯與本專案 `universal.html` 的 `ctuSchoolForm` 相同，改一邊要同步另一邊。
+- 408 版會連 408 的 GAS 並寫入試算表「SH150運動明細」；測試一律攔截 `script.google.com`。測試：`cd sh150-tracker && python -m unittest discover -s tests -p test_school_form.py -v`。
+- 通用版頁尾版本「第 N 版」每次發佈要加 1。
+
 ## 部署後驗證清單
 
 `clasp deploy` 後用無痕視窗開 GAS 網址確認：

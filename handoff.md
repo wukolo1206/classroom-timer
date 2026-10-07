@@ -28,4 +28,5 @@
 - 學校表單：工具只產生連結，**不能說「已繳交」**；不 POST `formResponse`、不代登入、不上傳照片；計分規則不可放進設定。
 - 改 `universal.html` 前先備份 `.bak`；改完跑 `tests/test_sh150_school_form.py`。每次發佈要更新 `CTU_VERSION`。
 - 408 版：GAS 網址只在 `gas/weburl.txt`；部署一律帶既有 deploymentId；root `index.html` 改完要 `cp` 到 `gas/index.html`；試算表只能動「上課表現紀錄」。
+- `sh150-tracker/` 已搬進本專案（2026-10-07），是獨立 repo，要在裡面分開 commit／push；408 版與通用版都已上線填報功能（通用版第 18 版）。
 - `.git/AUTO_MERGE.lock`（9/11 留下的空檔）讓每次 commit 出現警告，但不影響 commit；要刪由使用者決定。

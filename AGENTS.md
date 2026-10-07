@@ -52,3 +52,4 @@ G:\我的雲端硬碟\AI設定同步\收工.bat
 - 改 root `index.html` 後必須 `cp index.html gas/index.html` 再 `clasp push`，兩份要一致
 - 測試用 Playwright；測 GAS 版時內容在 iframe 裡，要先找出含 `#tab-seat-btn` 的 frame
 - 對正式試算表或雲端設定做的驗證，事後一定要清掉測試列、還原被改掉的設定
+- `sh150-tracker/` 是獨立 repo（分支 `main`），收工時也要在裡面 `git status`、commit；push 一樣要先問。規則見 CLAUDE.md「子資料夾 sh150-tracker/」
