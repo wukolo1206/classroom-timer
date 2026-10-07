@@ -1285,6 +1285,12 @@ window.ctuEsc = function (v) {
     });
 };
 // 安全讀取 JSON 設定：壞掉或型別不符時回到預設值，原值另存 corrupt_* 供救援，不讓整個程式停住
+// 陣列設定的逐筆檢查：壞掉的單筆跳過，避免一筆 null 讓整頁初始化停住
+var CTU_ITEM_OK = {
+    timerHistory: function (r) { return !!r && typeof r === 'object' && !Array.isArray(r) && Array.isArray(r.students); },
+    timerCustomPresets: function (p) { return typeof p === 'string' || (!!p && typeof p === 'object' && !Array.isArray(p) && typeof p.text === 'string'); },
+    timerStudentCountPresets: function (v) { return (typeof v === 'string' || typeof v === 'number') && /^\d{1,3}$/.test(String(v)); }
+};
 window.ctuParse = function (key, fallbackText) {
     var def = JSON.parse(fallbackText);
     var raw = null;
@@ -1297,6 +1303,11 @@ window.ctuParse = function (key, fallbackText) {
         : def !== null && typeof def === 'object' ? (val !== null && typeof val === 'object' && !Array.isArray(val))
         : def === null ? (val === null || typeof val === 'object')
         : typeof val === typeof def);
+    if (ok && Array.isArray(val) && CTU_ITEM_OK[key]) {
+        var good = val.filter(CTU_ITEM_OK[key]);
+        if (good.length !== val.length) { try { window.localStorage.setItem('corrupt_' + key, raw); } catch (e) {} }
+        return good;
+    }
     if (ok) return val;
     try { window.localStorage.setItem('corrupt_' + key, raw); } catch (e) {}
     return def;

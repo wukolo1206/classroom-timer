@@ -596,5 +596,158 @@ class TestRegression(UIBase):
         self.assertEqual(p._errs, [])
 
 
+class TestReviewV19(UIBase):
+    """Codex 第二輪審查（v1.9）的重現案例。"""
+
+    def test_V01_config_changed_during_preview(self):
+        p = self.open(SPORT_KEYS_SAMPLE)
+        self.open_report(p)
+        p.evaluate("() => { const c = ctuSchoolForm.defaultConfig(); c.bindings.studentTotal = 'entry.999'; localStorage.setItem('ctu_school_form_config', JSON.stringify(c)); }")
+        self.confirm(p); p.click('#school-report-open'); p.wait_for_timeout(300)
+        self.assertEqual(self.opened, [])
+        self.assertIn('設定剛剛有變更', p.inner_text('#school-report-msg'))
+        self.confirm(p)
+        with p.context.expect_page():
+            p.click('#school-report-open')
+        self.assertIn('entry.999', self.opened[0])
+        self.assertNotIn(CORE['studentTotal'], self.opened[0])
+
+    def test_V01b_verify_bound_to_opened_config(self):
+        p = self.open(SPORT_KEYS_SAMPLE)
+        p.evaluate("() => { const c = ctuSchoolForm.defaultConfig(); c.verification.status = 'unverified'; localStorage.setItem('ctu_school_form_config', JSON.stringify(c)); }")
+        self.open_report(p); self.confirm(p)
+        with p.context.expect_page():
+            p.click('#school-report-open')
+        p.evaluate("() => { const c = JSON.parse(localStorage.getItem('ctu_school_form_config')); c.bindings.teacherTotal = 'entry.888'; localStorage.setItem('ctu_school_form_config', JSON.stringify(c)); }")
+        p.click('#school-report-verify'); p.wait_for_timeout(200)
+        self.assertIn('開啟後有變更', p.inner_text('#school-report-msg'))
+        self.assertEqual(json.loads(self.storage(p)['ctu_school_form_config'])['verification']['status'], 'unverified')
+
+    def test_V02_time_taken_when_opening(self):
+        import datetime
+        ctx_page = self.open(SPORT_KEYS_SAMPLE)
+        ctx_page.close()
+        ctx = self.browser.new_context()
+        self.addCleanup(ctx.close)
+        opened = []
+        ctx.route('https://docs.google.com/**', lambda r: (opened.append(r.request.url), r.fulfill(status=200, body='ok')))
+        ctx.add_init_script('(() => { if (sessionStorage.getItem("__s")) return; sessionStorage.setItem("__s", "1"); const s = %s; for (const k in s) localStorage.setItem(k, s[k]); })()'
+                            % json.dumps(dict(SPORT_KEYS_SAMPLE, ctu_timerTabHidden='[]', ctu_class=json.dumps({'className': '101', 'teacherName': '示範老師', 'studentCount': 30}))))
+        p = ctx.new_page()
+        p.clock.install(time=datetime.datetime(2026, 12, 31, 15, 59, tzinfo=datetime.timezone.utc))   # 臺灣 23:59
+        p.goto(self.url); p.wait_for_timeout(800)
+        self.open_report(p)
+        p.clock.fast_forward('02:00')
+        with ctx.expect_page():
+            p.click('#school-report-open')
+        q = parse_qs(urlparse(opened[0]).query)
+        got = {k.split('_')[1]: q[k][0] for k in DATE_PARAMS}
+        self.assertEqual(got, {'year': '2027', 'month': '1', 'day': '1', 'hour': '0', 'minute': '1'})
+
+    def test_V03_unsafe_numbers(self):
+        p = self.open()
+        r = self.summarize(p, snap({'1_1': {'run': '9' * 400}}))
+        self.assertTrue(r['errors'])
+        r = self.summarize(p, snap({'1_1': {'run': 2 ** 53}}))
+        self.assertTrue(r['errors'])
+        p2 = self.open(SPORT_KEYS_SAMPLE)
+        self.sh150(p2)
+        s = p2.evaluate("() => { const w = document.getElementById('sh150-frame').contentWindow; w.eval('records[\"9_1\"] = {run: NaN, jump: Infinity}'); return w.ctuGetSh150ReportSnapshot(); }")
+        self.assertEqual(s['records']['9_1'], {'run': 'NaN', 'jump': 'Infinity'})
+        r = self.summarize(p2, s)
+        self.assertTrue(r['errors'])
+
+    def test_V04_date_bindings(self):
+        p = self.open()
+        bad = p.evaluate("() => { const c = ctuSchoolForm.defaultConfig(); c.reportedAtBindings = {'entry.682543904_month': 'year'}; return ctuSchoolForm.validateConfig(c); }")
+        self.assertFalse(bad['valid'])
+        part = p.evaluate("() => { const c = ctuSchoolForm.defaultConfig(); c.reportedAtBindings = {'entry.682543904_year': 'year'}; return ctuSchoolForm.validateConfig(c); }")
+        self.assertTrue(part['valid'])
+        self.assertEqual(part['normalized']['verification']['reportedAt'], 'unverified')
+        self.assertTrue(any('不完整' in w for w in part['warnings']))
+        mixed = p.evaluate("""() => { const c = ctuSchoolForm.defaultConfig();
+            c.reportedAtBindings = {'entry.1_year':'year','entry.1_month':'month','entry.1_day':'day','entry.2_hour':'hour','entry.2_minute':'minute'};
+            return ctuSchoolForm.validateConfig(c).normalized.verification.reportedAt; }""")
+        self.assertEqual(mixed, 'unverified')
+
+    def test_V05_frame_not_ready(self):
+        p = self.open(SPORT_KEYS_SAMPLE)
+        self.sh150(p)
+        p.evaluate("() => { document.getElementById('sh150-frame').contentWindow.ctuReportReady = false; }")
+        p.evaluate('() => window.ctuOpenSchoolReport()'); p.wait_for_timeout(200)
+        self.assertTrue(any('還沒載入' in m for m in p._dialogs))
+        self.assertTrue(p.is_hidden('#school-report-modal.show') if p.query_selector('#school-report-modal.show') else True)
+
+    def test_V06_reset_failure(self):
+        p = self.open(SPORT_KEYS_SAMPLE)
+        p.evaluate("() => localStorage.setItem('ctu_school_form_config', JSON.stringify(ctuSchoolForm.defaultConfig()))")
+        self.open_report(p); p.click('#school-report-settings'); p.wait_for_timeout(200)
+        p.evaluate("() => { const o = Storage.prototype.removeItem; Storage.prototype.removeItem = function (k) { if (k === 'ctu_school_form_config') throw new DOMException('no', 'SecurityError'); return o.call(this, k); }; }")
+        p.click('#school-form-reset'); p.wait_for_timeout(200)
+        self.assertIn('重設失敗', p.inner_text('#school-form-msg'))
+        self.assertIn('ctu_school_form_config', self.storage(p))
+
+    def test_V07_two_modules_agree(self):
+        p = self.open()
+        p.add_script_tag(path=os.path.join(ROOT, 'sh150-tracker', 'school-form.js'))
+        cases = [
+            ['summarizeWeek', [snap({'1_1': {'run': 1, 'jump': 150}, '2_1': {'jump': 100}, '40_2': {'run': '3'}, 'x_1': {'run': 1}}, {'1': 2, '9': 1}), 30, 2]],
+            ['summarizeWeek', [snap({'1_1': {'run': -1}, '2_1': {'run': '9' * 30}}), 30, 'a']],
+            ['validateConfig', ['__default__']],
+            ['validateConfig', ['__badDate__']],
+            ['parsePrefillTemplate', [FORM + '?usp=pp_url&authuser=1&entry.1=a&entry.2_year=2026']],
+            ['parsePrefillTemplate', ['https://forms.gle/abc']],
+        ]
+        for fn, args in cases:
+            a, b = p.evaluate("""([fn, args]) => {
+                const fix = (lib) => args.map(x => x === '__default__' ? lib.defaultConfig()
+                    : x === '__badDate__' ? Object.assign(lib.defaultConfig(), {reportedAtBindings: {'entry.682543904_year': 'year'}}) : x);
+                return [ctuSchoolForm[fn](...fix(ctuSchoolForm)), SH150SchoolForm[fn](...fix(SH150SchoolForm))];
+            }""", [fn, args])
+            self.assertEqual(a, b, fn)
+        for name in ['OOO', 'OOO 老師', '', '王示範']:
+            a, b = p.evaluate("""(n) => { const go = (lib) => { const r = lib.summarizeWeek({week: 6, records: {'1_1': {run: 1}}, teacherRuns: {}, dates: []}, 30, 0);
+                r.classInfo = {className: '101', teacherName: n}; const u = lib.buildPrefillUrl(lib.defaultConfig(), r, lib.taipeiNow(new Date(Date.UTC(2026, 9, 7, 7, 5))));
+                return [!!u.url, u.url, u.errors.length]; }; return [go(ctuSchoolForm), go(SH150SchoolForm)]; }""", name)
+            self.assertEqual(a[:1] + a[2:], b[:1] + b[2:], name)
+            self.assertEqual(a[1], b[1], name)
+        t = p.evaluate("() => [ctuSchoolForm.taipeiNow(new Date(Date.UTC(2026, 9, 7, 7, 5))), SH150SchoolForm.taipeiNow(new Date(Date.UTC(2026, 9, 7, 7, 5)))]")
+        self.assertEqual(t[0], t[1]); self.assertEqual(t[0]['hour'], '15')
+
+    def test_V08_bad_history_item(self):
+        p = self.open({'ctu_timerHistory': '[null, {"id": 1, "timestamp": 1, "date": "d", "event": "x", "students": [1], "totalStudents": 3}]',
+                       'ctu_timerCustomPresets': '[null, "早自習"]'})
+        p.click('#tab-timer-btn'); p.wait_for_timeout(300)
+        self.assertEqual(p._errs, [])
+        self.assertIn('x', p.inner_text('#history-list'))
+        self.assertIn('早自習', p.inner_text('#custom-presets'))
+        self.assertIn('ctu_corrupt_timerHistory', self.storage(p))
+
+    def test_V09_taipei_ignores_intl_hourcycle(self):
+        p = self.open()
+        h = p.evaluate("""() => { const Orig = Intl.DateTimeFormat;
+            Intl.DateTimeFormat = function (loc, opt) { opt = Object.assign({}, opt); delete opt.hourCycle; opt.hour12 = true; return new Orig(loc, opt); };
+            const r = ctuSchoolForm.taipeiNow(new Date(Date.UTC(2026, 9, 7, 7, 5))); Intl.DateTimeFormat = Orig; return r; }""")
+        self.assertEqual((h['hour'], h['minute'], h['text']), ('15', '05', '2026-10-07 15:05'))
+
+
+class Test408History(unittest.TestCase):
+    """408 版（index.html）：一筆壞掉的計時紀錄不可讓整頁停住。"""
+
+    def test_bad_history_item_408(self):
+        with sync_playwright() as pw:
+            b = pw.chromium.launch()
+            ctx = b.new_context()
+            ctx.add_init_script('(() => { if (sessionStorage.getItem("__s")) return; sessionStorage.setItem("__s", "1"); localStorage.setItem("timerHistory", "[null]"); })()')
+            p = ctx.new_page(); errs = []
+            p.on('pageerror', lambda e: errs.append(str(e)))
+            p.goto('file:///' + os.path.join(ROOT, 'index.html').replace('\\', '/')); p.wait_for_timeout(800)
+            for t in ['timer', 'seat', 'weekly', 'group']:
+                p.click('#tab-%s-btn' % t); p.wait_for_timeout(150)
+            self.assertEqual(errs, [])
+            self.assertEqual(p.evaluate("localStorage.getItem('corrupt_timerHistory')"), '[null]')
+            b.close()
+
+
 if __name__ == '__main__':
     unittest.main()
