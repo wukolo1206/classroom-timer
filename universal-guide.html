@@ -42,6 +42,11 @@
     th { background: var(--primary-soft); }
     .faq dt { font-weight: 700; margin-top: 12px; }
     .faq dd { margin: 2px 0 0 0; color: var(--text); }
+    figure { margin: 16px 0; text-align: center; }
+    figure a { display: inline-block; max-width: 100%; text-decoration: none; }
+    figure img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); transition: transform 0.2s ease, box-shadow 0.2s ease; display: block; margin: 0 auto; background: #fff; }
+    figure a:hover img { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    figcaption { margin-top: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; }
     footer { color: var(--muted); font-size: .85rem; text-align: center; margin-top: 24px; }
     @media (max-width: 600px) { nav ol { columns: 1; } header h1 { font-size: 1.5rem; } }
     @media print {
@@ -51,6 +56,8 @@
         nav { display: none; }
         section { break-inside: avoid-page; border-color: #999; }
         .tip, .warn { color: #000; background: #fff; border-color: #999; }
+        figure { break-inside: avoid; }
+        figure img { max-width: 90%; box-shadow: none; border-color: #999; }
     }
 </style>
 </head>
@@ -91,6 +98,12 @@
 <section id="start">
     <h2>2. 第一次使用</h2>
     <p>第一次打開時會自動跳出「🏫 班級設定」。之後要修改，按畫面右上角的 <span class="btn">🏫 班級設定</span>。</p>
+    <figure>
+        <a href="guide-images/01-class-settings.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/01-class-settings.png" alt="班級設定視窗示意圖" style="max-width: 520px;" loading="lazy">
+        </a>
+        <figcaption>▲「🏫 班級設定」視窗：班級請填純數字（例如 408）、名冊可直接貼上，支援自動遮罩</figcaption>
+    </figure>
     <table>
         <tr><th>欄位</th><th>怎麼填</th></tr>
         <tr><td>班級</td><td>填<b>數字</b>，例如 <code>408</code>（不要寫「四年八班」或「408 班」）。學校填報表單只認這種格式。</td></tr>
@@ -111,10 +124,23 @@
 
 <section id="sh150">
     <h2>3. 🏃 SH150 運動登記</h2>
+    <figure>
+        <a href="guide-images/02-sh150-main.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/02-sh150-main.png" alt="SH150 運動登記主畫面" loading="lazy">
+        </a>
+        <figcaption>▲ SH150 運動登記主畫面：切換週次與星期幾、點選學生卡片登記、下方記錄導師圈數</figcaption>
+    </figure>
     <ol>
         <li>用 <span class="btn">◀ 上一週</span>／<span class="btn">下一週 ▶</span> 或直接輸入週次，選要登記的那一週。打開時會自動跳到本週。</li>
         <li>點星期一～星期五切換日期，預設是今天。</li>
-        <li>點學生卡片，輸入<b>跑步圈數</b>和<b>跳繩下數</b>（可用 +1圈、+200下 等快速按鈕），按儲存。</li>
+        <li>點學生卡片，輸入<b>跑步圈數</b>和<b>跳繩下數</b>（可用 +1圈、+200下 等快速按鈕），按儲存。
+            <figure style="margin: 10px 0;">
+                <a href="guide-images/03-sh150-input-modal.png" target="_blank" title="點擊檢視大圖">
+                    <img src="guide-images/03-sh150-input-modal.png" alt="學生登記輸入視窗" style="max-width: 440px;" loading="lazy">
+                </a>
+                <figcaption>▲ 學生卡片登記彈窗：點選快速增減按鈕輸入圈數與跳繩，按「確定儲存」</figcaption>
+            </figure>
+        </li>
         <li>下方「導師每日跑步圈數」填導師當天跑的圈數。</li>
     </ol>
     <ul>
@@ -141,6 +167,12 @@
         <li>按 <span class="btn">🚀 開啟預填表單</span>，學校表單會在新分頁打開，導師、班級、兩個圈數、填報時間都已經填好。</li>
         <li>在 Google 表單：用<b>學校帳號</b>登入 → 再看一次數字 → 上傳 <b>1～2 張活動照片</b> → <b>自己按「提交」</b>。</li>
     </ol>
+    <figure>
+        <a href="guide-images/04-school-report-modal.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/04-school-report-modal.png" alt="填報學校本週資料核對視窗" style="max-width: 600px;" loading="lazy">
+        </a>
+        <figcaption>▲「📤 填報學校本週資料」核對視窗：核對學生與導師圈數無誤後，勾選「我已核對」即可按「🚀 開啟預填表單」</figcaption>
+    </figure>
     <div class="warn">按「開啟預填表單」<b>不代表已經繳交</b>。一定要在 Google 表單按「提交」才算完成。工具看不到學校有沒有收到。</div>
     <h3>其他說明</h3>
     <ul>
@@ -155,6 +187,12 @@
 
 <section id="weekly">
     <h2>5. 🗓 含氟每週紀錄</h2>
+    <figure>
+        <a href="guide-images/05-weekly-fluoride.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/05-weekly-fluoride.png" alt="含氟每週紀錄畫面" loading="lazy">
+        </a>
+        <figcaption>▲ 含氟每週紀錄畫面：上方有一鍵全班標記按鈕，表格點擊循環切換 ✓ 已實施 / X 未執行，具備橫向捲軸</figcaption>
+    </figure>
     <ul>
         <li>每位學生一列、每週一格。點格子會循環切換：空白 → <b>✓ 已實施</b> → <b>X 未執行</b>。</li>
         <li>「目前操作週次」選好後，可以按 <span class="btn">✓ 全班標記已實施</span>、<span class="btn">X 全班標記未執行</span> 或 <span class="btn">清除本週</span>。</li>
@@ -171,6 +209,12 @@
 <section id="backup">
     <h2>6. 💾 備份與還原（重要）</h2>
     <div class="warn">資料只存在這台電腦的瀏覽器裡。<b>清除瀏覽紀錄、重灌電腦、換電腦，資料都會不見</b>。請養成定期備份的習慣。</div>
+    <figure>
+        <a href="guide-images/06-backup-modal.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/06-backup-modal.png" alt="備份與還原視窗" style="max-width: 460px;" loading="lazy">
+        </a>
+        <figcaption>▲「💾 備份與還原」視窗：定期按「⬇️ 下載完整備份」保存 json 備份檔；換電腦時按「⬆️ 從備份檔還原」</figcaption>
+    </figure>
     <ul>
         <li>按右上角 <span class="btn">💾 備份與還原</span> → <span class="btn">⬇️ 下載完整備份</span>，會下載一個「班級工具_班級_日期.json」檔，包含所有分頁的資料。建議存到雲端硬碟。</li>
         <li>超過 14 天沒備份時，畫面左下角會出現提醒，按「立即備份」即可。</li>
@@ -183,6 +227,12 @@
 <section id="source">
     <h2>7. 進階：自己修改工具</h2>
     <p>「💾 備份與還原」最下方的 <span class="btn">🛠 下載原始碼，自己修改這個工具</span>，可以下載整個工具（一個 HTML 檔），用記事本、VS Code 或請 AI 幫忙修改。</p>
+    <figure>
+        <a href="guide-images/07-source-modal.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/07-source-modal.png" alt="下載原始碼自己修改視窗" style="max-width: 540px;" loading="lazy">
+        </a>
+        <figcaption>▲「🛠 下載原始碼自己修改」視窗：從備份視窗最下方進入，點擊「⬇️ 下載原始碼」即可取得單檔原始碼</figcaption>
+    </figure>
     <ul>
         <li>常改的地方，在檔案裡搜尋「【可自行修改】」：學期開學日與週數、含氟表單標題、備份提醒天數。</li>
         <li>自己電腦上打開的檔案和網址版各存各的資料，請先下載完整備份，再到自己的版本還原。</li>
