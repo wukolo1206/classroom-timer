@@ -1,13 +1,15 @@
-# 工作交接 — 2026-10-07
+# 工作交接 — 2026-10-08
 
 ## 目前狀態
 
 - **全校通用版（班級工具箱）** `universal.html` **v1.10 已上線**：`https://wukolo1206.github.io/classroom-timer/universal.html`
   - 預設顯示 SH150、含氟每週紀錄；倒數計時、秩序登記、小組討論可在 ⚙️ 打開。共用班級設定、姓名遮罩、完整備份／還原、下載原始碼。
   - v1.6 資料保護（Codex 第一輪）→ v1.7 SH150「📤 填報學校本週資料」→ v1.8 畫面加寬 → v1.9 Codex 第二輪（設定變更、即時填報時間、安全整數、日期對應、就緒檢查）→ v1.10 使用說明。
-- **使用說明**（只介紹 SH150 與含氟紀錄，隱藏功能不寫）：
-  - 網頁 `https://wukolo1206.github.io/classroom-timer/universal-guide.html`，工具右上角有「❓ 使用說明」按鈕。
-  - Word 版 `docs/班級工具箱使用說明.docx`（A4 共 6 頁）。
+- **使用說明網頁** `universal-guide.html`：
+  - 各章節（§2～§7）已補齊關鍵介面截圖（班級設定、SH150 主畫面、學生登記彈窗、填報學校本週資料、含氟每週紀錄、備份與還原、下載原始碼），截圖存於 `guide-images/`。
+  - 截圖使用無個資示範班級名冊與姓名遮罩；支援點擊開啟大圖、RWD 響應式排版與列印樣式優化。
+  - 已推送至 GitHub Pages（`https://wukolo1206.github.io/classroom-timer/universal-guide.html`）並確認線上 HTTP 200 正常顯示。
+  - Word 版 `docs/班級工具箱使用說明.docx`（A4 共 6 頁，純文字版，如需置入截圖可再更新）。
 - **408 GAS 版** `index.html`：**@25**（含氟版面、資料保護、跳脫、計時紀錄逐筆檢查）；GitHub Pages 本機版同步。
 - **sh150-tracker**（本專案子資料夾 `sh150-tracker/`，獨立 repo、分支 `main`）：408 版與全校各班通用版（**第 19 版**）都有填報學校表單功能，已推送。
 - 兩個 repo 工作區乾淨，皆已與 GitHub 同步。
