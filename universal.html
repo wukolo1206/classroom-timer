@@ -10,7 +10,7 @@
         body { font-family: 'Noto Sans TC', sans-serif; }
 
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
-        .time-up { animation: pulse 0.5s infinite; color: #ef4444 !important; }
+        .time-up { animation: pulse 0.5s 5; color: #ef4444 !important; }
 
         .notification {
             position: fixed; top: 20px; right: 20px;
@@ -4453,7 +4453,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.16（2026-10-10）';
+    window.CTU_VERSION = 'v1.17（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
