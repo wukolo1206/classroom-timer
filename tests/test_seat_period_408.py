@@ -584,5 +584,78 @@ class SeatPeriod408(unittest.TestCase):
         self.assertIn('已同步', p.inner_text('#seat-sync-status'))
 
 
+    # ── 第 4 輪程式審查（修正驗收）補測 ──
+    def test_R13_guard_write_failure_cancels_before_touching_anything(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (k === 'seatCommitGuard') throw new Error('QuotaExceeded'); return orig.call(this, k, v); }; }""")
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(300)
+        self.assertIn('沒有執行', p._dialogs[-1])
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2)
+        self.assertNotIn('clearSeatSlot', p.evaluate('window.__calls'))
+
+    def test_R14_guard_survives_when_status_update_fails_and_blocks_push_after_reload(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'6': {'tilt': 1}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.evaluate("""() => { const orig = Storage.prototype.setItem; let rec = 0;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'seatSyncQueue' && String(v).indexOf('"import"') >= 0) throw new Error('QuotaExceeded');
+              if (k === 'seatCheckRecords' && ++rec >= 2) throw new Error('QuotaExceeded');            // 還原失敗
+              if (k === 'seatCommitGuard' && String(v).indexOf('failed') >= 0) throw new Error('QuotaExceeded');   // 連改狀態都失敗
+              return orig.call(this, k, v); }; }""")
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(900)
+        self.assertTrue(p.evaluate("!!localStorage.getItem('seatCommitGuard')"), '動手前寫的保護標記還在')
+        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); p.wait_for_timeout(800)
+        self.assertIn('還原失敗', p.inner_text('#seat-sync-status'))
+        self.assertNotIn('setSeatCount', p.evaluate('window.__calls'), '殘留的第 4 節紀錄不可被補傳')
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2})
+
+    def test_R15_rebuild_keeps_unsynced_registrations_and_downloads_snapshot(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        p.evaluate("""() => { const orig = Storage.prototype.setItem; let rec = 0;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'seatSyncQueue' && String(v).indexOf('clearSlot') >= 0) throw new Error('QuotaExceeded');
+              if (k === 'seatCheckRecords' && ++rec >= 2) throw new Error('QuotaExceeded');
+              return orig.call(this, k, v); }; }""")
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(400)
+        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); p.wait_for_timeout(500)   # 儲存恢復正常、仍暫停
+        self.mode(p, '座位歪了')
+        self.tap(p, 6)                                                  # 暫停期間新增一筆（排隊中、還沒送）
+        p.wait_for_timeout(200)
+        self.assertNotIn('setSeatCount', p.evaluate('window.__calls'))
+        names = []
+        p.on('download', lambda d: names.append(d.suggested_filename))
+        p.click('#seat-sync-status [data-sync-action="resolve"]')
+        self.settle(p, ms=4000)
+        self.assertTrue(any('重建前現況' in n for n in names), names)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2, (DAY, '6', 'tilt', '第3節'): 1}, '暫停期間的登記有送出')
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3'], {'5': {'tilt': 2}, '6': {'tilt': 1}})
+
+    def test_R16_import_trims_unknown_period_and_checks_legacy_array_duplicates(self):
+        p = self.open(at='10:35', sheet=[])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#? 補課 ': {'5': {'tilt': 2}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(600)
+        self.settle(p)
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn'); self.settle(p)
+        self.assertEqual(self.local(p), {DAY + '#?補課': {'5': {'tilt': 2}}})
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '補課'): 2})
+        dup = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#3': {'5': {'tilt': 9}}, DAY + '#?第3節': {'5': ['tilt']}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'c.json', 'mimeType': 'application/json', 'buffer': json.dumps(dup).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        self.assertIn('重複', p._dialogs[-1])
+
+
 if __name__ == '__main__':
     unittest.main()

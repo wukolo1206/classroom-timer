@@ -5604,7 +5604,8 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (b[0] === 'seatLayout') rescue.seatLayout = b[1];
         });
         try { downloadSeatFile(JSON.stringify(rescue, null, 2), '秩序登記救援檔_' + getTodayKey() + '.json', 'application/json'); } catch (e) {}
-        try { ctuStore.setItem('seatRestoreFailed', JSON.stringify({ at: new Date().toISOString() })); } catch (e) {}
+        // 保護標記在動手前就已寫好（seatCommitGuard），這裡只把狀態改成 failed；改不了也沒關係，標記仍在
+        try { ctuStore.setItem('seatCommitGuard', JSON.stringify({ at: new Date().toISOString(), state: 'failed' })); } catch (e) {}
         seatSyncPaused = true;
         seatSyncError = '本機資料還原失敗，同步暫停中';
         renderSyncStatus();
@@ -5612,11 +5613,20 @@ document.addEventListener('DOMContentLoaded', () => {
               '已自動下載「秩序登記救援檔」（原本的資料），並暫停同步，避免把不完整的資料送上雲端。\n\n' +
               '請先清出瀏覽器空間，再點畫面上的「同步暫停」處理。');
     }
+    /** 上次的清除／匯入停在一半（還原失敗或執行中斷）：保護標記還在 */
     function seatRestoreFailedFlag() {
-        try { return !!ctuStore.getItem('seatRestoreFailed'); } catch (e) { return false; }
+        try { return !!ctuStore.getItem('seatCommitGuard'); } catch (e) { return true; }
     }
 
     function seatCommitDestructive(writes, ops) {
+        // 動手前先寫「操作進行中」保護標記並核對；寫不進去就不執行。
+        // 操作成功或完整還原後才移除；重新整理時看到它（代表上次停在一半）就維持暫停，不補傳。
+        var guard = JSON.stringify({ at: new Date().toISOString(), state: 'pending' });
+        if (!seatWrite('seatCommitGuard', guard) || ctuStore.getItem('seatCommitGuard') !== guard) {
+            alert('瀏覽器儲存空間不足，這次操作沒有執行，原本的資料沒有改動。請先清出空間或匯出備份。');
+            return false;
+        }
+        function clearGuard() { try { ctuStore.removeItem('seatCommitGuard'); } catch (e) {} }
         var before = writes.map(function (w) { return [w[0], ctuStore.getItem(w[0])]; });
         /** 還原：先移除原本不存在的鍵（釋放空間），再依寫入的相反順序還原，失敗的再試一次，最後逐一核對 */
         function restore() {
@@ -5629,7 +5639,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         for (var i = 0; i < writes.length; i++) {
             if (!seatWrite(writes[i][0], writes[i][1])) {
-                if (restore()) alert('瀏覽器儲存失敗（空間可能不足），這次操作沒有執行，原本的資料沒有改動。');
+                if (restore()) { clearGuard(); alert('瀏覽器儲存失敗（空間可能不足），這次操作沒有執行，原本的資料沒有改動。'); }
                 else seatRestoreFailed(before);
                 return false;
             }
@@ -5643,13 +5653,16 @@ document.addEventListener('DOMContentLoaded', () => {
             var ok;
             try { ok = saveSeatQueue(q) !== false; } catch (e) { ok = false; }
             if (!ok) {
-                if (restore()) alert('瀏覽器儲存空間不足，這次操作沒有執行（試算表沒有變動），原本的資料沒有改動。');
+                if (restore()) { clearGuard(); alert('瀏覽器儲存空間不足，這次操作沒有執行（試算表沒有變動），原本的資料沒有改動。'); }
                 else seatRestoreFailed(before);
                 return false;
             }
+            clearGuard();
             seatDestructiveSeq++;
             seatFlushQueue();
+            return true;
         }
+        clearGuard();
         return true;
     }
 
@@ -5723,13 +5736,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (seatRestoreFailedFlag()) {
             if (SEAT_SYNC) {
                 // 試算表沒有被改動，是正確的版本：清掉本機紀錄與待送工作，改用試算表重建
-                if (!confirm('按「確定」：清掉這台電腦上的秩序紀錄，改用試算表的資料重建（試算表沒有被改動，是正確的版本）。\n按「取消」：先不處理。')) return;
+                if (!confirm('按「確定」：先下載這台電腦目前的紀錄與待送清單（備查），再清掉本機秩序紀錄、改用試算表的資料重建。\n' +
+                             '試算表沒有被改動，是正確的版本；暫停期間新增、還沒送出的登記會保留並照常送出。\n按「取消」：先不處理。')) return;
+                try {
+                    downloadSeatFile(JSON.stringify({ type: 'seat-check', exportedAt: new Date().toISOString(), note: '重建前的本機現況',
+                        seatCheckRecords: getSeatRecords(), seatSyncQueue: seatQueue() }, null, 2),
+                        '秩序登記_重建前現況_' + getTodayKey() + '.json', 'application/json');
+                } catch (e) {}
                 try { ctuStore.removeItem('seatCheckRecords'); } catch (e) {}
-                try { saveSeatQueue(seatQueue().filter(function (j) { return j.type !== 'count'; })); } catch (e) {}
+                seatNeedPull = true;   // 待送登記送完後再拉一次，畫面就會出現
             } else {
                 if (!confirm('請用「⬆️ 匯入座位資料」匯入剛才下載的「秩序登記救援檔」，並選「覆蓋」，就會回到操作前的資料。\n\n已經匯入完成了嗎？按「確定」解除提醒。')) return;
             }
-            try { ctuStore.removeItem('seatRestoreFailed'); } catch (e) {}
+            try { ctuStore.removeItem('seatCommitGuard'); } catch (e) {}
             seatSyncPaused = false;
             seatSyncError = '';
             renderSyncStatus();
@@ -7628,6 +7647,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (p.period.charAt(0) === '?') {
             var text = p.period.slice(1).trim();
             for (var i = 0; i < SEAT_PERIODS.length; i++) if (SEAT_PERIODS[i].label === text) return seatSlotKey(p.date, SEAT_PERIODS[i].code);
+            return seatSlotKey(p.date, '?' + text);   // 對照表外的節次：去掉前後空白（與後端 rowH_ 相同）
         }
         return key;
     }
@@ -7648,9 +7668,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (seen[+seat]) { bad.push(slot + '：座號「' + seen[+seat] + '」和「' + seat + '」是同一人'); return; }
                 seen[+seat] = seat;
                 var v = day[seat];
-                if (Array.isArray(v)) {   // 很舊的格式：項目代碼陣列
-                    if (!v.every(function (k) { return typeof k === 'string' && k; })) bad.push(slot + ' ' + seat + ' 號：項目代碼不正確');
-                    return;
+                if (Array.isArray(v)) {   // 很舊的格式：項目代碼陣列 → 先轉成次數，再和新格式一起檢查重複
+                    if (!v.every(function (k) { return typeof k === 'string' && k; })) { bad.push(slot + ' ' + seat + ' 號：項目代碼不正確'); return; }
+                    var cnt = {};
+                    v.forEach(function (k) { cnt[k] = (cnt[k] || 0) + 1; });
+                    v = cnt;
                 }
                 if (!v || typeof v !== 'object') { bad.push(slot + ' ' + seat + ' 號：內容不正確'); return; }
                 Object.keys(v).forEach(function (key) {
