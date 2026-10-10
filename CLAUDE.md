@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @36／全校版 v1.17
+version: GAS @36／全校版 v1.18
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室實機試用小組討論共用簡報版面與設定視窗；另待試用秩序分節與 SR，Word 說明待補 SR 章節
+next_action: 教室實機試用音量計（大屏／筆電麥克風、手機 App 校正）與小組討論共用簡報版面與設定視窗；另待試用秩序分節與 SR，Word 說明待補 SR 章節
 updated: 2026-10-10
 ---
 
@@ -46,6 +46,7 @@ updated: 2026-10-10
 - **不可影響 `sh150-tracker/universal.html`**（已分享給其他老師）：同網域共用 localStorage，universal.html 只能寫 `ctu_` 開頭的 key，對 `sh150_*` 只讀。
 - **不可寫入 408 學生姓名或 GAS 網址**；名冊一律來自老師自己的班級設定。
 - 每學期更新程式頂端 `CTU_SEMESTER`（開學週星期一、SH150 週數）。
+- **🔊 音量計分頁**（只在全校版，預設隱藏）：設定只寫 `ctu_noiseSettings`；新增預設隱藏的分頁時要加進 `defaultTabHidden`，`TABS_BEFORE_KNOWN` 不要改（舊設定遷移靠它）。測試：`python -m unittest discover -s tests -p test_noise_meter.py -v`。
 - SH150 分頁是嵌入的原版原始碼（`#sh150-source`），更新方式見 DECISIONS。
 - SH150 學校表單填報只能寫 `ctu_school_form_config`；計分規則不可放進設定。說明見 `docs/sh150-school-form-guide.md`。
 - **📚 SR 閱讀小卡分頁**：原始檔 `sr-reading/sr-tool.html`，改完執行 `python tools/embed_sr.py` 嵌入 `#sr-source`，**不要直接改 universal.html 裡的嵌入區塊**。原始檔不可出現 `<\!--`、`<\/script`（結尾標籤用 `'<' + '/script>'`）。資料只寫 `ctu_sr_records`（依座號、學期鍵 `115-1`）。測試：`python -m unittest discover -s tests -p test_sr_tab.py -v`。

@@ -29,6 +29,31 @@
         }
         .copy-feedback.show { transform: translateX(-50%) translateY(0); }
 
+        /* 音量計 */
+        .noise-display { border-radius: 1rem; padding: 1.5rem 1.5rem 1rem; text-align: center; transition: background-color .4s, color .4s; }
+        .noise-idle   { background: #f1f5f9; color: #475569; }
+        .noise-green  { background: #d1fae5; color: #065f46; }
+        .noise-yellow { background: #fef3c7; color: #92400e; }
+        .noise-red    { background: #fee2e2; color: #b91c1c; }
+        .noise-status { font-size: 2.5rem; font-weight: 900; line-height: 1.2; }
+        .noise-reading { margin-top: .25rem; }
+        .noise-db { font-size: 6rem; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+        .noise-unit { font-size: 1.5rem; font-weight: 700; margin-left: .5rem; }
+        .noise-bar { position: relative; height: 1.5rem; margin-top: 1rem; border-radius: 9999px; background: rgba(255,255,255,.7); overflow: hidden; }
+        .noise-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: currentColor; opacity: .55; transition: width .15s linear; }
+        .noise-mark { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: #334155; opacity: .5; }
+        .noise-scale { display: flex; justify-content: space-between; font-size: .75rem; opacity: .7; margin-top: .25rem; }
+        .noise-msg { font-size: .875rem; margin-top: .75rem; opacity: .85; }
+        .noise-mode-btn { background: #f1f5f9; color: #475569; }
+        .noise-mode-btn.active { background: #0284c7; color: #fff; }
+        #noise-display:fullscreen { display: flex; flex-direction: column; justify-content: center; padding: 4vh 6vw; border-radius: 0; }
+        #noise-display:fullscreen .noise-status { font-size: 12vh; }
+        #noise-display:fullscreen .noise-db { font-size: 32vh; }
+        #noise-display:fullscreen .noise-unit { font-size: 6vh; }
+        #noise-display:fullscreen .noise-bar { height: 4vh; margin-top: 4vh; }
+        #noise-display:fullscreen .noise-scale, #noise-display:fullscreen .noise-msg { font-size: 2.5vh; }
+        @media (max-width: 640px) { .noise-status { font-size: 1.75rem; } .noise-db { font-size: 4.5rem; } }
+
         .sound-option { border: 2px solid transparent; cursor: pointer; transition: all 0.2s; }
         .sound-option.selected { border-color: #0284c7; background-color: #e0f2fe; }
         .sound-option:hover { background-color: #f0f9ff; }
@@ -287,6 +312,7 @@
         <button id="tab-weekly-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🗓 含氟每週紀錄</button>
         <button id="tab-sh150-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🏃 SH150 運動登記</button>
         <button id="tab-sr-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">📚 SR 閱讀小卡</button>
+        <button id="tab-noise-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🔊 音量計</button>
         <button id="tab-order-btn" title="調整分頁順序" class="px-3 text-slate-300 hover:text-sky-600 transition-all border-b-[3px] border-transparent">⚙️</button>
     </div>
 
@@ -1065,6 +1091,306 @@
             </div>
         </div>
     </div><!-- end #panel-seat -->
+
+    <!-- ══════════════ 音量計 PANEL ══════════════ -->
+    <!-- 麥克風音量只在這台電腦即時計算，不錄音、不上傳；設定存 ctu_noiseSettings -->
+    <div id="panel-noise" class="hidden p-6 md:p-8">
+        <div id="noise-display" class="noise-display noise-idle">
+            <div id="noise-status" class="noise-status">尚未開始</div>
+            <div class="noise-reading"><span id="noise-db" class="noise-db">--</span><span class="noise-unit">分貝</span></div>
+            <div class="noise-bar">
+                <div id="noise-bar-fill" class="noise-bar-fill"></div>
+                <div id="noise-mark-y" class="noise-mark" title="黃燈門檻"></div>
+                <div id="noise-mark-r" class="noise-mark" title="紅燈門檻"></div>
+            </div>
+            <div class="noise-scale"><span>30</span><span>45</span><span>60</span><span>75</span><span>90</span></div>
+            <p id="noise-msg" class="noise-msg">按「▶ 開始偵測」，瀏覽器會詢問是否允許使用麥克風。</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+            <button id="noise-start" class="px-5 py-2.5 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">▶ 開始偵測</button>
+            <button id="noise-fullscreen" class="px-4 py-2.5 bg-sky-100 text-sky-700 rounded-lg font-semibold hover:bg-sky-200 transition-all">⛶ 全螢幕</button>
+            <span class="text-slate-500 text-sm ml-2">情境：</span>
+            <button data-noise-mode="study" class="noise-mode-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all">🤫 安靜自習</button>
+            <button data-noise-mode="discuss" class="noise-mode-btn px-4 py-2 rounded-lg text-sm font-semibold transition-all">🗣 小組討論</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mt-4 text-sm text-slate-600 bg-sky-50 border border-sky-100 rounded-lg px-4 py-3">
+            <span>已偵測 <b id="noise-stat-time">0:00</b></span>
+            <span class="text-emerald-700">🟢 <b id="noise-stat-green">0%</b></span>
+            <span class="text-amber-700">🟡 <b id="noise-stat-yellow">0%</b></span>
+            <span class="text-red-600">🔴 <b id="noise-stat-red">0%</b></span>
+            <span>最高 <b id="noise-stat-peak">--</b> 分貝</span>
+            <button id="noise-stat-reset" class="ml-auto px-3 py-1 bg-white border border-sky-200 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 transition-all">重新統計</button>
+        </div>
+
+        <details id="noise-settings" class="mt-4 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+            <summary class="cursor-pointer text-slate-600 text-sm font-semibold">⚙️ 門檻與校正</summary>
+            <div class="mt-3 grid gap-4 md:grid-cols-2 text-sm text-slate-600">
+                <div>
+                    <div class="font-semibold mb-2">燈號門檻（分貝）</div>
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="w-20">🤫 安靜自習</span>
+                        黃燈 <input id="noise-th-study-y" type="number" min="20" max="120" class="w-16 px-2 py-1 rounded border border-slate-200">
+                        紅燈 <input id="noise-th-study-r" type="number" min="20" max="120" class="w-16 px-2 py-1 rounded border border-slate-200">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="w-20">🗣 小組討論</span>
+                        黃燈 <input id="noise-th-discuss-y" type="number" min="20" max="120" class="w-16 px-2 py-1 rounded border border-slate-200">
+                        紅燈 <input id="noise-th-discuss-r" type="number" min="20" max="120" class="w-16 px-2 py-1 rounded border border-slate-200">
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="w-20">反應時間</span>
+                        <select id="noise-win" class="px-2 py-1 rounded border border-slate-200 bg-white">
+                            <option value="1">1 秒（反應快）</option>
+                            <option value="2">2 秒</option>
+                            <option value="3">3 秒（比較穩）</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                        <button id="noise-th-save" class="px-4 py-1.5 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">儲存門檻</button>
+                        <button id="noise-th-reset" class="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-all">還原預設</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="font-semibold mb-2">校正（讓數字接近真實分貝）</div>
+                    <p class="text-slate-500 text-xs mb-2">每台電腦的麥克風靈敏度不同。開始偵測後，用手機分貝 App 在教室同一位置量，輸入 App 顯示的數字，按「對齊」。</p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        手機 App 顯示 <input id="noise-cal-input" type="number" min="20" max="120" placeholder="例如 55" class="w-20 px-2 py-1 rounded border border-slate-200"> 分貝
+                        <button id="noise-cal-apply" class="px-3 py-1.5 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">對齊</button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <span>目前：<b id="noise-cal-state"></b></span>
+                        <button id="noise-cal-reset" class="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-xs hover:bg-slate-200 transition-all">取消校正</button>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <p class="text-slate-400 text-xs mt-3">🔒 只在這台電腦即時計算音量，不錄音、不上傳。數字是約略值，適合當班級音量參考，不能當正式噪音檢測。離開這個分頁會自動關閉麥克風。</p>
+    </div><!-- end #panel-noise -->
+    <script>
+    // ── 音量計：麥克風 → 高通濾波（去掉冷氣、風扇低頻）→ 計算 RMS → 約略分貝 ──
+    (function () {
+        // 【可自行修改】預設門檻（分貝）與校正值；校正值＝麥克風讀數（dBFS）加多少變成約略分貝
+        var NOISE_DEFAULTS = {
+            mode: 'study',
+            th: { study: { y: 50, r: 60 }, discuss: { y: 62, r: 72 } },
+            offset: 95, calibrated: false, win: 2
+        };
+        var LABELS = {
+            study:   { green: '很安靜 👍', yellow: '小聲一點', red: '太吵了！' },
+            discuss: { green: '音量剛好 👍', yellow: '小聲一點', red: '太吵了！' }
+        };
+        var TICK_MS = 100, SCALE_MIN = 30, SCALE_MAX = 90, HYST = 2;
+
+        var $ = function (id) { return document.getElementById(id); };
+        var cfg = null, ready = false;
+        var run = null;            // { stream, ctx, an, buf, timer }
+        var energies = [];         // 反應時間內每次取樣的能量
+        var silentTicks = 0;       // 連續收到完全無訊號的次數（麥克風被靜音或還沒開始送資料）
+        var level = null;          // 平均後的 dBFS
+        var status = 'idle';
+        var stats = { ms: 0, green: 0, yellow: 0, red: 0, peak: null };
+
+        function clone(o) { return JSON.parse(JSON.stringify(o)); }
+        function okNum(v, lo, hi) { return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi; }
+        function loadCfg() {
+            var c = clone(NOISE_DEFAULTS), saved = ctuParse('noiseSettings', '{}');
+            if (saved.mode === 'study' || saved.mode === 'discuss') c.mode = saved.mode;
+            ['study', 'discuss'].forEach(function (m) {
+                var t = saved.th && saved.th[m];
+                if (t && okNum(t.y, 20, 120) && okNum(t.r, 20, 120) && t.y < t.r) c.th[m] = { y: t.y, r: t.r };
+            });
+            if (okNum(saved.offset, 20, 200)) { c.offset = saved.offset; c.calibrated = !!saved.calibrated; }
+            if (saved.win === 1 || saved.win === 2 || saved.win === 3) c.win = saved.win;
+            return c;
+        }
+        function saveCfg() { ctuStore.setItem('noiseSettings', JSON.stringify(cfg)); }
+        function toDb(dbfs) { return Math.max(0, Math.round(dbfs + cfg.offset)); }
+        function pct(v) { return Math.max(0, Math.min(100, (v - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100)); }
+
+        function setStatus(s) {
+            status = s;
+            $('noise-display').className = 'noise-display noise-' + s;
+            $('noise-status').textContent = s === 'idle' ? (run ? '偵測中…' : '已停止') : LABELS[cfg.mode][s];
+        }
+        function nextStatus(db) {
+            var t = cfg.th[cfg.mode];
+            // 往上立刻變色；往下要低於門檻 2 分貝才退，避免在門檻附近一直閃
+            if (db >= t.r || (status === 'red' && db > t.r - HYST)) return 'red';
+            if (db >= t.y || (status === 'yellow' && db > t.y - HYST)) return 'yellow';
+            if (status === 'red' && db > t.y - HYST) return 'yellow';
+            return 'green';
+        }
+        function renderMarks() {
+            var t = cfg.th[cfg.mode];
+            $('noise-mark-y').style.left = pct(t.y) + '%';
+            $('noise-mark-r').style.left = pct(t.r) + '%';
+            document.querySelectorAll('.noise-mode-btn').forEach(function (b) {
+                b.classList.toggle('active', b.getAttribute('data-noise-mode') === cfg.mode);
+            });
+        }
+        function renderStats() {
+            var s = Math.floor(stats.ms / 1000);
+            $('noise-stat-time').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+            ['green', 'yellow', 'red'].forEach(function (k) {
+                $('noise-stat-' + k).textContent = (stats.ms ? Math.round(stats[k] / stats.ms * 100) : 0) + '%';
+            });
+            $('noise-stat-peak').textContent = stats.peak === null ? '--' : toDb(stats.peak);
+        }
+        function renderSettings() {
+            ['study', 'discuss'].forEach(function (m) {
+                $('noise-th-' + m + '-y').value = cfg.th[m].y;
+                $('noise-th-' + m + '-r').value = cfg.th[m].r;
+            });
+            $('noise-win').value = String(cfg.win);
+            $('noise-cal-state').textContent = cfg.calibrated ? '已校正（+' + Math.round(cfg.offset) + '）' : '未校正（用內建估計值，誤差較大）';
+        }
+
+        function tick() {
+            if (!run) return;
+            run.an.getFloatTimeDomainData(run.buf);
+            var sum = 0;
+            for (var i = 0; i < run.buf.length; i++) sum += run.buf[i] * run.buf[i];
+            if (sum === 0) {
+                // 真實環境再安靜也不會是完全 0；全 0 代表還沒收到聲音，不列入計算
+                silentTicks++;
+                if (silentTicks === 30) $('noise-msg').textContent = '收不到聲音：麥克風可能被靜音，請檢查電腦的音效設定或麥克風開關。';
+                return;
+            }
+            if (silentTicks >= 30) $('noise-msg').textContent = '偵測中。';
+            silentTicks = 0;
+            energies.push(sum / run.buf.length);
+            var keep = cfg.win * 1000 / TICK_MS;
+            while (energies.length > keep) energies.shift();
+            var mean = energies.reduce(function (a, b) { return a + b; }, 0) / energies.length;
+            level = 10 * Math.log10(Math.max(mean, 1e-12));
+            var db = toDb(level);
+            setStatus(nextStatus(db));
+            $('noise-db').textContent = db;
+            $('noise-bar-fill').style.width = pct(db) + '%';
+            stats.ms += TICK_MS;
+            stats[status] += TICK_MS;
+            if (stats.peak === null || level > stats.peak) stats.peak = level;
+            renderStats();
+        }
+
+        function micError(e) {
+            var n = e && e.name;
+            if (n === 'NotAllowedError' || n === 'SecurityError') return '麥克風被封鎖了：點網址列左邊的圖示 → 麥克風 → 允許，再按一次「開始偵測」。';
+            if (n === 'NotFoundError' || n === 'OverconstrainedError') return '找不到麥克風：這台電腦沒有接麥克風。筆電通常內建；桌機或大屏要另外接 USB 麥克風。';
+            if (n === 'NotReadableError' || n === 'AbortError') return '麥克風正被其他程式使用（例如 Meet、Teams），關掉後再試一次。';
+            return '無法開啟麥克風（' + (n || '未知原因') + '）。請用 Chrome 或 Edge 開啟 https 網址再試。';
+        }
+
+        function start() {
+            if (run) return;
+            var md = navigator.mediaDevices;
+            if (!md || !md.getUserMedia) { $('noise-msg').textContent = '這個瀏覽器不能使用麥克風，或網址不是 https。請用 Chrome 或 Edge 開啟工具網址。'; return; }
+            $('noise-start').disabled = true;
+            $('noise-msg').textContent = '正在開啟麥克風…';
+            // 關掉瀏覽器的自動音量、降噪、消回音，否則吵的時候會被壓小、安靜時被放大
+            md.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (stream) {
+                var AC = window.AudioContext || window.webkitAudioContext;
+                var ctx = new AC();
+                var src = ctx.createMediaStreamSource(stream);
+                var hp = ctx.createBiquadFilter();
+                hp.type = 'highpass'; hp.frequency.value = 100;
+                var an = ctx.createAnalyser();
+                an.fftSize = 4096;
+                src.connect(hp); hp.connect(an);
+                if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+                energies = []; silentTicks = 0;
+                run = { stream: stream, ctx: ctx, an: an, buf: new Float32Array(an.fftSize) };
+                run.timer = setInterval(tick, TICK_MS);
+                $('noise-start').disabled = false;
+                $('noise-start').textContent = '⏸ 停止偵測';
+                $('noise-msg').textContent = cfg.calibrated ? '偵測中。數字是約略值。' : '偵測中。尚未校正，數字只是估計；可在下方「門檻與校正」用手機 App 對齊。';
+                setStatus('idle');
+            }).catch(function (e) {
+                $('noise-start').disabled = false;
+                $('noise-msg').textContent = micError(e);
+            });
+        }
+
+        function stop() {
+            if (!run) return;
+            clearInterval(run.timer);
+            run.stream.getTracks().forEach(function (t) { t.stop(); });
+            try { run.ctx.close(); } catch (e) {}
+            run = null; level = null; energies = [];
+            $('noise-start').textContent = '▶ 開始偵測';
+            $('noise-db').textContent = '--';
+            $('noise-bar-fill').style.width = '0';
+            $('noise-msg').textContent = '已停止，麥克風已關閉。';
+            setStatus('idle');
+            if (document.fullscreenElement === $('noise-display') && document.exitFullscreen) document.exitFullscreen();
+        }
+
+        function init() {
+            if (ready) return;
+            ready = true;
+            cfg = loadCfg();
+            renderMarks(); renderSettings(); renderStats();
+            $('noise-start').addEventListener('click', function () { if (run) stop(); else start(); });
+            $('noise-fullscreen').addEventListener('click', function () {
+                var el = $('noise-display');
+                if (document.fullscreenElement) document.exitFullscreen();
+                else if (el.requestFullscreen) el.requestFullscreen();
+            });
+            document.querySelectorAll('.noise-mode-btn').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    cfg.mode = b.getAttribute('data-noise-mode');
+                    saveCfg(); renderMarks();
+                    if (run && level !== null) setStatus(nextStatus(toDb(level)));
+                    else setStatus('idle');
+                });
+            });
+            $('noise-stat-reset').addEventListener('click', function () {
+                stats = { ms: 0, green: 0, yellow: 0, red: 0, peak: null };
+                renderStats();
+            });
+            $('noise-th-save').addEventListener('click', function () {
+                var th = {};
+                for (var i = 0, ms = ['study', 'discuss']; i < ms.length; i++) {
+                    var m = ms[i], y = Number($('noise-th-' + m + '-y').value), r = Number($('noise-th-' + m + '-r').value);
+                    var name = m === 'study' ? '安靜自習' : '小組討論';
+                    if (!okNum(y, 20, 120) || !okNum(r, 20, 120)) { alert(name + '的門檻請填 20～120 的數字'); return; }
+                    if (y >= r) { alert(name + '的黃燈門檻要小於紅燈門檻'); return; }
+                    th[m] = { y: y, r: r };
+                }
+                cfg.th = th;
+                cfg.win = Number($('noise-win').value) || 2;
+                saveCfg(); renderMarks(); renderSettings();
+                $('noise-msg').textContent = '門檻已儲存。';
+            });
+            $('noise-th-reset').addEventListener('click', function () {
+                cfg.th = clone(NOISE_DEFAULTS.th); cfg.win = NOISE_DEFAULTS.win;
+                saveCfg(); renderMarks(); renderSettings();
+            });
+            $('noise-cal-apply').addEventListener('click', function () {
+                var v = Number($('noise-cal-input').value);
+                if (!run || level === null) { alert('請先按「▶ 開始偵測」，等數字出現後再對齊。'); return; }
+                if (!okNum(v, 20, 120)) { alert('請輸入手機 App 顯示的分貝數（20～120）'); return; }
+                cfg.offset = v - level; cfg.calibrated = true;
+                saveCfg(); renderSettings();
+                $('noise-msg').textContent = '已對齊：現在顯示 ' + toDb(level) + ' 分貝。';
+            });
+            $('noise-cal-reset').addEventListener('click', function () {
+                cfg.offset = NOISE_DEFAULTS.offset; cfg.calibrated = false;
+                saveCfg(); renderSettings();
+            });
+        }
+
+        window.ctuNoiseShow = function () { init(); };
+        window.ctuNoiseStop = function () { if (ready) stop(); };
+        // 測試用：讀目前狀態
+        window.ctuNoiseState = function () {
+            return { running: !!run, status: status, level: level, offset: cfg && cfg.offset, mode: cfg && cfg.mode, stats: clone(stats) };
+        };
+    })();
+    </script>
 
 </div><!-- end card -->
 <footer id="ctu-version" class="text-center text-slate-400 text-xs mt-3" aria-label="系統版本"></footer>
@@ -4453,7 +4779,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.17（2026-10-10）';
+    window.CTU_VERSION = 'v1.18（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -4657,11 +4983,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
     document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
     document.getElementById('tab-sr-btn').addEventListener('click', () => switchTab('sr'));
+    document.getElementById('tab-noise-btn').addEventListener('click', () => switchTab('noise'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['sh150', 'weekly', 'sr', 'timer', 'seat', 'group'];
-    // 【可自行修改】預設只顯示 SH150 與含氟紀錄，其餘分頁老師可在 ⚙️ 打開
-    var defaultTabHidden = ['timer', 'seat', 'group'];
+    var defaultTabOrder = ['sh150', 'weekly', 'sr', 'timer', 'seat', 'group', 'noise'];
+    // 【可自行修改】預設只顯示 SH150、含氟紀錄與 SR，其餘分頁老師可在 ⚙️ 打開
+    var defaultTabHidden = ['timer', 'seat', 'group', 'noise'];
+    // v1.18 以前存過分頁設定的老師，當時還沒有的分頁（之後新增）照預設隱藏，不會突然冒出來
+    var TABS_BEFORE_KNOWN = ['sh150', 'weekly', 'sr', 'timer', 'seat', 'group'];
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
     var tabHidden = loadTabHidden();
@@ -4674,6 +5003,11 @@ document.addEventListener('DOMContentLoaded', () => {
         try { saved = JSON.parse(raw); } catch (e) { saved = []; }
         if (!Array.isArray(saved)) return [];
         var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
+        var known = ctuParse('timerTabKnown', 'null');
+        if (!Array.isArray(known)) known = TABS_BEFORE_KNOWN;
+        defaultTabHidden.forEach(function (k) {
+            if (known.indexOf(k) === -1 && out.indexOf(k) === -1) out.push(k);
+        });
         return out.length >= defaultTabOrder.length ? [] : out;
     }
     function visibleTabs() {
@@ -4784,6 +5118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabHidden = tabHiddenDraft.slice();
         ctuStore.setItem('timerTabOrder', JSON.stringify(tabOrder));
         ctuStore.setItem('timerTabHidden', JSON.stringify(tabHidden));
+        ctuStore.setItem('timerTabKnown', JSON.stringify(defaultTabOrder));
         applyTabOrder();
         if (tabHidden.indexOf(window.ctuCurrentTab) > -1) switchTab(visibleTabs()[0]);
         if (typeof seatSyncSettings === 'function') seatSyncSettings();
@@ -4793,6 +5128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTabOrder();
 
     function switchTab(tab) {
+        if (tab !== 'noise' && window.ctuNoiseStop) window.ctuNoiseStop();
         updateGroupProjection(tab === 'group');
         window.ctuCurrentTab = tab;
         const tabs = defaultTabOrder;
@@ -4818,6 +5154,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'weekly') {
             stopCleaningCountdown(); stopExamClock();
             renderWeeklyTable(); weeklySyncPull();
+        } else if (tab === 'noise') {
+            stopCleaningCountdown(); stopExamClock();
+            if (window.ctuNoiseShow) window.ctuNoiseShow();
         } else if (tab === 'group') {
             stopCleaningCountdown(); stopExamClock();
             if (typeof initGroupPanel === 'function') initGroupPanel();
