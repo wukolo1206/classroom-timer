@@ -177,5 +177,47 @@ class SeatPeriodUniversal(unittest.TestCase):
         self.assertTrue(p.evaluate("document.getElementById('seat-import-modal').classList.contains('show')"))
 
 
+    def test_U09_restore_frees_new_keys_first(self):
+        # 模擬審查情境：新項目占住空間時，舊紀錄寫不回去；先還原項目再還原紀錄就能成功
+        p = self.open(at='10:35', records={DAY + '#3': {'1': {'tilt': 1}}})
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'ctu_seatLayout') throw new Error('QuotaExceeded');
+              if (k === 'ctu_seatCheckRecords' && String(localStorage.getItem('ctu_seatCheckItems') || '').indexOf('newk') >= 0
+                  && String(v).indexOf('newrec') < 0) throw new Error('QuotaExceeded');   // 新項目還在時，舊紀錄寫不回去
+              return orig.call(this, k, v); }; }""")
+        names = []
+        p.on('download', lambda d: names.append(d.suggested_filename))
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'2': {'newrec': 2}}},
+                'seatCheckItems': [{'key': 'newk', 'label': '新項目', 'color': 3}], 'seatLayout': '1,2 | 3,4 | 5,6'}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(500)
+        self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}}, '紀錄還原成功')
+        self.assertNotIn('newk', p.evaluate("localStorage.getItem('ctu_seatCheckItems') || ''"))
+        self.assertFalse(any('救援檔' in n for n in names), '還原成功就不需要救援檔')
+        self.assertTrue(any('原本的資料沒有改動' in m for m in p._dialogs), p._dialogs)
+
+    def test_U10_real_restore_failure_rescue_and_warning_persists(self):
+        p = self.open(at='10:35', records={DAY + '#3': {'1': {'tilt': 1}}})
+        names = []
+        p.on('download', lambda d: names.append(d.suggested_filename))
+        p.evaluate("""() => { const orig = Storage.prototype.setItem; let n = 0;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'ctu_seatLayout') throw new Error('QuotaExceeded');
+              if (k === 'ctu_seatCheckRecords' && ++n >= 2) throw new Error('QuotaExceeded');   // 寫入成功一次，之後還原失敗
+              return orig.call(this, k, v); }; }""")
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'2': {'bag': 2}}}, 'seatLayout': '1,2 | 3,4 | 5,6'}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(500)
+        self.assertTrue(any('救援檔' in n for n in names), names)
+        self.assertIn('還原失敗', p.inner_text('#seat-sync-status'))
+        p.reload(); p.wait_for_timeout(400); p.click('#tab-seat-btn'); p.wait_for_timeout(300)
+        self.assertIn('還原失敗', p.inner_text('#seat-sync-status'), '重新整理後仍提醒')
+
+
 if __name__ == '__main__':
     unittest.main()

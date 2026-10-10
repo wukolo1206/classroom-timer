@@ -13,6 +13,7 @@ function makeEnv() {
       const sh = this;
       return {
         getValues() {
+          if (sh.failNextGetValues) { sh.failNextGetValues = false; throw new Error('模擬讀取逾時'); }
           const out = [];
           for (let i = 0; i < nr; i++) {
             const row = sh.rows[r - 1 + i] || [];
@@ -35,7 +36,11 @@ function makeEnv() {
         setFontWeight() { return this; },
       };
     },
-    deleteRow(n) { this.rows.splice(n - 1, 1); },
+    deleteRow(n) {
+      this.deleteCount = (this.deleteCount || 0) + 1;
+      if (this.failDeleteOn && this.deleteCount === this.failDeleteOn) throw new Error('模擬刪到一半逾時');
+      this.rows.splice(n - 1, 1);
+    },
     deleteRows(n, k) { this.rows.splice(n - 1, k); },
     appendRow(arr) { this.rows.push(arr.slice()); },
     setFrozenRows(n) { this.frozen = n; },
@@ -182,10 +187,9 @@ test('取代匯入：寫入失敗時試算表沒有被清空', () => {
   sheet.failNextSetValues = true;
   assert.throws(() => api.importSeatRecordsV2('fail1', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]));
   assert.strictEqual(sheet.rows.length, 3, '原資料還在');
-  // 失敗的 opId 沒有被記成已完成，重送會真的執行
-  const r = api.importSeatRecordsV2('fail1', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]);
-  assert.deepStrictEqual(r, { written: 1 });
-  assert.strictEqual(sheet.rows.length, 2);
+  // 已經開始寫入才失敗：結果不確定，重送不自動重做（第 3 輪 B-高）
+  assert.match(permanent(() => api.importSeatRecordsV2('fail1', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']])), /結果不確定/);
+  assert.strictEqual(sheet.rows.length, 3);
 });
 
 test('雲端快照 getSeatRowsRaw 回傳 A～H', () => {
@@ -263,13 +267,27 @@ test('完成紀錄存不進去：清除已做，之後新增的資料不會被�
   assert.strictEqual(sheet.rows.length, 2, '新增的那筆還在');
 });
 
-test('執行失敗時移除「進行中」，重試會正常執行', () => {
+test('還沒動到試算表就失敗：移除「進行中」，重試會正常執行', () => {
   const { sheet, props, api } = makeEnv();
   sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
-  sheet.failNextSetValues = true;
-  assert.throws(() => api.importSeatRecordsV2('imp9', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]));
-  assert.ok(!JSON.parse(props.seatOpLog || '[]').some(x => x.id === 'imp9'), '失敗的操作不留紀錄');
-  assert.deepStrictEqual(api.importSeatRecordsV2('imp9', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]), { written: 1 });
+  sheet.failNextGetValues = true;   // 讀取就失敗
+  assert.throws(() => api.clearSeatDay('rd1', '2026-10-10'));
+  assert.ok(!JSON.parse(props.seatOpLog || '[]').some(x => x.id === 'rd1'), '失敗的操作不留紀錄');
+  assert.strictEqual(api.clearSeatDay('rd1', '2026-10-10'), 1);
+});
+
+test('刪到一半出錯：維持「進行中」，重送不會刪到之後新增的資料（第 3 輪 B-高）', () => {
+  const { sheet, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'),
+    ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節'],
+    ['2026-10-10', 6, '乙', '坐姿', 1, new Date(), 'tilt', '第3節']];
+  sheet.failDeleteOn = 2;
+  assert.throws(() => api.clearSeatDay('half2', '2026-10-10'));
+  assert.strictEqual(sheet.rows.length, 2, '刪了一列');
+  sheet.failDeleteOn = 0;
+  api.setSeatCount('2026-10-10#4', '7', '丙', 'tilt', '坐姿', 1);   // 另一台裝置新增
+  assert.match(permanent(() => api.clearSeatDay('half2', '2026-10-10')), /結果不確定/);
+  assert.strictEqual(sheet.rows.length, 3, '新增的那筆還在');
 });
 
 test('取代匯入：座號 05 與 5、#?第3節 與 #3 視為同一筆，寫入前就擋下（第 3 輪 A-中）', () => {

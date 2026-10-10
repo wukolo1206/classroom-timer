@@ -174,7 +174,8 @@ var SEAT_PERIOD_HEADER = '節次';
 // 節次代碼 ↔ H 欄文字（前端 SEAT_PERIODS 用同一組代碼）；H 空白＝未分節
 var SEAT_PERIOD_TEXT = { m: '早自習', '1': '第1節', '2': '第2節', '3': '第3節', '4': '第4節', n: '午休', '5': '第5節', '6': '第6節', '7': '第7節' };
 var SEAT_OP_LOG_PROPERTY = 'seatOpLog';   // 最近處理過的清除／匯入 opId，避免重新整理後重送又執行一次
-var SEAT_OP_LOG_MAX = 100;   // 每筆約 40 字，100 筆約 4KB，留在文件屬性單筆 9KB 上限內
+var SEAT_OP_LOG_MAX = 100;
+var seatOpTouched_ = false;   // 這次操作是否已經開始寫入或刪除試算表（判斷失敗時能不能安全重試）   // 每筆約 40 字，100 筆約 4KB，留在文件屬性單筆 9KB 上限內
 
 function getSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -297,11 +298,13 @@ function withSeatOp_(opId, fn) {
     // 先把「進行中」存起來；存不進去就不執行（否則重送時無法辨識是否已做過）
     if (!saveSeatOpLog_(log)) throw new Error('暫時無法記錄操作，稍後自動重試');
     var result;
+    seatOpTouched_ = false;
     try {
       result = fn();
     } catch (e) {
-      // 執行失敗（試算表沒有被改，或驗證不通過）：移除「進行中」，讓重試能正常執行
-      saveSeatOpLog_(log.filter(function (x) { return x.id !== opId; }));
+      // 還沒動到試算表就失敗：移除「進行中」，重試可正常執行。
+      // 已經開始寫入／刪除才失敗：試算表可能改了一半，維持「進行中」，重送時會被當成結果不確定而暫停，不自動重做。
+      if (!seatOpTouched_) saveSeatOpLog_(log.filter(function (x) { return x.id !== opId; }));
       throw e;
     }
     log[log.length - 1] = { id: opId, done: true, result: result };
@@ -333,6 +336,7 @@ function deleteSeatRowsWhere_(sh, test) {
   var removed = 0;
   for (var i = rows.length - 1; i >= 0; i--) {
     if (!test(rows[i])) continue;
+    seatOpTouched_ = true;
     sh.deleteRow(i + 2);
     removed++;
   }
@@ -641,7 +645,7 @@ function clearSeatAllV2(opId) {
   return withSeatOp_(opId, function () {
     var sh = getSheet_();
     var last = sh.getLastRow();
-    if (last > 1) sh.deleteRows(2, last - 1);
+    if (last > 1) { seatOpTouched_ = true; sh.deleteRows(2, last - 1); }
     return last > 1 ? last - 1 : 0;
   });
 }
@@ -682,6 +686,7 @@ function importSeatRecordsV2(opId, rows) {
   return withSeatOp_(opId, function () {
     var sh = getSheet_();
     var oldRows = Math.max(0, sh.getLastRow() - 1);
+    seatOpTouched_ = true;
     if (out.length) sh.getRange(2, 1, out.length, SEAT_COLS).setValues(out);
     if (oldRows > out.length) sh.deleteRows(2 + out.length, oldRows - out.length);
     // 讀回逐筆比對

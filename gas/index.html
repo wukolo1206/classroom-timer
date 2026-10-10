@@ -2254,6 +2254,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSyncStatus() {
         var el = document.getElementById('seat-sync-status');
         if (!el) return;
+        if (seatRestoreFailedFlag()) {
+            el.innerHTML = '<button type="button" data-sync-action="resolve" class="text-red-600 font-semibold underline">\u26d4 本機資料還原失敗，' +
+                (SEAT_SYNC ? '同步暫停中' : '請處理') + '（點這裡）</button>';
+            return;
+        }
         if (!SEAT_SYNC) {
             el.innerHTML = '<span class="text-slate-400">○ 本機模式（未連試算表）</span>';
             return;
@@ -2291,6 +2296,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /** 開啟座位分頁時，把試算表的資料拉下來合併（含共用設定）*/
     function seatSyncPull() {
         if (!SEAT_SYNC) { renderSyncStatus(); return; }
+        if (seatRestoreFailedFlag()) { seatSyncPaused = true; renderSyncStatus(); return; }
         var seq = seatDestructiveSeq;
         seatSyncBusy++;
         renderSyncStatus();
@@ -2397,20 +2403,45 @@ document.addEventListener('DOMContentLoaded', () => {
      *    佇列存不進去就把本機還原，佇列維持原樣（被移除的 count 也還在）。
      * 最壞情況是「操作沒有成功、資料還在」，不會出現「說沒執行、其實送出了清除」。
      */
+    /**
+     * 還原也失敗：本機可能留著做到一半的資料。下載救援檔（原本的資料，可用「匯入座位資料」匯回）、
+     * 記下還原失敗狀態並暫停同步（重新整理後仍暫停），避免把不完整的資料送上雲端。
+     */
+    function seatRestoreFailed(before) {
+        var rescue = { type: 'seat-check', exportedAt: new Date().toISOString(), note: '秩序登記救援檔：操作失敗前的本機資料' };
+        before.forEach(function (b) {
+            if (b[1] === null) return;
+            if (b[0] === 'seatCheckRecords' || b[0] === 'seatCheckItems') { try { rescue[b[0]] = JSON.parse(b[1]); } catch (e) {} }
+            else if (b[0] === 'seatLayout') rescue.seatLayout = b[1];
+        });
+        try { downloadSeatFile(JSON.stringify(rescue, null, 2), '秩序登記救援檔_' + getTodayKey() + '.json', 'application/json'); } catch (e) {}
+        try { localStorage.setItem('seatRestoreFailed', JSON.stringify({ at: new Date().toISOString() })); } catch (e) {}
+        seatSyncPaused = true;
+        seatSyncError = '本機資料還原失敗，同步暫停中';
+        renderSyncStatus();
+        alert('這次操作沒有執行，但瀏覽器空間不足，本機資料也沒能還原成原本的樣子。\n' +
+              '已自動下載「秩序登記救援檔」（原本的資料），並暫停同步，避免把不完整的資料送上雲端。\n\n' +
+              '請先清出瀏覽器空間，再點畫面上的「同步暫停」處理。');
+    }
+    function seatRestoreFailedFlag() {
+        try { return !!localStorage.getItem('seatRestoreFailed'); } catch (e) { return false; }
+    }
+
     function seatCommitDestructive(writes, ops) {
         var before = writes.map(function (w) { return [w[0], localStorage.getItem(w[0])]; });
+        /** 還原：先移除原本不存在的鍵（釋放空間），再依寫入的相反順序還原，失敗的再試一次，最後逐一核對 */
         function restore() {
-            var ok = true;
-            before.forEach(function (b) {
-                if (b[1] === null) { try { localStorage.removeItem(b[0]); } catch (e) { ok = false; } }
-                else if (!seatWrite(b[0], b[1])) ok = false;
-            });
-            return ok;
+            before.forEach(function (b) { if (b[1] === null) { try { localStorage.removeItem(b[0]); } catch (e) {} } });
+            var pending = before.filter(function (b) { return b[1] !== null; }).reverse();
+            for (var round = 0; round < 2 && pending.length; round++) {
+                pending = pending.filter(function (b) { return !seatWrite(b[0], b[1]); });
+            }
+            return before.every(function (b) { return localStorage.getItem(b[0]) === b[1]; });
         }
         for (var i = 0; i < writes.length; i++) {
             if (!seatWrite(writes[i][0], writes[i][1])) {
-                var r1 = restore();
-                alert('瀏覽器儲存失敗（空間可能不足），這次操作沒有執行。' + (r1 ? '' : '\n畫面可能和實際資料不一致，請重新整理頁面。'));
+                if (restore()) alert('瀏覽器儲存失敗（空間可能不足），這次操作沒有執行，原本的資料沒有改動。');
+                else seatRestoreFailed(before);
                 return false;
             }
         }
@@ -2423,8 +2454,8 @@ document.addEventListener('DOMContentLoaded', () => {
             var ok;
             try { ok = saveSeatQueue(q) !== false; } catch (e) { ok = false; }
             if (!ok) {
-                var r2 = restore();
-                alert('瀏覽器儲存空間不足，這次操作沒有執行（試算表沒有變動）。' + (r2 ? '' : '\n畫面可能看起來已改變；請重新整理頁面，資料會從試算表恢復。'));
+                if (restore()) alert('瀏覽器儲存空間不足，這次操作沒有執行（試算表沒有變動），原本的資料沒有改動。');
+                else seatRestoreFailed(before);
                 return false;
             }
             seatDestructiveSeq++;
@@ -2443,6 +2474,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function seatFlushQueue() {
         if (!SEAT_SYNC) { renderSyncStatus(); return; }
+        if (seatRestoreFailedFlag()) seatSyncPaused = true;
         if (seatFlushing || seatSyncPaused) { renderSyncStatus(); return; }   // 有一筆在路上就先等它
         var q = seatQueue();
         if (!q.length) {
@@ -2499,6 +2531,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /** 同步暫停時：讓老師決定略過卡住的那一筆，或保留 */
     function seatResolvePaused() {
+        if (seatRestoreFailedFlag()) {
+            if (SEAT_SYNC) {
+                // 試算表沒有被改動，是正確的版本：清掉本機紀錄與待送工作，改用試算表重建
+                if (!confirm('按「確定」：清掉這台電腦上的秩序紀錄，改用試算表的資料重建（試算表沒有被改動，是正確的版本）。\n按「取消」：先不處理。')) return;
+                try { localStorage.removeItem('seatCheckRecords'); } catch (e) {}
+                try { saveSeatQueue(seatQueue().filter(function (j) { return j.type !== 'count'; })); } catch (e) {}
+            } else {
+                if (!confirm('請用「⬆️ 匯入座位資料」匯入剛才下載的「秩序登記救援檔」，並選「覆蓋」，就會回到操作前的資料。\n\n已經匯入完成了嗎？按「確定」解除提醒。')) return;
+            }
+            try { localStorage.removeItem('seatRestoreFailed'); } catch (e) {}
+            seatSyncPaused = false;
+            seatSyncError = '';
+            renderSyncStatus();
+            renderSeatChart();
+            if (SEAT_SYNC) seatSyncPull();
+            return;
+        }
         var q = seatQueue();
         if (!q.length) { seatSyncPaused = false; seatSyncError = ''; renderSyncStatus(); return; }
         if (!confirm('這一筆寫不進試算表：\n' + seatSyncError + '\n\n按「確定」略過這一筆、繼續同步其他資料；\n按「取消」先保留（重新整理頁面後會再試一次）。')) return;
@@ -4396,8 +4445,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /** 匯入前嚴格檢查備份檔：任何一處不合格就整份拒絕（不可默默略過，否則「覆蓋」會變成清空） */
+    /** 時段鍵正規化：'日期#?第3節' → '日期#3'（與後端 slotOfRow_ 相同規則） */
+    function seatNormSlot(key) {
+        var p = seatParseSlot(key);
+        if (p.period.charAt(0) === '?') {
+            var text = p.period.slice(1).trim();
+            for (var i = 0; i < SEAT_PERIODS.length; i++) if (SEAT_PERIODS[i].label === text) return seatSlotKey(p.date, SEAT_PERIODS[i].code);
+        }
+        return key;
+    }
     function seatValidateImport(data) {
         var bad = [];
+        var seenKey = {};   // 正規化後的「時段|座號|項目」
         var recs = data.seatCheckRecords;
         if (recs !== undefined && (recs === null || typeof recs !== 'object' || Array.isArray(recs))) return ['seatCheckRecords 不是物件'];
         Object.keys(recs || {}).forEach(function (slot) {
@@ -4418,6 +4477,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (!v || typeof v !== 'object') { bad.push(slot + ' ' + seat + ' 號：內容不正確'); return; }
                 Object.keys(v).forEach(function (key) {
+                    var id = seatNormSlot(slot) + '|' + (+seat) + '|' + key;
+                    if (seenKey[id]) { bad.push(slot + ' ' + seat + ' 號「' + key + '」和「' + seenKey[id] + '」重複（同一節同一人同一項）'); return; }
+                    seenKey[id] = slot + ' ' + seat + ' 號';
                     var n = v[key];
                     if (!key || typeof n !== 'number' || !Number.isSafeInteger(n) || n < 1) {
                         bad.push(slot + ' ' + seat + ' 號「' + key + '」次數不正確：' + JSON.stringify(n));
@@ -4499,9 +4561,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.seatCheckRecords) {
             incoming = {};
             Object.keys(data.seatCheckRecords).forEach(function (k) {
-                var day = normalizeSeatDay(data.seatCheckRecords[k]), nd = {};
-                Object.keys(day).forEach(function (seat) { nd[String(+seat)] = day[seat]; });   // 座號 05 → 5（與後端一致）
-                if (Object.keys(nd).length) incoming[k] = nd;
+                var day = normalizeSeatDay(data.seatCheckRecords[k]);
+                var ns = seatNormSlot(k);                                  // #?第3節 → #3（與後端一致）
+                var nd = incoming[ns] || {};
+                Object.keys(day).forEach(function (seat) {                 // 座號 05 → 5（與後端一致）
+                    var s2 = String(+seat);
+                    nd[s2] = Object.assign(nd[s2] || {}, day[seat]);       // 檢查時已排除同一項重複
+                });
+                if (Object.keys(nd).length) incoming[ns] = nd;
             });
         }
         var before = getSeatRecords();

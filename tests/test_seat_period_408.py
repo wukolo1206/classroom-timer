@@ -513,11 +513,13 @@ class SeatPeriod408(unittest.TestCase):
               return orig.call(this, k, v); }; }""")
         p.click('#seat-clear-btn')
         p.wait_for_timeout(300)
-        self.assertIn('重新整理', p._dialogs[-1])
+        self.assertIn('救援檔', p._dialogs[-1], '還原失敗時改為下載救援檔並暫停（不再承諾重新整理就會恢復）')
         self.assertNotIn('clearSeatSlot', p.evaluate('window.__calls'))
         self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2}, '試算表沒動')
-        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); self.settle(p)
-        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2, '重新整理後從試算表恢復')
+        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); p.wait_for_timeout(500)
+        p.click('#seat-sync-status [data-sync-action="resolve"]')   # 用試算表重建
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2, '從試算表重建')
 
     def test_R10_import_normalizes_seat_aliases(self):
         p = self.open(at='10:35', sheet=[])
@@ -533,6 +535,53 @@ class SeatPeriod408(unittest.TestCase):
         p.set_input_files('#seat-import-input', files=[{'name': 'c.json', 'mimeType': 'application/json', 'buffer': json.dumps(bad).encode('utf-8')}])
         p.wait_for_timeout(300)
         self.assertIn('同一人', p._dialogs[-1])
+
+
+    # ── 第 3 輪程式審查（修正驗收）補測 ──
+    def test_R11_import_normalizes_period_alias_too(self):
+        p = self.open(at='10:35', sheet=[])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#?第3節': {'05': {'tilt': 2}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(600)
+        self.settle(p)
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn'); self.settle(p)
+        self.assertEqual(self.local(p), {DAY + '#3': {'5': {'tilt': 2}}})
+        self.period(p, 'all')
+        self.assertEqual(p.inner_text('#seat-count-total'), '2')
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2})
+        dup = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#?第4節': {'5': {'tilt': 1}}, DAY + '#4': {'5': {'tilt': 3}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'c.json', 'mimeType': 'application/json', 'buffer': json.dumps(dup).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        self.assertIn('重複', p._dialogs[-1])
+
+    def test_R12_restore_failure_downloads_rescue_and_stays_paused(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        names = []
+        p.on('download', lambda d: names.append(d.suggested_filename))
+        p.evaluate("""() => { const orig = Storage.prototype.setItem; let recWrites = 0;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'seatSyncQueue' && String(v).indexOf('clearSlot') >= 0) throw new Error('QuotaExceeded');
+              if (k === 'seatCheckRecords' && ++recWrites >= 2) throw new Error('QuotaExceeded');
+              return orig.call(this, k, v); }; }""")
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(500)
+        self.assertTrue(any('救援檔' in n for n in names), names)
+        self.assertIn('還原失敗', p.inner_text('#seat-sync-status'))
+        # 重新整理：仍暫停，不拉取合併、不補送
+        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); p.wait_for_timeout(800)
+        self.assertIn('還原失敗', p.inner_text('#seat-sync-status'))
+        calls = p.evaluate('window.__calls')
+        self.assertNotIn('setSeatCount', calls)
+        self.assertNotIn('clearSeatSlot', calls)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2})
+        # 處理：用試算表重建
+        p.click('#seat-sync-status [data-sync-action="resolve"]')
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2)
+        self.assertIn('已同步', p.inner_text('#seat-sync-status'))
 
 
 if __name__ == '__main__':
