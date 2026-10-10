@@ -904,6 +904,12 @@
             <div id="seat-date-tabs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
         </div>
 
+        <!-- 節次（每節課分開記錄） -->
+        <div id="seat-period-wrap" class="mb-5 -mt-2">
+            <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
+            <div id="seat-period-status" class="mt-2 text-sm text-slate-500"></div>
+        </div>
+
         <div class="flex flex-wrap items-center gap-2 mb-5">
             <span class="text-slate-500 text-sm font-medium mr-1">點學生卡片：</span>
             <div id="seat-modes" class="flex flex-wrap gap-2"></div>
@@ -918,7 +924,7 @@
             <div class="flex-1 min-w-0">
                 <div class="text-center mb-4">
                     <div class="inline-block bg-slate-700 text-white text-sm tracking-[0.4em] px-16 py-2 rounded-lg">黑板（講台）</div>
-                    <div id="seat-chart-hint" class="hidden mt-2 text-sm text-sky-600 bg-sky-50 border border-sky-100 rounded-lg py-1.5 px-3 inline-block">📊 目前卡片顯示【全部累計】次數；點選登記仍會記到所選日期</div>
+                    <div id="seat-chart-hint" class="hidden mt-2 text-sm text-sky-600 bg-sky-50 border border-sky-100 rounded-lg py-1.5 px-3 inline-block"></div>
                 </div>
                 <div class="overflow-x-auto pb-2">
                     <div id="seat-chart" class="flex flex-col items-center gap-3"></div>
@@ -929,6 +935,7 @@
             <aside class="w-full lg:w-72 lg:flex-shrink-0">
                 <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
                     <div class="flex gap-1 mb-3">
+                        <button data-srange="period" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">本節</button>
                         <button data-srange="today" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">當日</button>
                         <button data-srange="week" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">當週累計</button>
                         <button data-srange="all" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">全部累計</button>
@@ -961,7 +968,8 @@
                 ⬆️ 匯入座位資料
                 <input type="file" id="seat-import-input" accept="application/json,.json" class="hidden">
             </label>
-            <button id="seat-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除所選日期</button>
+            <button id="seat-clear-btn" class="ml-auto px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除本節</button>
+            <button id="seat-clear-day-btn" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200 transition-all">清除全天</button>
         </div>
 
         <!-- 座位表編輯 -->
@@ -1024,7 +1032,7 @@
         <div class="text-slate-500 text-sm mb-2">點項目增加 1 次；按右側「減 1」可修正誤按：</div>
         <div id="seat-modal-list" class="flex flex-col gap-2"></div>
         <div class="flex gap-3 justify-between items-center mt-5">
-            <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人當日紀錄</button>
+            <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人本節紀錄</button>
             <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">完成</button>
         </div>
     </div>
@@ -1038,11 +1046,11 @@
         <div class="flex flex-col gap-3">
             <button id="seat-import-merge" class="text-left px-4 py-3 rounded-xl border-2 border-sky-200 bg-sky-50 hover:border-sky-400 transition-all">
                 <div class="font-bold text-sky-700">合併（建議）</div>
-                <div class="text-slate-500 text-sm">保留現有紀錄，把備份檔裡多出來的補進來。同一天同一項取次數較多的那筆，不會重複累加。</div>
+                <div class="text-slate-500 text-sm">保留現有紀錄（含試算表上其他電腦登記的），把備份檔裡多出來的補進來。同一節同一項取次數較多的那筆，不會重複累加。</div>
             </button>
             <button id="seat-import-replace" class="text-left px-4 py-3 rounded-xl border-2 border-red-200 bg-red-50 hover:border-red-400 transition-all">
                 <div class="font-bold text-red-600">覆蓋</div>
-                <div class="text-slate-500 text-sm">丟掉現有紀錄，完全以備份檔為準。執行前會自動先下載一份現況備份。</div>
+                <div class="text-slate-500 text-sm">丟掉現有紀錄，完全以備份檔為準（連試算表一起覆蓋）。執行前會先下載本機與試算表兩份備份。</div>
             </button>
         </div>
         <div class="flex justify-end mt-5">
@@ -1064,18 +1072,31 @@
             <button data-range="7" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">近 7 天</button>
             <button data-range="today" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">今日</button>
             <button data-range="weekly" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">每週統計</button>
+            <button data-range="custom" class="seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all">自訂日期</button>
+        </div>
+        <div id="seat-stats-custom" class="hidden flex flex-wrap items-center gap-2 -mt-2 mb-4 text-sm text-slate-500">
+            從 <input type="date" id="seat-stats-from" class="px-2 py-1 rounded-lg bg-sky-50 text-slate-700 border border-sky-200">
+            到 <input type="date" id="seat-stats-to" class="px-2 py-1 rounded-lg bg-sky-50 text-slate-700 border border-sky-200">
+        </div>
+        <div id="seat-period-filter" class="flex flex-wrap items-center gap-2 -mt-2 mb-4 text-sm">
+            <span class="text-slate-500 font-medium">節次：</span>
+            <button data-pfilter="all" class="seat-pf-btn px-3 py-1 rounded-lg font-semibold transition-all">全部節次</button>
+            <button data-pfilter="current" class="seat-pf-btn px-3 py-1 rounded-lg font-semibold transition-all">本節</button>
+            <button data-pfilter="custom" class="seat-pf-btn px-3 py-1 rounded-lg font-semibold transition-all">自訂</button>
+            <span id="seat-pf-chips" class="flex flex-wrap gap-1"></span>
         </div>
         <div class="overflow-x-auto border border-sky-100 rounded-xl">
             <table id="seat-stats-table" class="w-full text-sm"></table>
         </div>
         <div class="flex flex-wrap items-center gap-3 mt-5">
-            <button id="seat-csv-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">⬇️ 匯出 CSV（Excel）</button>
+            <button id="seat-csv-btn" class="px-4 py-2 bg-sky-600 text-white rounded-lg text-sm font-bold hover:bg-sky-700 transition-all">⬇️ 匯出統計 CSV</button>
+            <button id="seat-csv-detail-btn" class="px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">⬇️ 逐節明細 CSV</button>
             <button id="seat-purge-toggle" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all">🗑 清除紀錄</button>
             <button id="seat-stats-close" class="ml-auto px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-all">關閉</button>
         </div>
 
         <div id="seat-purge-box" class="hidden mt-4 pt-4 border-t border-red-100">
-            <p class="text-slate-500 text-sm mb-3">清除後無法復原（連同試算表上的紀錄一起刪）。表格每一列右邊的 ✕ 可單獨清掉那位學生在目前期間的紀錄。</p>
+            <p class="text-slate-500 text-sm mb-3">清除後無法復原（連同試算表上的紀錄一起刪），<b>包含全部節次</b>，不受上面的節次篩選影響。表格每一列右邊的 ✕ 可單獨清掉那位學生在目前日期範圍的紀錄。</p>
             <div class="flex flex-wrap items-center gap-2">
                 <input type="date" id="seat-purge-date"
                     class="px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
@@ -4337,7 +4358,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.11（2026-10-10）';
+    window.CTU_VERSION = 'v1.12（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -4697,7 +4718,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.ctuLoadSr) window.ctuLoadSr();
         } else if (tab === 'seat') {
             stopCleaningCountdown(); stopExamClock();
-            updateSeatDate(); renderSeatChart(); seatSyncPull();
+            seatResetAuto(); renderSeatDateTabs(); updateSeatDate(); renderSeatChart(); seatSyncPull();
         } else if (tab === 'weekly') {
             stopCleaningCountdown(); stopExamClock();
             renderWeeklyTable(); weeklySyncPull();
@@ -5394,8 +5415,24 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatFlushing = false;      // 同時只送一筆，避免重送
     var seatRetryTimer = null;
 
+    var seatSyncPaused = false;    // 遇到永久錯誤（資料格式、頁面版本）就暫停，等老師處理，不自動重試
+    var seatInFlightId = null;     // 正在送出中的那一筆工作（不可被移除或取代）
+    var seatDestructiveSeq = 0;    // 每排入一次清除／匯入就 +1；之前發出的拉取回應一律丟掉
+    var seatNeedPull = false;      // 清除／匯入送完後，重新拉一次試算表核對
+
+    function seatNewId() { return 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+    /** 同步佇列。工作類型：count（某格絕對次數）、clearSlot、clearDay、clearAll、import。舊版工作沒有 type／id，載入時補上。 */
     function seatQueue() {
-        try { return ctuParse('seatSyncQueue', '[]'); } catch (e) { return []; }
+        var q;
+        try { q = ctuParse('seatSyncQueue', '[]'); } catch (e) { q = []; }
+        var changed = false;
+        q.forEach(function (j) {
+            if (!j.type) { j.type = 'count'; changed = true; }
+            if (!j.id) { j.id = seatNewId(); changed = true; }
+        });
+        if (changed) { try { saveSeatQueue(q); } catch (e) {} }
+        return q;
     }
     function saveSeatQueue(q) { ctuStore.setItem('seatSyncQueue', JSON.stringify(q)); }
 
@@ -5403,49 +5440,73 @@ document.addEventListener('DOMContentLoaded', () => {
         var el = document.getElementById('seat-sync-status');
         if (!el) return;
         if (!SEAT_SYNC) {
-            el.innerHTML = '<span class="text-slate-400">💾 資料存在這台電腦</span>';
+            el.innerHTML = '<span class="text-slate-400">○ 本機模式（未連試算表）</span>';
             return;
         }
         var pending = seatQueue().length;
-        if (seatSyncBusy > 0) {
-            el.innerHTML = '<span class="text-sky-500">\u21bb \u540c\u6b65\u4e2d\u2026</span>';
+        if (seatSyncPaused) {
+            el.innerHTML = '<button type="button" data-sync-action="resolve" class="text-red-600 font-semibold underline">⛔ 同步暫停：' +
+                ctuEsc(seatSyncError) + '（點這裡處理）</button>';
+        } else if (seatSyncBusy > 0) {
+            el.innerHTML = '<span class="text-sky-500">↻ 同步中…</span>';
         } else if (pending) {
-            el.innerHTML = '<span class="text-amber-600 font-semibold">\u26a0 \u5f85\u540c\u6b65 ' + pending + ' \u7b46' +
-                (seatSyncError ? '\uff08' + seatSyncError + '\uff09' : '') + '</span>';
+            el.innerHTML = '<span class="text-amber-600 font-semibold">⚠ 待同步 ' + pending + ' 筆' +
+                (seatSyncError ? '（' + ctuEsc(seatSyncError) + '）' : '') + '</span>';
         } else {
-            el.innerHTML = '<span class="text-green-600">\u2601 \u5df2\u540c\u6b65\u81f3\u8a66\u7b97\u8868</span>';
+            el.innerHTML = '<span class="text-green-600">☁ 已同步至試算表</span>';
         }
     }
 
-    /** 開啟座位分頁時，把試算表的資料拉下來當準（含共用設定）*/
+    /** 佇列裡還沒送出的清除／匯入，涵蓋的範圍內不採用試算表拉回來的資料（避免剛清掉的又被併回來） */
+    function seatMaskPending(sheet, q) {
+        var out = JSON.parse(JSON.stringify(sheet || {}));
+        q.forEach(function (op) {
+            if (op.type === 'clearAll' || op.type === 'import') { out = {}; return; }
+            Object.keys(out).forEach(function (slot) {
+                var hit = op.type === 'clearSlot' ? slot === op.slot
+                        : op.type === 'clearDay' ? seatSlotDate(slot) === op.date : false;
+                if (!hit) return;
+                if (op.seat) { delete out[slot][op.seat]; if (!Object.keys(out[slot]).length) delete out[slot]; }
+                else delete out[slot];
+            });
+        });
+        return out;
+    }
+
+    /** 開啟座位分頁時，把試算表的資料拉下來合併（含共用設定）*/
     function seatSyncPull() {
         if (!SEAT_SYNC) { renderSyncStatus(); return; }
+        var seq = seatDestructiveSeq;
         seatSyncBusy++;
         renderSyncStatus();
         google.script.run
             .withSuccessHandler(function (bundle) {
                 seatSyncBusy--;
                 seatSyncError = '';
+                // 拉取期間排入過清除或匯入：這份回應可能含已清掉的資料，整份丟掉，等清除送完再拉
+                if (seq !== seatDestructiveSeq) { seatNeedPull = true; seatFlushQueue(); return; }
                 if (bundle && bundle.records) {
                     // 試算表為主，但本機比試算表多的部分不丟掉，改成補傳上去
+                    var pend = seatQueue();
                     var local = getSeatRecords();
-                    var sheet = bundle.records;
+                    var sheet = seatMaskPending(bundle.records, pend);
                     var merged = mergeSeatRecords(sheet, local);
                     ctuStore.setItem('seatCheckRecords', JSON.stringify(merged));
-                    var pend = seatQueue();
-                    Object.keys(local).forEach(function (date) {
-                        Object.keys(local[date]).forEach(function (seat) {
-                            Object.keys(local[date][seat]).forEach(function (key) {
-                                var mine = local[date][seat][key];
-                                var theirs = (sheet[date] && sheet[date][seat] && sheet[date][seat][key]) || 0;
-                                var queued = pend.some(function (j) {
-                                    return j.date === date && j.seat === String(seat) && j.key === key;
+                    var wholeReplace = pend.some(function (j) { return j.type === 'clearAll' || j.type === 'import'; });
+                    if (!wholeReplace) {
+                        Object.keys(local).forEach(function (slot) {
+                            Object.keys(local[slot]).forEach(function (seat) {
+                                Object.keys(local[slot][seat]).forEach(function (key) {
+                                    var mine = local[slot][seat][key];
+                                    var theirs = (sheet[slot] && sheet[slot][seat] && sheet[slot][seat][key]) || 0;
+                                    var queued = pend.some(function (j) {
+                                        return j.type === 'count' && j.date === slot && j.seat === String(seat) && j.key === key;
+                                    });
+                                    if (mine > theirs && !queued) seatSyncPush(slot, seat, key);
                                 });
-                                if (mine > theirs && !queued) seatSyncPush(date, seat, key);
                             });
                         });
-                    });
-
+                    }
                 }
                 if (bundle && bundle.settings) {
                     if (bundle.settings.items && bundle.settings.items.length) {
@@ -5471,37 +5532,66 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .withFailureHandler(function (err) {
                 seatSyncBusy--;
-                seatSyncError = (err && err.message) ? err.message : '\u9023\u7dda\u5931\u6557';
+                seatSyncError = (err && err.message) ? err.message : '連線失敗';
                 renderSyncStatus();
             })
             .getSeatBundle();
     }
 
-    /** 取某一天某人某項的本機次數 */
-    function seatCountAt(date, seat, key) {
+    /** 取某時段某人某項的本機次數 */
+    function seatCountAt(slot, seat, key) {
         var all = getSeatRecords();
-        return (all[date] && all[date][seat] && all[date][seat][key]) || 0;
+        return (all[slot] && all[slot][seat] && all[slot][seat][key]) || 0;
     }
 
     /**
      * 把「這一格現在是幾次」排進佇列（絕對值，不是 +1）。
-     * 同一格只留最新一筆，重送也不會多算。
+     * 同一格只留最新一筆（正在送出中的那筆除外），重送也不會多算。
      */
-    function seatSyncPush(date, seat, key) {
+    function seatSyncPush(slot, seat, key) {
         if (!SEAT_SYNC) return;
         var item = findSeatItem(key);
         var job = {
-            date: date, seat: String(seat),
-            name: seatRoster[seat] ? seatRoster[seat][0] : '',
+            id: seatNewId(), type: 'count',
+            date: slot, seat: String(seat),
+            name: seatRoster[seat] ? seatRoster[seat][2] : '',
             key: key, label: item ? item.label : key,
-            count: seatCountAt(date, String(seat), key)
+            count: seatCountAt(slot, String(seat), key)
         };
         var q = seatQueue().filter(function (j) {
-            return !(j.date === job.date && j.seat === job.seat && j.key === job.key);
+            return !(j.type === 'count' && j.id !== seatInFlightId && j.date === job.date && j.seat === job.seat && j.key === job.key);
         });
         q.push(job);
         saveSeatQueue(q);
         seatFlushQueue();
+    }
+
+    /** 這個待送的 count 工作是否落在清除／匯入的範圍內（範圍要和實際清除條件完全一致） */
+    function seatJobCovered(countJob, op) {
+        if (op.type === 'clearAll' || op.type === 'import') return true;
+        var seatOk = !op.seat || String(countJob.seat) === String(op.seat);
+        if (op.type === 'clearSlot') return countJob.date === op.slot && seatOk;
+        if (op.type === 'clearDay') return seatSlotDate(countJob.date) === op.date && seatOk;
+        return false;
+    }
+
+    /**
+     * 排入清除或取代匯入：先移除範圍內還沒送出的 count 工作（正在送出中的不動），
+     * 確認佇列存進去才回傳 true，呼叫端拿到 true 才改本機紀錄。
+     */
+    function seatEnqueueOp(op) {
+        if (!SEAT_SYNC) return true;
+        op.id = seatNewId();
+        var q = seatQueue().filter(function (j) {
+            if (j.type !== 'count' || j.id === seatInFlightId) return true;
+            return !seatJobCovered(j, op);
+        });
+        q.push(op);
+        try { saveSeatQueue(q); }
+        catch (e) { alert('瀏覽器儲存空間不足，這次操作沒有執行。請先按「匯出秩序資料」備份。'); return false; }
+        seatDestructiveSeq++;
+        seatFlushQueue();
+        return true;
     }
 
     function seatScheduleRetry() {
@@ -5514,50 +5604,69 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function seatFlushQueue() {
         if (!SEAT_SYNC) { renderSyncStatus(); return; }
-        if (seatFlushing) return;                       // 有一筆在路上就先等它
+        if (seatFlushing || seatSyncPaused) { renderSyncStatus(); return; }   // 有一筆在路上就先等它
         var q = seatQueue();
-        if (!q.length) { renderSyncStatus(); return; }
+        if (!q.length) {
+            renderSyncStatus();
+            if (seatNeedPull) { seatNeedPull = false; seatSyncPull(); }
+            return;
+        }
 
         var job = q[0];
         seatFlushing = true;
+        seatInFlightId = job.id;
         seatSyncBusy++;
         renderSyncStatus();
-        google.script.run
+        var run = google.script.run
             .withSuccessHandler(function () {
                 seatFlushing = false;
+                seatInFlightId = null;
                 seatSyncBusy--;
                 seatSyncError = '';
-                var rest = seatQueue();
-                // 只有當佇列頭還是剛才送出的那一筆時才移除（期間可能被新的取代）
-                if (rest.length && rest[0].date === job.date && rest[0].seat === job.seat &&
-                    rest[0].key === job.key && rest[0].count === job.count) {
-                    rest.shift();
-                    saveSeatQueue(rest);
-                }
-                if (seatQueue().length) seatFlushQueue(); else renderSyncStatus();
+                if (job.type !== 'count') seatNeedPull = true;
+                saveSeatQueue(seatQueue().filter(function (j) { return j.id !== job.id; }));   // 依 id 移除
+                seatFlushQueue();
             })
             .withFailureHandler(function (err) {
                 seatFlushing = false;
+                seatInFlightId = null;
                 seatSyncBusy--;
-                seatSyncError = (err && err.message) ? err.message : '\u5beb\u5165\u5931\u6557';
+                var msg = (err && err.message) ? String(err.message) : '寫入失敗';
+                var at = msg.indexOf('永久：');
+                if (at >= 0) {
+                    // 資料或版本問題，重試也不會成功：暫停並請老師處理
+                    seatSyncPaused = true;
+                    seatSyncError = msg.slice(at + 3);
+                    renderSyncStatus();
+                    alert('有一筆資料寫不進試算表，同步已暫停：\n' + seatSyncError + '\n\n請點畫面上的「同步暫停」處理。');
+                    return;
+                }
+                seatSyncError = msg;
                 renderSyncStatus();
                 seatScheduleRetry();
-            })
-            .setSeatCount(job.date, job.seat, job.name, job.key, job.label, job.count);
+            });
+        if (job.type === 'count') run.setSeatCount(job.date, job.seat, job.name, job.key, job.label, job.count);
+        else if (job.type === 'clearSlot') run.clearSeatSlot(job.id, job.slot, job.seat || '');
+        else if (job.type === 'clearDay') run.clearSeatDay(job.id, job.date, job.seat || '');
+        else if (job.type === 'clearAll') run.clearSeatAllV2(job.id);
+        else if (job.type === 'import') run.importSeatRecordsV2(job.id, job.rows || []);
+        else {
+            // 不認得的工作類型（來自更新的版本）：不送，暫停讓老師決定
+            seatFlushing = false; seatInFlightId = null; seatSyncBusy--;
+            seatSyncPaused = true; seatSyncError = '不認得的同步工作「' + job.type + '」';
+            renderSyncStatus();
+        }
     }
 
-    function seatSyncClear(date, seat) {
-        if (!SEAT_SYNC) return;
-        seatSyncBusy++;
-        renderSyncStatus();
-        google.script.run
-            .withSuccessHandler(function () { seatSyncBusy--; seatSyncError = ''; renderSyncStatus(); })
-            .withFailureHandler(function (err) {
-                seatSyncBusy--;
-                seatSyncError = (err && err.message) ? err.message : '\u6e05\u9664\u5931\u6557';
-                renderSyncStatus();
-            })
-            .clearSeatRecords(date, seat || '');
+    /** 同步暫停時：讓老師決定略過卡住的那一筆，或保留 */
+    function seatResolvePaused() {
+        var q = seatQueue();
+        if (!q.length) { seatSyncPaused = false; seatSyncError = ''; renderSyncStatus(); return; }
+        if (!confirm('這一筆寫不進試算表：\n' + seatSyncError + '\n\n按「確定」略過這一筆、繼續同步其他資料；\n按「取消」先保留（重新整理頁面後會再試一次）。')) return;
+        saveSeatQueue(q.slice(1));
+        seatSyncPaused = false;
+        seatSyncError = '';
+        seatFlushQueue();
     }
 
     function seatSyncSettings() {
@@ -6182,8 +6291,77 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatLayout = parseSeatLayout(ctuStore.getItem('seatLayout') || defaultSeatLayoutText);
     var seatUndoStack = [];   // 本次開啟期間的登記紀錄，供「復原上一筆」使用
     var seatStatsRange = 'all';
-    var seatSummaryRange = 'today';   // 右側統計：today / week / all
+    var seatSummaryRange = 'period';  // 右側統計：period（本節）／ today ／ week ／ all
     var seatActiveDate = getTodayKey();
+
+    // ── 節次：每節課分開記錄（設計見 docs/2026-10-10-seat-period-design.md）──
+    // 【回復開關】false＝畫面不分節、只讀寫「未分節」（後端仍保留 H 欄，分節資料不會被改動）
+    var SEAT_PERIOD_UI = true;
+    // 【可自行修改】碧華作息。代碼固定，與後端 SEAT_PERIOD_TEXT 相同；每節從 start 算到下一節的 start
+    var SEAT_PERIODS = [
+        { code: 'm', label: '早自習', start: '07:40', end: '08:40' },
+        { code: '1', label: '第1節', start: '08:40', end: '09:20' },
+        { code: '2', label: '第2節', start: '09:30', end: '10:10' },
+        { code: '3', label: '第3節', start: '10:30', end: '11:10' },
+        { code: '4', label: '第4節', start: '11:20', end: '12:00' },
+        { code: 'n', label: '午休', start: '12:00', end: '13:30' },
+        { code: '5', label: '第5節', start: '13:30', end: '14:10' },
+        { code: '6', label: '第6節', start: '14:20', end: '15:00' },
+        { code: '7', label: '第7節', start: '15:20', end: '16:00' }
+    ];
+    var seatActivePeriod = SEAT_PERIOD_UI ? seatPeriodAt(new Date()) : '';   // 節次代碼；''＝未分節
+    var seatViewAll = false;               // 全天檢視：只看不寫
+    var seatAutoPeriod = SEAT_PERIOD_UI;   // 自動跟著時間換節
+    var seatModalSlot = null;              // 登記彈窗開著時鎖定的時段
+
+    /** 時段鍵：'2026-10-10'＝未分節、'2026-10-10#3'＝第 3 節、'2026-10-10#?原文'＝試算表上對照表外的節次 */
+    function seatSlotKey(date, period) { return period ? date + '#' + period : date; }
+    function seatParseSlot(key) {
+        var s = String(key), i = s.indexOf('#');
+        return i < 0 ? { date: s, period: '' } : { date: s.slice(0, i), period: s.slice(i + 1) };
+    }
+    function seatSlotDate(key) { return seatParseSlot(key).date; }
+    function seatPeriodInfo(code) {
+        for (var i = 0; i < SEAT_PERIODS.length; i++) if (SEAT_PERIODS[i].code === code) return SEAT_PERIODS[i];
+        return null;
+    }
+    function seatPeriodLabel(code) {
+        if (!code) return '未分節';
+        if (code.charAt(0) === '?') return code.slice(1);
+        var p = seatPeriodInfo(code);
+        return p ? p.label : code;
+    }
+    function seatSlotLabel(key) {
+        var p = seatParseSlot(key);
+        return seatDateLabel(p.date) + (SEAT_PERIOD_UI ? seatPeriodLabel(p.period) : '');
+    }
+    /** 依時間判斷目前節次：每節從開始時間算到下一節開始；第一節以前算早自習 */
+    function seatPeriodAt(d) {
+        var hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        var cur = SEAT_PERIODS[0].code;
+        SEAT_PERIODS.forEach(function (p) { if (hm >= p.start) cur = p.code; });
+        return cur;
+    }
+    /** 目前的寫入目標；全天檢視時沒有寫入目標（null） */
+    function seatActiveSlot() {
+        if (seatViewAll) return null;
+        return seatSlotKey(seatActiveDate, SEAT_PERIOD_UI ? seatActivePeriod : '');
+    }
+    function seatAddInto(out, rec) {
+        Object.keys(rec || {}).forEach(function (seat) {
+            if (!out[seat]) out[seat] = {};
+            Object.keys(rec[seat]).forEach(function (key) {
+                out[seat][key] = (out[seat][key] || 0) + rec[seat][key];
+            });
+        });
+        return out;
+    }
+    /** 某一天所有時段（含未分節）的加總 */
+    function seatDayAggregate(date) {
+        var all = getSeatRecords(), out = {};
+        Object.keys(all).forEach(function (k) { if (seatSlotDate(k) === date) seatAddInto(out, all[k]); });
+        return out;
+    }
 
     function loadSeatItems() {
         var raw = ctuStore.getItem('seatCheckItems');
@@ -6247,10 +6425,15 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(all).forEach(function (d) { out[d] = normalizeSeatDay(all[d]); });
         return out;
     }
-    function getSelectedSeatRecord() { return getSeatRecords()[seatActiveDate] || {}; }
-    function saveSelectedSeatRecord(today) {
+    /** 畫面上目前時段的紀錄；全天檢視時是當日加總（唯讀） */
+    function getSelectedSeatRecord() {
+        var slot = seatActiveSlot();
+        return slot === null ? seatDayAggregate(seatActiveDate) : getSlotRecord(slot);
+    }
+    function getSlotRecord(slot) { return getSeatRecords()[slot] || {}; }
+    function saveSlotRecord(slot, rec) {
         var all = getSeatRecords();
-        all[seatActiveDate] = today;
+        if (rec && Object.keys(rec).length) all[slot] = rec; else delete all[slot];
         ctuStore.setItem('seatCheckRecords', JSON.stringify(all));
     }
     function seatCountOf(rec, num, key) { return (rec[num] && rec[num][key]) || 0; }
@@ -6260,33 +6443,55 @@ document.addEventListener('DOMContentLoaded', () => {
         return t;
     }
 
-    function addSeatCount(num, key, delta, silent) {
-        var rec = getSelectedSeatRecord();
+    /** slot 省略＝目前時段；彈窗與復原會傳入當初鎖定的時段，換節也不會記錯 */
+    function addSeatCount(num, key, delta, silent, slot) {
+        if (slot === undefined) slot = seatActiveSlot();
+        if (slot === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
+        var rec = getSlotRecord(slot);
         if (!rec[num]) rec[num] = {};
         var next = (rec[num][key] || 0) + delta;
         if (next <= 0) { delete rec[num][key]; } else { rec[num][key] = next; }
         if (!Object.keys(rec[num]).length) delete rec[num];
-        saveSelectedSeatRecord(rec);
-        seatSyncPush(seatActiveDate, num, key);
-        if (!silent && delta > 0) seatUndoStack.push({ num: num, key: key });
+        saveSlotRecord(slot, rec);
+        seatSyncPush(slot, num, key);
+        if (!silent && delta > 0) seatUndoStack.push({ slot: slot, num: num, key: key });
         if (seatModalNum !== null) renderSeatModalList();
         renderSeatChart();
     }
 
     function initSeatPanel() {
         document.getElementById('seat-clear-btn').addEventListener('click', function () {
-            if (!confirm('確定要清除' + seatDateLabel(seatActiveDate) + '所有秩序登記紀錄？')) return;
-            saveSelectedSeatRecord({});
-            seatUndoStack = [];
-            seatSyncClear(seatActiveDate);
-            renderSeatChart();
+            var slot = seatActiveSlot();
+            if (slot === null) { alert('目前是「全天」檢視；要清除一整天請按「清除全天」'); return; }
+            if (!confirm('確定要清除' + seatSlotLabel(slot) + '的所有秩序登記紀錄？')) return;
+            seatClearSlot(slot);
         });
+        document.getElementById('seat-clear-day-btn').addEventListener('click', function () {
+            if (!confirm('確定要清除' + seatDateLabel(seatActiveDate) + '一整天（包含全部節次）的秩序登記紀錄？')) return;
+            seatClearDays([seatActiveDate]);
+        });
+        if (!SEAT_PERIOD_UI) {
+            document.getElementById('seat-clear-btn').textContent = '清除所選日期（未分節）';
+        }
 
         document.getElementById('seat-undo-btn').addEventListener('click', function () {
             var last = seatUndoStack.pop();
             if (!last) { alert('沒有可以復原的登記'); return; }
-            addSeatCount(last.num, last.key, -1, true);
+            addSeatCount(last.num, last.key, -1, true, last.slot);
+            if (last.slot !== seatActiveSlot()) alert('已復原「' + seatSlotLabel(last.slot) + '」的一筆');
         });
+
+        document.getElementById('seat-sync-status').addEventListener('click', function (e) {
+            if (e.target.closest('[data-sync-action="resolve"]')) seatResolvePaused();
+        });
+        document.getElementById('seat-period-status').addEventListener('click', function (e) {
+            if (!e.target.closest('[data-period-action="auto"]')) return;
+            seatResetAuto();
+            renderSeatDateTabs();
+            updateSeatDate();
+            renderSeatChart();
+        });
+        setInterval(seatAutoTick, 30000);
 
         document.getElementById('seat-copy-btn').addEventListener('click', function () {
             navigator.clipboard.writeText(buildSeatReport(true)).then(function () {
@@ -6319,12 +6524,9 @@ document.addEventListener('DOMContentLoaded', () => {
         var seatModal = document.getElementById('seat-modal');
         document.getElementById('seat-modal-done').addEventListener('click', closeSeatModal);
         document.getElementById('seat-modal-pass').addEventListener('click', function () {
-            var rec = getSelectedSeatRecord();
-            delete rec[seatModalNum];
-            saveSelectedSeatRecord(rec);
-            seatSyncClear(seatActiveDate, seatModalNum);
+            if (seatModalSlot === null) return;
+            seatClearSlot(seatModalSlot, seatModalNum);
             renderSeatModalList();
-            renderSeatChart();
         });
         seatModal.addEventListener('click', function (e) { if (e.target === seatModal) closeSeatModal(); });
 
@@ -6350,10 +6552,31 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.seat-range-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 seatStatsRange = btn.dataset.range;
+                if (seatStatsRange === 'custom') {
+                    if (!seatStatsTo) seatStatsTo = getTodayKey();
+                    if (!seatStatsFrom) seatStatsFrom = seatDateAdd(seatStatsTo, -6);
+                }
+                renderSeatStats();
+            });
+        });
+        ['seat-stats-from', 'seat-stats-to'].forEach(function (id) {
+            document.getElementById(id).addEventListener('change', function () {
+                seatStatsFrom = document.getElementById('seat-stats-from').value;
+                seatStatsTo = document.getElementById('seat-stats-to').value;
+                renderSeatStats();
+            });
+        });
+        document.querySelectorAll('.seat-pf-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                seatPeriodFilter = btn.dataset.pfilter;
+                if (seatPeriodFilter === 'custom' && !Object.keys(seatPeriodSet).length) {
+                    SEAT_PERIODS.forEach(function (p) { seatPeriodSet[p.code] = true; });
+                }
                 renderSeatStats();
             });
         });
         document.getElementById('seat-csv-btn').addEventListener('click', exportSeatCsv);
+        document.getElementById('seat-csv-detail-btn').addEventListener('click', exportSeatDetailCsv);
 
         document.getElementById('seat-purge-toggle').addEventListener('click', function () {
             var box = document.getElementById('seat-purge-box');
@@ -6363,13 +6586,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('seat-purge-day').addEventListener('click', function () {
             var d = document.getElementById('seat-purge-date').value;
             if (!d) { alert('請先選日期'); return; }
-            if (!confirm('確定清除 ' + d + ' 全班的登記紀錄？此動作無法復原。')) return;
+            if (!confirm('確定清除 ' + d + ' 全班的登記紀錄（包含全部節次）？此動作無法復原。')) return;
             purgeSeatRecords([d]);
         });
         document.getElementById('seat-purge-range').addEventListener('click', function () {
             var dates = seatDatesInRange();
             if (!dates.length) { alert('這段期間沒有紀錄'); return; }
-            if (!confirm('確定清除' + seatRangeLabel() + '共 ' + dates.length + ' 天的登記紀錄？此動作無法復原。')) return;
+            if (!confirm('確定清除' + seatRangeLabel() + '共 ' + dates.length + ' 天的登記紀錄（包含全部節次，不受節次篩選影響）？此動作無法復原。')) return;
             purgeSeatRecords(dates);
         });
         document.getElementById('seat-purge-all').addEventListener('click', function () {
@@ -6414,7 +6637,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         var savedSummaryRange = ctuStore.getItem('seatSummaryRange');
-        seatSummaryRange = ['today', 'week', 'all'].indexOf(savedSummaryRange) >= 0 ? savedSummaryRange : 'today';
+        seatSummaryRange = (SEAT_PERIOD_UI ? ['period', 'today', 'week', 'all'] : ['today', 'week', 'all']).indexOf(savedSummaryRange) >= 0
+            ? savedSummaryRange : (SEAT_PERIOD_UI ? 'period' : 'today');
         renderSeatModeButtons();
         renderSeatDateTabs();
         updateSeatDate();
@@ -6475,9 +6699,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', function (key) {
                 return function () {
                     seatActiveDate = key;
-                    seatSummaryRange = 'today';
+                    if (key === getTodayKey()) seatResetAuto();          // 點回今天＝回到自動
+                    else { seatAutoPeriod = false; seatViewAll = false; } // 看別天＝手動，停在目前選的節次
+                    seatSummaryRange = SEAT_PERIOD_UI ? 'period' : 'today';
                     ctuStore.setItem('seatSummaryRange', seatSummaryRange);
-                    seatUndoStack = [];
                     renderSeatDateTabs();
                     updateSeatDate();
                     renderSeatChart();
@@ -6489,16 +6714,134 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateSeatDate() {
         var el = document.getElementById('seat-check-date');
-        if (el) el.textContent = '已選：' + seatDateLabel(seatActiveDate);
+        var slot = seatActiveSlot();
+        if (el) el.textContent = '已選：' + (slot === null ? seatDateLabel(seatActiveDate) + '全天' : seatSlotLabel(slot));
+    }
+
+    // ── 節次列 ──
+    function renderSeatPeriodBar() {
+        var wrap = document.getElementById('seat-period-wrap');
+        if (!wrap) return;
+        if (!SEAT_PERIOD_UI) { wrap.classList.add('hidden'); return; }
+        var bar = document.getElementById('seat-period-bar');
+        var all = getSeatRecords();
+        var counts = {};
+        Object.keys(all).forEach(function (k) {
+            var p = seatParseSlot(k);
+            if (p.date !== seatActiveDate) return;
+            var t = 0;
+            Object.keys(all[k]).forEach(function (n) { t += seatTotalOf(all[k], n); });
+            counts[p.period] = (counts[p.period] || 0) + t;
+        });
+        var codes = SEAT_PERIODS.map(function (p) { return p.code; });
+        Object.keys(counts).forEach(function (c) { if (c && codes.indexOf(c) < 0) codes.push(c); });   // 試算表上對照表外的節次
+        if (counts[''] || (seatActivePeriod === '' && !seatViewAll)) codes.push('');                    // 未分節（舊紀錄）
+        bar.innerHTML = '';
+        function mk(label, n, on, extra, onClick) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'px-3 py-1.5 rounded-lg border-2 text-sm font-bold transition-all ' + (extra || '') + ' ' +
+                (on ? 'bg-sky-600 text-white border-sky-600 shadow' : 'bg-white text-slate-600 border-sky-100 hover:border-sky-300');
+            b.innerHTML = ctuEsc(label) + (n ? '<sup class="ml-0.5 text-[10px] ' + (on ? 'text-sky-100' : 'text-rose-500') + '">' + n + '</sup>' : '');
+            b.addEventListener('click', onClick);
+            bar.appendChild(b);
+            return b;
+        }
+        codes.forEach(function (code) {
+            var btn = mk(seatPeriodLabel(code), counts[code] || 0, !seatViewAll && code === seatActivePeriod,
+                code === '' ? 'border-dashed' : '', function () {
+                    seatAutoPeriod = false;
+                    seatViewAll = false;
+                    seatActivePeriod = code;
+                    updateSeatDate();
+                    renderSeatChart();
+                });
+            btn.setAttribute('data-period', code);
+        });
+        var t = 0;
+        Object.keys(counts).forEach(function (c) { t += counts[c]; });
+        mk('全天', t, seatViewAll, 'ml-auto', function () {
+            seatViewAll = true;
+            seatAutoPeriod = false;
+            updateSeatDate();
+            renderSeatChart();
+        }).setAttribute('data-period', 'all');
+
+        var st = document.getElementById('seat-period-status');
+        var info = seatPeriodInfo(seatActivePeriod);
+        var what = seatViewAll ? '全天檢視（只看不登記，要登記請選一節）'
+                 : seatPeriodLabel(seatActivePeriod) + (info ? '（' + info.start + '–' + info.end + '）' : '');
+        st.innerHTML = '<b class="text-slate-700">' + ctuEsc(what) + '</b>' +
+            (seatAutoPeriod ? '<span class="ml-1 text-sky-600">・自動跟著時間換節</span>'
+                            : '<span class="ml-1">・手動</span> <button type="button" data-period-action="auto" class="ml-1 text-sky-600 underline">回到自動</button>');
+    }
+    /** 回到自動：日期回今天、節次回現在（切到秩序分頁、按回到自動、日期點回今天時） */
+    function seatResetAuto() {
+        if (!SEAT_PERIOD_UI) return;
+        seatAutoPeriod = true;
+        seatViewAll = false;
+        seatActiveDate = getTodayKey();
+        seatActivePeriod = seatPeriodAt(new Date());
+    }
+    /** 每 30 秒：自動模式且沒開登記彈窗時，跟著時間換節（跨午夜也換到新的今天） */
+    function seatAutoTick() {
+        if (!SEAT_PERIOD_UI || !seatAutoPeriod || seatModalSlot !== null) return;
+        var today = getTodayKey(), cur = seatPeriodAt(new Date());
+        if (today === seatActiveDate && cur === seatActivePeriod) return;
+        var dateChanged = today !== seatActiveDate;
+        seatActiveDate = today;
+        seatActivePeriod = cur;
+        if (dateChanged) renderSeatDateTabs();
+        updateSeatDate();
+        renderSeatChart();
+    }
+
+    /** 清除某時段（可限定座號）：先排進同步佇列，確認存好才改本機 */
+    function seatClearSlot(slot, seat) {
+        if (!seatEnqueueOp({ type: 'clearSlot', slot: slot, seat: seat ? String(seat) : '' })) return;
+        var all = getSeatRecords();
+        if (all[slot]) {
+            if (seat) { delete all[slot][seat]; if (!Object.keys(all[slot]).length) delete all[slot]; }
+            else delete all[slot];
+        }
+        ctuStore.setItem('seatCheckRecords', JSON.stringify(all));
+        seatUndoStack = seatUndoStack.filter(function (u) { return !(u.slot === slot && (!seat || String(u.num) === String(seat))); });
+        renderSeatChart();
+    }
+    /** 清除某幾天（包含全部節次與未分節，可限定座號） */
+    function seatClearDays(dates, seat) {
+        for (var i = 0; i < dates.length; i++) {
+            if (!seatEnqueueOp({ type: 'clearDay', date: dates[i], seat: seat ? String(seat) : '' })) return;
+        }
+        var all = getSeatRecords();
+        Object.keys(all).forEach(function (slot) {
+            if (dates.indexOf(seatSlotDate(slot)) < 0) return;
+            if (seat) { delete all[slot][seat]; if (!Object.keys(all[slot]).length) delete all[slot]; }
+            else delete all[slot];
+        });
+        ctuStore.setItem('seatCheckRecords', JSON.stringify(all));
+        seatUndoStack = seatUndoStack.filter(function (u) {
+            return !(dates.indexOf(seatSlotDate(u.slot)) >= 0 && (!seat || String(u.num) === String(seat)));
+        });
+        renderSeatChart();
     }
 
     // ── 座位表 ──
     function renderSeatChart() {
         var chart = document.getElementById('seat-chart');
         if (!chart) return;
+        renderSeatPeriodBar();
         var today = seatSummaryData();
         var hint = document.getElementById('seat-chart-hint');
-        if (hint) hint.classList.toggle('hidden', seatSummaryRange !== 'all');
+        if (hint) {
+            var slotNow = seatActiveSlot();
+            var showHint = seatSummaryRange !== 'period' || slotNow === null;
+            hint.classList.toggle('hidden', !showHint);
+            if (showHint) {
+                hint.textContent = '📊 卡片顯示【' + seatSummaryTitle() + '】次數；' +
+                    (slotNow === null ? '全天檢視不能登記，請先選一節' : '點選登記會記到「' + seatSlotLabel(slotNow) + '」');
+            }
+        }
         chart.innerHTML = '';
 
         // 座位表存過之後新增的座號：不改老師的排法，另外放在最後的「待安排」列
@@ -6540,6 +6883,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var info = seatRoster[num];
         var total = seatTotalOf(today, num);
         var cell = document.createElement('button');
+        cell.setAttribute('data-seat', num);
         cell.className = 'seat-cell text-left rounded-xl border-2 px-2 py-2 transition-all ' +
             (total ? 'border-rose-300 bg-rose-50 shadow-sm' : 'border-sky-100 bg-white hover:border-sky-300 hover:bg-sky-50');
 
@@ -6561,6 +6905,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="flex flex-wrap items-center gap-1 mt-1.5">' + marks + '</div>';
 
         cell.addEventListener('click', function () {
+            if (seatActiveSlot() === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
             if (seatMode === null) openSeatModal(num);
             else addSeatCount(num, seatMode, 1);
         });
@@ -6585,7 +6930,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var all = getSeatRecords();
         var out = {};
         Object.keys(all).forEach(function (date) {
-            if (date < fromKey) return;
+            if (seatSlotDate(date) < fromKey) return;
             Object.keys(all[date]).forEach(function (seat) {
                 if (!out[seat]) out[seat] = {};
                 Object.keys(all[date][seat]).forEach(function (key) {
@@ -6601,7 +6946,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function seatSummaryData() {
         if (seatSummaryRange === 'all') return seatAggregateAll();
         if (seatSummaryRange === 'week') return seatAggregateCurrentWeek();
-        return getSelectedSeatRecord();
+        if (seatSummaryRange === 'today') return seatDayAggregate(seatActiveDate);
+        return getSelectedSeatRecord();   // 本節（全天檢視時是當日加總）
+    }
+    function seatSummaryTitle() {
+        if (seatSummaryRange === 'all') return '全部累計';
+        if (seatSummaryRange === 'week') return '當週累計';
+        if (seatSummaryRange === 'today') return '當日全部節次';
+        var slot = seatActiveSlot();
+        return slot === null ? '當日全部節次' : (SEAT_PERIOD_UI ? seatPeriodLabel(seatActivePeriod) : '當日');
     }
 
     // ── 右側統計名單 ──
@@ -6614,8 +6967,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all ' +
                 (on ? 'bg-sky-600 text-white shadow' : 'bg-white text-slate-500 hover:bg-sky-100');
         });
-        document.getElementById('seat-summary-title').textContent =
-            seatSummaryRange === 'all' ? '累計登記' : seatSummaryRange === 'week' ? '當週累計' : '當日登記';
+        document.querySelectorAll('.seat-srange-btn[data-srange="period"]').forEach(function (b) { b.classList.toggle('hidden', !SEAT_PERIOD_UI); });
+        document.getElementById('seat-summary-title').textContent = seatSummaryTitle() + '登記';
         box.innerHTML = '';
         var totalTimes = 0;
         Object.keys(today).forEach(function (n) { totalTimes += seatTotalOf(today, n); });
@@ -6674,22 +7027,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 座位登記 modal ──
     function openSeatModal(num) {
+        var slot = seatActiveSlot();
+        if (slot === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
         seatModalNum = num;
+        seatModalSlot = slot;   // 彈窗開著時自動換節暫停，彈窗內的加減都記到這個時段
         var info = seatRoster[num];
         document.getElementById('seat-modal-num').textContent = num;
         document.getElementById('seat-modal-name').textContent = info[0];
-        document.getElementById('seat-modal-duty').textContent = info[1] +
-            (seatSummaryRange === 'all' ? '｜以下為所選日期次數' : '');
+        document.getElementById('seat-modal-duty').textContent = (info[1] ? info[1] + '｜' : '') + '登記到：' + seatSlotLabel(slot);
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
     function closeSeatModal() {
         document.getElementById('seat-modal').classList.remove('show');
         seatModalNum = null;
+        seatModalSlot = null;
+        seatAutoTick();
     }
     function renderSeatModalList() {
         var list = document.getElementById('seat-modal-list');
-        var rec = getSelectedSeatRecord();
+        if (seatModalSlot === null) return;
+        var rec = getSlotRecord(seatModalSlot);
         var num = seatModalNum;
         list.innerHTML = '';
         seatItems.forEach(function (it) {
@@ -6705,14 +7063,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 '<span class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold ' +
                     (n ? c.dot : 'bg-slate-200') + '" style="font-variant-numeric:tabular-nums;">' + (n ? n : '＋') + '</span>' +
                 '<span class="font-semibold ' + (n ? c.text : 'text-slate-600') + '">' + ctuEsc(it.label) + '</span>';
-            add.addEventListener('click', function () { addSeatCount(num, it.key, 1); });
+            add.addEventListener('click', function () { addSeatCount(num, it.key, 1, false, seatModalSlot); });
 
             var minus = document.createElement('button');
             minus.className = 'w-12 h-8 rounded-lg flex-shrink-0 text-sm font-bold transition-all ' +
                 (n ? 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200' : 'text-slate-200 cursor-default');
             minus.textContent = '減 1';
             minus.title = '按錯減回一次';
-            if (n) minus.addEventListener('click', function () { addSeatCount(num, it.key, -1, true); });
+            if (n) minus.addEventListener('click', function () { addSeatCount(num, it.key, -1, true, seatModalSlot); });
 
             row.appendChild(add);
             row.appendChild(minus);
@@ -6817,13 +7175,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 累計次數 ──
+    var seatStatsFrom = '', seatStatsTo = '';   // 自訂日期
+    var seatPeriodFilter = 'all';               // all（全部節次）／ current（本節）／ custom
+    var seatPeriodSet = {};                     // 自訂時勾選的節次代碼（'' ＝未分節）
+
     function seatRangeStartKey() {
+        if (seatStatsRange === 'custom') return (seatStatsFrom && seatStatsTo && seatStatsFrom > seatStatsTo ? seatStatsTo : seatStatsFrom) || null;
         if (seatStatsRange === 'all' || seatStatsRange === 'weekly') return null;
         var d = new Date();
         if (seatStatsRange === 'today') { /* 今天 */ }
         else if (seatStatsRange === '7') d.setDate(d.getDate() - 6);
         else if (seatStatsRange === '30') d.setDate(d.getDate() - 29);
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function seatRangeEndKey() {
+        if (seatStatsRange !== 'custom') return null;
+        return (seatStatsFrom && seatStatsTo && seatStatsFrom > seatStatsTo ? seatStatsFrom : seatStatsTo) || null;
+    }
+    function seatDatePass(date) {
+        var from = seatRangeStartKey(), to = seatRangeEndKey();
+        return (!from || date >= from) && (!to || date <= to);
+    }
+    function seatPeriodPass(period) {
+        if (!SEAT_PERIOD_UI || seatPeriodFilter === 'all') return true;
+        if (seatPeriodFilter === 'current') return seatViewAll || period === seatActivePeriod;
+        return !!seatPeriodSet[period];
+    }
+    /** 統計篩選：日期範圍 × 節次（每週統計只套用節次） */
+    function seatSlotPass(key) {
+        var p = seatParseSlot(key);
+        return (seatStatsRange === 'weekly' || seatDatePass(p.date)) && seatPeriodPass(p.period);
+    }
+    function seatPeriodFilterLabel() {
+        if (!SEAT_PERIOD_UI || seatPeriodFilter === 'all') return '全部節次';
+        if (seatPeriodFilter === 'current') return seatViewAll ? '全部節次' : seatPeriodLabel(seatActivePeriod);
+        var picked = Object.keys(seatPeriodSet).filter(function (c) { return seatPeriodSet[c]; });
+        return picked.length ? picked.map(seatPeriodLabel).join('、') : '（未選節次）';
     }
 
     function seatDateKeyFromDate(d) {
@@ -6852,7 +7240,8 @@ document.addEventListener('DOMContentLoaded', () => {
         var all = getSeatRecords();
         var weeks = {};
         Object.keys(all).forEach(function (date) {
-            var start = seatWeekStartKey(date);
+            if (!seatSlotPass(date)) return;
+            var start = seatWeekStartKey(seatSlotDate(date));
             if (!weeks[start]) weeks[start] = { counts: {}, seats: {} };
             Object.keys(all[date]).forEach(function (num) {
                 weeks[start].seats[num] = true;
@@ -6879,10 +7268,10 @@ document.addEventListener('DOMContentLoaded', () => {
         var all = getSeatRecords();
         var from = seatRangeStartKey();
         var totals = {};   // 座號 -> { key: 次數 }
-        var days = 0;
+        var daySet = {};
         Object.keys(all).sort().forEach(function (date) {
-            if (from && date < from) return;
-            days++;
+            if (!seatSlotPass(date)) return;
+            daySet[seatSlotDate(date)] = true;
             var day = all[date];
             Object.keys(day).forEach(function (num) {
                 if (!totals[num]) totals[num] = {};
@@ -6891,7 +7280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         });
-        return { totals: totals, days: days };
+        return { totals: totals, days: Object.keys(daySet).length };
     }
     function seatStatsRows() {
         var st = collectSeatStats();
@@ -6910,6 +7299,29 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'seat-range-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ' +
                 (on ? 'bg-sky-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
         });
+        document.getElementById('seat-stats-custom').classList.toggle('hidden', seatStatsRange !== 'custom');
+        document.getElementById('seat-stats-from').value = seatStatsFrom;
+        document.getElementById('seat-stats-to').value = seatStatsTo;
+        document.getElementById('seat-period-filter').classList.toggle('hidden', !SEAT_PERIOD_UI);
+        document.querySelectorAll('.seat-pf-btn').forEach(function (btn) {
+            var on = btn.dataset.pfilter === seatPeriodFilter;
+            btn.className = 'seat-pf-btn px-3 py-1 rounded-lg font-semibold transition-all ' +
+                (on ? 'bg-sky-600 text-white shadow' : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
+        });
+        var chips = document.getElementById('seat-pf-chips');
+        chips.innerHTML = '';
+        if (seatPeriodFilter === 'custom') {
+            SEAT_PERIODS.map(function (p) { return p.code; }).concat(['']).forEach(function (code) {
+                var c = document.createElement('button');
+                c.type = 'button';
+                c.setAttribute('data-chip', code);
+                c.className = 'px-2 py-0.5 rounded-md border text-xs font-semibold transition-all ' +
+                    (seatPeriodSet[code] ? 'bg-sky-100 border-sky-400 text-sky-700' : 'bg-white border-slate-200 text-slate-400');
+                c.textContent = seatPeriodLabel(code);
+                c.addEventListener('click', function () { seatPeriodSet[code] = !seatPeriodSet[code]; renderSeatStats(); });
+                chips.appendChild(c);
+            });
+        }
 
         var purgeToggle = document.getElementById('seat-purge-toggle');
         var purgeBox = document.getElementById('seat-purge-box');
@@ -6923,7 +7335,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         var data = seatStatsRows();
         document.getElementById('seat-stats-meta').textContent =
-            '共 ' + data.days + ' 天有紀錄，' + data.rows.length + ' 人被登記過';
+            seatRangeLabel() + (SEAT_PERIOD_UI ? '・' + seatPeriodFilterLabel() : '') + '：共 ' + data.days + ' 天有紀錄，' + data.rows.length + ' 人被登記過';
 
         var head = '<tr class="text-slate-400 text-xs">' +
             '<th class="text-left font-semibold py-2 px-2">座號</th>' +
@@ -6965,7 +7377,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderWeeklySeatStats() {
         var data = collectSeatWeeklyStats();
-        document.getElementById('seat-stats-meta').textContent = '共 ' + data.length + ' 週有紀錄';
+        document.getElementById('seat-stats-meta').textContent = (SEAT_PERIOD_UI ? seatPeriodFilterLabel() + '：' : '') + '共 ' + data.length + ' 週有紀錄';
         var head = '<tr class="text-slate-400 text-xs">' +
             '<th class="text-left font-semibold py-2 px-2 whitespace-nowrap">週次</th>' +
             '<th class="text-center font-semibold py-2 px-2 whitespace-nowrap">登記人數</th>' +
@@ -6990,13 +7402,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function seatRangeLabel() {
+        if (seatStatsRange === 'custom') return (seatRangeStartKey() || '…') + '～' + (seatRangeEndKey() || '…');
         return { all: '全部期間', weekly: '每週統計', today: '今日', '7': '近 7 天', '30': '近 30 天' }[seatStatsRange];
     }
 
-    /** 目前期間內有紀錄的日期 */
+    /** 目前日期範圍內有紀錄的日期（不看節次篩選；清除時用） */
     function seatDatesInRange() {
-        var from = seatRangeStartKey();
-        return Object.keys(getSeatRecords()).filter(function (d) { return !from || d >= from; });
+        var set = {};
+        Object.keys(getSeatRecords()).forEach(function (k) {
+            var d = seatSlotDate(k);
+            if (seatDatePass(d)) set[d] = true;
+        });
+        return Object.keys(set).sort();
     }
 
     /**
@@ -7004,35 +7421,15 @@ document.addEventListener('DOMContentLoaded', () => {
      * 本機先刪，再同步刪掉試算表上的對應列。
      */
     function purgeSeatRecords(dates, seat) {
-        var all = getSeatRecords();
-        dates.forEach(function (d) {
-            if (!all[d]) return;
-            if (seat) { delete all[d][seat]; if (!Object.keys(all[d]).length) delete all[d]; }
-            else { delete all[d]; }
-        });
-        ctuStore.setItem('seatCheckRecords', JSON.stringify(all));
-        seatUndoStack = [];
-        dates.forEach(function (d) { seatSyncClear(d, seat); });
-        renderSeatChart();
+        seatClearDays(dates, seat);   // 包含全部節次
         renderSeatStats();
     }
 
     function purgeAllSeatRecords() {
         exportSeatData();   // 清空前先留一份備份檔
+        if (!seatEnqueueOp({ type: 'clearAll' })) return;
         ctuStore.setItem('seatCheckRecords', JSON.stringify({}));
         seatUndoStack = [];
-        if (SEAT_SYNC) {
-            seatSyncBusy++;
-            renderSyncStatus();
-            google.script.run
-                .withSuccessHandler(function () { seatSyncBusy--; seatSyncError = ''; renderSyncStatus(); })
-                .withFailureHandler(function (err) {
-                    seatSyncBusy--;
-                    seatSyncError = (err && err.message) ? err.message : '清除失敗';
-                    renderSyncStatus();
-                })
-                .clearSeatAll();
-        }
         renderSeatChart();
         renderSeatStats();
     }
@@ -7061,8 +7458,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         var data = seatStatsRows();
-        var rangeName = { all: '全部', today: '今日', '7': '近7天', '30': '近30天' }[seatStatsRange];
-        var lines = [['座號', '姓名'].concat(seatItems.map(function (it) { return it.label; })).concat(['總計']).join(',')];
+        var rangeName = { all: '全部', today: '今日', '7': '近7天', '30': '近30天', custom: '自訂' }[seatStatsRange];
+        var lines = ['日期範圍,' + seatCsvCell(seatRangeLabel()), '節次,' + seatCsvCell(seatPeriodFilterLabel()),
+                     ['座號', '姓名'].concat(seatItems.map(function (it) { return it.label; })).concat(['總計']).join(',')];
         data.rows.forEach(function (r) {
             var fullName = seatRoster[r.num] ? seatRoster[r.num][2] : r.name;
             var cols = [r.num, fullName].concat(seatItems.map(function (it) { return r.counts[it.key] || 0; })).concat([r.sum]);
@@ -7075,13 +7473,38 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadSeatFile('﻿' + lines.join('\r\n'), '秩序登記次數_' + rangeName + '_' + getTodayKey() + '.csv', 'text/csv;charset=utf-8');
     }
 
+    function seatCsvCell(c) {
+        var v = String(c);
+        return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }
+    /** 逐節明細：一筆一列（日期、節次、座號、姓名、項目、次數），套用目前的日期範圍與節次篩選 */
+    function exportSeatDetailCsv() {
+        var all = getSeatRecords();
+        var lines = ['日期範圍,' + seatCsvCell(seatStatsRange === 'weekly' ? '全部期間' : seatRangeLabel()),
+                     '節次,' + seatCsvCell(seatPeriodFilterLabel()),
+                     '日期,節次,座號,姓名,項目,次數'];
+        Object.keys(all).sort().forEach(function (slot) {
+            if (!seatSlotPass(slot)) return;
+            var p = seatParseSlot(slot);
+            Object.keys(all[slot]).sort(function (a, b) { return a - b; }).forEach(function (seat) {
+                seatItems.forEach(function (it) {
+                    var n = all[slot][seat][it.key];
+                    if (!n) return;
+                    lines.push([p.date, seatPeriodLabel(p.period), seat, seatRoster[seat] ? seatRoster[seat][2] : '', it.label, n].map(seatCsvCell).join(','));
+                });
+            });
+        });
+        downloadSeatFile('\ufeff' + lines.join('\r\n'), '秩序登記逐節明細_' + getTodayKey() + '.csv', 'text/csv;charset=utf-8');
+    }
+
     function exportSeatData() {
         var data = {
             type: 'seat-check',
             exportedAt: getTodayKey(),
             seatLayout: ctuStore.getItem('seatLayout') || defaultSeatLayoutText,
             seatCheckItems: seatItems,
-            seatCheckRecords: getSeatRecords()
+            seatCheckRecords: getSeatRecords(),
+            seatSyncQueue: seatQueue()   // 待送的同步工作（還原時不會自動重送，只供查看）
         };
         downloadSeatFile(JSON.stringify(data, null, 2), '秩序登記備份_' + getTodayKey() + '.json', 'application/json');
     }
@@ -7099,8 +7522,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             seatImportPending = data;
 
-            var days = data.seatCheckRecords ? Object.keys(data.seatCheckRecords).length : 0;
-            var mine = Object.keys(getSeatRecords()).length;
+            function dayCount(recs) {
+                var set = {};
+                Object.keys(recs || {}).forEach(function (k) { set[seatSlotDate(k)] = true; });
+                return Object.keys(set).length;
+            }
+            var days = dayCount(data.seatCheckRecords);
+            var mine = dayCount(getSeatRecords());
             document.getElementById('seat-import-summary').textContent =
                 '備份檔有 ' + days + ' 天的紀錄，目前' + (SEAT_SYNC ? '試算表' : '這台裝置') + '有 ' + mine + ' 天。要怎麼處理？';
             document.getElementById('seat-import-modal').classList.add('show');
@@ -7129,7 +7557,60 @@ document.addEventListener('DOMContentLoaded', () => {
     function applySeatImport(mode) {
         var data = seatImportPending;
         if (!data) return;
-        if (mode === 'replace') exportSeatData();   // 覆蓋前先留一份現況
+        if (mode === 'replace') {
+            exportSeatData();   // 覆蓋前先留一份本機現況
+            if (SEAT_SYNC && data.seatCheckRecords) {
+                // 再下載一份試算表目前的 A～H，確認存好才覆蓋
+                seatSyncBusy++;
+                renderSyncStatus();
+                google.script.run
+                    .withSuccessHandler(function (rows) {
+                        seatSyncBusy--;
+                        renderSyncStatus();
+                        downloadSeatFile(JSON.stringify({
+                            type: 'seat-cloud-snapshot', exportedAt: new Date().toISOString(),
+                            columns: ['日期', '座號', '姓名', '項目', '次數', '最後更新', '項目代碼', '節次'], rows: rows
+                        }, null, 2), '秩序登記_匯入前雲端_' + getTodayKey() + '.json', 'application/json');
+                        if (!confirm('已下載兩份備份：本機（秩序登記備份_…）與試算表（秩序登記_匯入前雲端_…）。\n請確認兩個檔案都存好了，再按「確定」用備份檔覆蓋試算表；按「取消」就不覆蓋。')) return;
+                        finishSeatImport(data, mode);
+                    })
+                    .withFailureHandler(function (err) {
+                        seatSyncBusy--;
+                        renderSyncStatus();
+                        alert('讀不到試算表目前的資料，為了安全這次不覆蓋。（' + ((err && err.message) || '') + '）');
+                    })
+                    .getSeatRowsRaw();
+                return;
+            }
+        }
+        finishSeatImport(data, mode);
+    }
+
+    /** 匯入的列：[時段鍵, 座號, 姓名, 項目名稱, 次數, 項目代碼] */
+    function seatImportRows(recs) {
+        var rows = [];
+        Object.keys(recs).sort().forEach(function (slot) {
+            Object.keys(recs[slot]).sort(function (a, b) { return a - b; }).forEach(function (seat) {
+                Object.keys(recs[slot][seat]).forEach(function (key) {
+                    var item = findSeatItem(key);
+                    rows.push([slot, seat, seatRoster[seat] ? seatRoster[seat][2] : '', item ? item.label : key, recs[slot][seat][key], key]);
+                });
+            });
+        });
+        return rows;
+    }
+
+    function finishSeatImport(data, mode) {
+        var incoming = null;
+        if (data.seatCheckRecords) {
+            incoming = {};
+            Object.keys(data.seatCheckRecords).forEach(function (k) {
+                var day = normalizeSeatDay(data.seatCheckRecords[k]);
+                if (Object.keys(day).length) incoming[k] = day;
+            });
+            // 取代：先把整批工作存進佇列，存得進去才動本機
+            if (mode !== 'merge' && !seatEnqueueOp({ type: 'import', rows: seatImportRows(incoming) })) return;
+        }
 
         if (data.seatLayout) {
             ctuStore.setItem('seatLayout', data.seatLayout);
@@ -7145,11 +7626,23 @@ document.addEventListener('DOMContentLoaded', () => {
             ctuStore.setItem('seatCheckItems', JSON.stringify(items));
             seatItems = loadSeatItems();
         }
-        if (data.seatCheckRecords) {
-            var next = (mode === 'merge')
-                ? mergeSeatRecords(getSeatRecords(), data.seatCheckRecords)
-                : data.seatCheckRecords;
-            ctuStore.setItem('seatCheckRecords', JSON.stringify(next));
+        if (incoming) {
+            if (mode === 'merge') {
+                // 合併：不覆蓋試算表，只把合併後變大的格子逐格送出（試算表上其他電腦登記的資料保留）
+                var before = getSeatRecords();
+                var next = mergeSeatRecords(before, incoming);
+                ctuStore.setItem('seatCheckRecords', JSON.stringify(next));
+                Object.keys(next).forEach(function (slot) {
+                    Object.keys(next[slot]).forEach(function (seat) {
+                        Object.keys(next[slot][seat]).forEach(function (key) {
+                            var was = (before[slot] && before[slot][seat] && before[slot][seat][key]) || 0;
+                            if (next[slot][seat][key] > was) seatSyncPush(slot, seat, key);
+                        });
+                    });
+                });
+            } else {
+                ctuStore.setItem('seatCheckRecords', JSON.stringify(incoming));
+            }
         }
 
         seatImportPending = null;
@@ -7159,45 +7652,20 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSeatModeButtons();
         renderSeatChart();
         seatSyncSettings();
-        seatSyncImportAll();
         alert(mode === 'merge' ? '已合併匯入！' : '已覆蓋匯入！');
-    }
-
-    /** 匯入備份後，把整份紀錄覆蓋回試算表 */
-    function seatSyncImportAll() {
-        if (!SEAT_SYNC) return;
-        var all = getSeatRecords();
-        var rows = [];
-        Object.keys(all).sort().forEach(function (date) {
-            var day = all[date];
-            Object.keys(day).sort(function (a, b) { return a - b; }).forEach(function (seat) {
-                Object.keys(day[seat]).forEach(function (key) {
-                    var item = findSeatItem(key);
-                    rows.push([date, seat, seatRoster[seat] ? seatRoster[seat][2] : '',
-                               item ? item.label : key, day[seat][key], key]);
-                });
-            });
-        });
-        seatSyncBusy++;
-        renderSyncStatus();
-        google.script.run
-            .withSuccessHandler(function () { seatSyncBusy--; seatSyncError = ''; renderSyncStatus(); })
-            .withFailureHandler(function (err) {
-                seatSyncBusy--;
-                seatSyncError = (err && err.message) ? err.message : '\u4e0a\u50b3\u5931\u6557';
-                renderSyncStatus();
-            })
-            .importSeatRecords(rows);
     }
 
     // ── 報告 ──
     function buildSeatReport(full) {
         var today = seatSummaryData();
+        var slotNow = seatActiveSlot();
         var lines = [seatSummaryRange === 'all'
             ? '秩序登記報告（全部累計，至 ' + getTodayKey() + '）'
             : seatSummaryRange === 'week'
                 ? '秩序登記報告（當週 ' + seatWeekLabel(seatWeekStartKey(seatActiveDate)) + '）'
-                : '秩序登記報告（' + seatDateLabel(seatActiveDate) + '）'];
+                : (seatSummaryRange === 'period' && slotNow !== null && SEAT_PERIOD_UI)
+                    ? '秩序登記報告（' + seatSlotLabel(slotNow) + '）'
+                    : '秩序登記報告（' + seatDateLabel(seatActiveDate) + (SEAT_PERIOD_UI ? '全部節次' : '') + '）'];
         var any = false;
         seatItems.forEach(function (it) {
             var names = seatNamesFor(it.key, today, full);
@@ -7219,7 +7687,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             lines.push('全部都有登記 👍');
         }
-        if (!any) lines.push('', seatSummaryRange === 'all' ? '目前沒有任何登記紀錄' : seatSummaryRange === 'week' ? '本週沒有登記紀錄' : '當日沒有登記紀錄');
+        if (!any) lines.push('', seatSummaryRange === 'all' ? '目前沒有任何登記紀錄' : seatSummaryRange === 'week' ? '本週沒有登記紀錄'
+            : (seatSummaryRange === 'period' && SEAT_PERIOD_UI && slotNow !== null) ? '本節沒有登記紀錄' : '當日沒有登記紀錄');
         return lines.join(String.fromCharCode(10));
     }
 
