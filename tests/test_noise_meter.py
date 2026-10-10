@@ -182,7 +182,18 @@ class NoiseMeter(unittest.TestCase):
         left = page.evaluate("() => document.getElementById('noise-mark-y').style.left")
         self.assertAlmostEqual(float(left.rstrip('%')), (62 - 30) / 60 * 100, places=3)
         page.click('#noise-th-reset')
-        self.assertEqual(self.stored(page, 'ctu_noiseSettings')['th']['study'], {'y': 50, 'r': 60})
+        self.assertEqual(self.stored(page, 'ctu_noiseSettings')['th']['study'], {'y': 40, 'r': 60})
+
+    def test_study_yellow_label_is_sound(self):
+        # 安靜自習：40 分貝以上顯示「有聲音」（固定校正值讓 dBFS -50 → 45 分貝）
+        page = self.open(dict(SHOW_NOISE, ctu_noiseSettings=json.dumps({'offset': 95, 'calibrated': True})))
+        self.start(page)
+        page.evaluate("() => { window.__lv = -50; AnalyserNode.prototype.getFloatTimeDomainData = function (b) { b.fill(Math.pow(10, window.__lv / 20)); }; }")
+        page.wait_for_function("() => document.getElementById('noise-db').textContent === '45'", timeout=5000)
+        self.assertEqual(page.inner_text('#noise-status'), '有聲音')
+        page.evaluate("() => { window.__lv = -60; }")    # 35 分貝 → 很安靜
+        page.wait_for_function("() => document.getElementById('noise-db').textContent === '35'", timeout=5000)
+        self.assertEqual(page.inner_text('#noise-status'), '很安靜 👍')
 
     def test_corrupt_settings_fall_back_to_defaults(self):
         bad = json.dumps({'mode': 'party', 'th': {'study': {'y': 80, 'r': 40}}, 'offset': 'x', 'win': 9})
@@ -191,7 +202,7 @@ class NoiseMeter(unittest.TestCase):
         s = self.state(page)
         self.assertEqual(s['mode'], 'study')
         self.assertEqual(s['offset'], 95)
-        self.assertEqual(page.input_value('#noise-th-study-y'), '50')
+        self.assertEqual(page.input_value('#noise-th-study-y'), '40')
         self.assertEqual(page.input_value('#noise-win'), '2')
 
     # ── 麥克風錯誤 ──

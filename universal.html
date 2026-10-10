@@ -1175,11 +1175,11 @@
         // 【可自行修改】預設門檻（分貝）與校正值；校正值＝麥克風讀數（dBFS）加多少變成約略分貝
         var NOISE_DEFAULTS = {
             mode: 'study',
-            th: { study: { y: 50, r: 60 }, discuss: { y: 62, r: 72 } },
+            th: { study: { y: 40, r: 60 }, discuss: { y: 62, r: 72 } },
             offset: 95, calibrated: false, win: 2
         };
         var LABELS = {
-            study:   { green: '很安靜 👍', yellow: '小聲一點', red: '太吵了！' },
+            study:   { green: '很安靜 👍', yellow: '有聲音', red: '太吵了！' },
             discuss: { green: '音量剛好 👍', yellow: '小聲一點', red: '太吵了！' }
         };
         var TICK_MS = 100, SCALE_MIN = 30, SCALE_MAX = 90, HYST = 2;
@@ -4779,7 +4779,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.18（2026-10-10）';
+    window.CTU_VERSION = 'v1.19（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
