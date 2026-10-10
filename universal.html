@@ -196,6 +196,9 @@
         #group-view-toolbar {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
         #group-view-toolbar button,#group-undo-score-btn,#group-draw-result-close-btn {padding:8px 12px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#0369a1;font-weight:700}
         #group-view-toolbar button:disabled,#group-undo-score-btn:disabled {opacity:.4;cursor:default}
+        #group-view-toolbar > div {flex-wrap:nowrap;max-width:100%;overflow-x:auto}
+        #group-edit-controls {flex-wrap:nowrap;flex-shrink:0}
+        #group-view-toolbar button {font-size:16px;line-height:24px;white-space:nowrap;flex-shrink:0}
         #group-draw-result-close-btn {display:none;margin-top:16px}
         #group-cards-grid.group-score-armed .group-card {border-color:#38bdf8;cursor:pointer}
         body.group-view {padding:10px;background:#eaf3fa}
@@ -4450,7 +4453,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.15（2026-10-10）';
+    window.CTU_VERSION = 'v1.16（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
