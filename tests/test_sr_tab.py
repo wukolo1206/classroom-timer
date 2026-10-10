@@ -81,8 +81,20 @@ class SrTab(unittest.TestCase):
         raw = self.storage(page).get('ctu_sr_records')
         return json.loads(raw) if raw else None
 
-    def paste(self, fr, text):
+    def choose(self, fr, choice):
+        """匯入／貼上時跳出三選一視窗：回傳視窗文字並點選 choice（roster／merge／cancel）。"""
+        fr.wait_for_selector('#choice-modal', timeout=3000)
+        text = fr.inner_text('#choice-modal')
+        fr.click('#choice-' + choice)
+        fr.page.wait_for_timeout(400)
+        return text
+
+    def paste(self, fr, text, choice=None):
         fr.evaluate("t => { document.getElementById('paste-textarea').value = t; parsePastedText(); }", text)
+        fr.page.wait_for_timeout(200)
+        if choice:
+            return self.choose(fr, choice)
+        self.assertFalse(fr.evaluate("!!document.getElementById('choice-modal')"), '不該跳出名冊三選一視窗')
 
     # ── 分頁與名冊 ──
     def test_T01_tab_visible_by_default_and_for_existing_users(self):
@@ -112,7 +124,7 @@ class SrTab(unittest.TestCase):
     def test_T04_paste_merges_by_seat_and_keeps_other_terms(self):
         p = self.open()
         fr = self.sr(p)
-        self.paste(fr, '1 王小明 411-417\n2 李小華 2026/09/21 四年級 450–514\n3 某某 400\n9 路人 400\n5 林大美 380-440')
+        self.paste(fr, '1 王小明 411-417\n2 李小華 2026/09/21 四年級 450–514\n3 某某 400\n9 路人 400\n5 林大美 380-440', choice='merge')
         rec = self.records(p)['bySeat']
         self.assertEqual(rec['1']['terms']['115-1']['sr'], '411-417')
         self.assertEqual(rec['2']['terms']['115-1']['date'], '2026/09/21')
@@ -288,7 +300,7 @@ class SrTab(unittest.TestCase):
         p = self.open(cls_cfg=roster)
         fr = self.sr(p)
         fr.set_input_files('#excel-file-input', os.path.join(ROOT, 'sr-reading', '範例', 'SR匯入範例_單一學期.xlsx'))
-        p.wait_for_timeout(800)
+        self.choose(fr, 'merge')   # 範例有名冊外的 04 號，會問要不要更新名冊；這裡選不改名冊
         rec = self.records(p)['bySeat']
         self.assertEqual(rec['1']['terms']['115-1']['sr'], '411-417')
         self.assertEqual(rec['3']['terms']['115-1']['sr'], '394')
@@ -331,13 +343,17 @@ class SrTab(unittest.TestCase):
         data = xlsx_bytes([['座號', '學生姓名', 'SR(115-1)'],
                            ['01', '甲同學', '400'], ['02', '乙同學', '410'], ['03', '丙同學', '420'],
                            ['04', '丁同學', '430'], ['05', '戊同學', '440']])
-        fr.evaluate("() => { window.confirm = m => { window.__asked = m; return false; }; }")
         fr.set_input_files('#excel-file-input', files=[{'name': 'other.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'buffer': data}])
-        p.wait_for_timeout(800)
-        asked = fr.evaluate("window.__asked || ''")
+        asked = self.choose(fr, 'cancel')
         self.assertIn('對不上', asked)
         self.assertIn('不寫入任何資料', asked)
         self.assertIsNone(self.records(p), '按取消不可寫入任何資料')
+        self.assertEqual(json.loads(self.storage(p)['ctu_class'])['studentNames'], ['王', '無', '李'], '取消不可改名冊')
+        # 沒有姓名的資料（只有座號＋SR）對不上時，退回一般確認視窗
+        fr.evaluate("() => { window.confirm = m => { window.__asked = m; return false; }; }")
+        self.paste(fr, '7 400\n8 410\n9 420\n10 430')
+        self.assertIn('對不上', fr.evaluate("window.__asked || ''"))
+        self.assertIsNone(self.records(p))
         # 名冊正確時不多問
         p2 = self.open()
         fr2 = self.sr(p2)
@@ -399,6 +415,43 @@ class SrTab(unittest.TestCase):
         p.dispatch_event('#cfg-names', 'input')
         self.assertEqual(p.inner_text('#cfg-names-hint'), '')
         self.assertEqual(p.evaluate("ctuGetClass().studentNames.length"), 10)
+
+    def test_T22_import_can_replace_class_roster(self):
+        # 名冊還是 3 人測試名冊；匯入有座號＋姓名的檔案（07 號缺），選「更新班級名冊」
+        roster = {'className': '408', 'teacherName': '示範老師', 'leaderName': '甲', 'studentCount': 3, 'studentNames': ['王', '無', '李']}
+        p = self.open(cls_cfg=roster)
+        fr = self.sr(p)
+        rows = [['座號', '學生姓名', 'SR(115-1)']] + [['%02d' % i, '學生%02d' % i, '' if i in (1, 5) else '400'] for i in range(1, 11) if i != 7]
+        with p.expect_download() as d:
+            fr.set_input_files('#excel-file-input', files=[{'name': 'class.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'buffer': xlsx_bytes(rows)}])
+            text = self.choose(fr, 'roster')
+        self.assertIn('_更新名冊前', d.value.suggested_filename, '更新名冊前要先下載備份')
+        self.assertIn('07 號是空號', text)
+        p.wait_for_timeout(1500)   # 會整頁重新載入並回到 SR 分頁
+        cls = json.loads(self.storage(p)['ctu_class'])
+        self.assertEqual(cls['studentNames'][6], '')
+        self.assertEqual(cls['studentNames'][7], '學生08')
+        self.assertEqual(cls['studentCount'], 10)
+        self.assertEqual(cls['teacherName'], '示範老師', '其他班級設定欄位要保留')
+        rec = self.records(p)['bySeat']
+        self.assertEqual(rec['8']['terms']['115-1']['sr'], '400')
+        self.assertNotIn('1', rec, '沒填 SR 的不寫入')
+        self.assertTrue(p.evaluate("!document.getElementById('panel-sr').classList.contains('hidden')"), '重新載入後回到 SR 分頁')
+        fr = self.sr(p)
+        seats = fr.evaluate("[...document.querySelectorAll('#roster-tbody tr')].map(r => r.children[1].innerText.trim())")
+        self.assertNotIn('07', seats)
+        # 同一份再匯入：名冊已對上，不再問
+        fr.set_input_files('#excel-file-input', files=[{'name': 'class.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'buffer': xlsx_bytes(rows)}])
+        p.wait_for_timeout(800)
+        self.assertFalse(fr.evaluate("!!document.getElementById('choice-modal')"))
+        # 反方向：之後在班級設定重貼名冊，SR 依座號跟著新名冊顯示
+        p.evaluate("ctuOpenClassModal()")
+        p.fill('#cfg-names', '\n'.join('%02d 新生%02d' % (i, i) for i in range(1, 11) if i != 7))
+        p.click('#cfg-save')
+        p.wait_for_timeout(1500)
+        fr = self.sr(p)
+        self.assertEqual(fr.evaluate("students.find(s => s.seatNum === 8).full"), '新生08')
+        self.assertEqual(self.records(p)['bySeat']['8']['terms']['115-1']['sr'], '400', '換名冊不動成績')
 
     def test_T15_no_js_errors_across_tabs(self):
         p = self.open()

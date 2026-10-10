@@ -3727,11 +3727,61 @@
     return { updated, blank, outside, conflicts };
   }
 
-  // 寫入前檢查：姓名對不上、或不在名冊的比寫得進去的還多，通常是「班級設定」的名冊還不是這個班
-  function confirmMerge(records) {
+  // 從匯入資料整理出名冊：大多數列都有「座號＋姓名」、座號不重複時才採用；跳號補空號
+  function rosterFromRecords(records) {
+    const withSeat = records.filter(r => r.seat && /^\d+$/.test(r.seat));
+    const named = withSeat.filter(r => r.name);
+    if (!named.length || named.length < records.length * 0.8) return null;
+    const bySeat = {};
+    for (const r of named) {
+      const n = parseInt(r.seat, 10);
+      if (n < 1 || n > 60 || bySeat[n]) return null;
+      bySeat[n] = r.name;
+    }
+    const max = Math.max(...Object.keys(bySeat).map(Number));
+    const names = [];
+    for (let i = 1; i <= max; i++) names.push(bySeat[i] || '');
+    return names;
+  }
+
+  // 三選一視窗（瀏覽器內建 confirm 只有兩個按鈕）
+  function chooseDialog(message, buttons) {
+    return new Promise(resolve => {
+      const wrap = document.createElement('div');
+      wrap.id = 'choice-modal';
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.2);';
+      const msg = document.createElement('div');
+      msg.style.cssText = 'white-space:pre-wrap;font-size:.92rem;line-height:1.6;color:#1e293b;margin-bottom:14px;';
+      msg.textContent = message;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+      buttons.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = 'btn ' + (b.primary ? 'btn-primary' : 'btn-light');
+        btn.id = 'choice-' + b.value;
+        btn.textContent = b.label;
+        btn.onclick = () => { wrap.remove(); resolve(b.value); };
+        row.appendChild(btn);
+      });
+      box.appendChild(msg); box.appendChild(row); wrap.appendChild(box);
+      document.body.appendChild(wrap);
+    });
+  }
+
+  // 寫入前檢查。回傳 'merge'（依目前名冊寫入）、'roster'（先用資料裡的名冊更新班級設定）或 'cancel'
+  async function chooseMerge(records) {
     const pre = mergeRecords(records, [], true);
-    if (!pre.conflicts.length && pre.outside <= pre.updated) return true;
-    const lines = ['⚠️ 寫入前請確認：這份資料和「🏫 班級設定」的名冊好像對不上。', ''];
+    const mismatch = pre.conflicts.length > 0 || pre.outside > pre.updated;
+    const fileRoster = rosterFromRecords(records);
+    const rosterEmpty = !students.some(s => s.full);
+    const fileDiffers = fileRoster && (pre.conflicts.length > 0 || pre.outside > 0 || rosterEmpty);
+    if (!mismatch && !fileDiffers) return 'merge';
+
+    const lines = [];
+    if (rosterEmpty && fileRoster) lines.push('「🏫 班級設定」還沒有學生姓名，這份資料有座號和姓名。', '');
+    else lines.push('⚠️ 這份資料和「🏫 班級設定」的名冊對不上。', '');
     if (pre.conflicts.length) {
       lines.push('座號相同但姓名不同 ' + pre.conflicts.length + ' 筆：');
       lines.push(...pre.conflicts.slice(0, 6));
@@ -3739,14 +3789,55 @@
       lines.push('');
     }
     if (pre.outside) lines.push('座號不在名冊 ' + pre.outside + ' 筆（名冊目前 ' + students.length + ' 人）', '');
+
+    if (fileRoster) {
+      const gaps = [];
+      fileRoster.forEach((n, i) => { if (!n) gaps.push(String(i + 1).padStart(2, '0')); });
+      lines.push('這份資料的名冊：共 ' + fileRoster.length + ' 號' + (gaps.length ? '，' + gaps.join('、') + ' 號是空號' : '') + '。');
+      lines.push('選「更新班級名冊」會先下載一份完整備份，再把班級設定的姓名換成這份名冊（SH150、含氟等分頁也會一起換）。');
+      return chooseDialog(lines.join('\n'), [
+        { value: 'roster', label: '用這份資料更新班級名冊，再寫入成績', primary: true },
+        { value: 'merge', label: '不改名冊，依目前名冊的座號寫入 ' + pre.updated + ' 位' },
+        { value: 'cancel', label: '取消，不寫入任何資料' }
+      ]);
+    }
     lines.push('如果名冊還沒換成這個班，請按「取消」，先到「🏫 班級設定」貼上正確名冊再匯入。');
     lines.push('按「確定」會依座號寫入 ' + pre.updated + ' 位；按「取消」不寫入任何資料。');
-    return confirm(lines.join('\n'));
+    return confirm(lines.join('\n')) ? 'merge' : 'cancel';
+  }
+
+  // 用匯入資料的名冊更新外層班級設定（班級、導師等其他欄位保留）
+  function applyRoster(names) {
+    if (HOST.ctuFullBackup) HOST.ctuFullBackup('_更新名冊前');
+    const c = getClass();
+    HOST.ctuStore.setItem('class', JSON.stringify({
+      className: c.className, teacherName: c.teacherName, leaderName: c.leaderName,
+      studentCount: names.length, studentNames: names
+    }));
+    buildStudents();
+  }
+
+  // 名冊換過時整頁重新載入，讓其他分頁也用新名冊，並回到本分頁
+  function reloadToSr() {
+    HOST.ctuStore.setItem('reopenTab', 'sr');
+    HOST.location.reload();
+  }
+
+  // 依使用者選擇寫入；回傳 null 表示取消
+  async function mergeWithChoice(records, errors) {
+    const choice = await chooseMerge(records);
+    if (choice === 'cancel') return null;
+    if (choice === 'roster') applyRoster(rosterFromRecords(records));
+    const result = mergeRecords(records, errors);
+    result.rosterUpdated = choice === 'roster';
+    saveRecords();
+    return result;
   }
 
   function reportMerge(title, result, errors) {
     const lines = [title + '：寫入 ' + result.updated + ' 位學生' +
       (result.blank ? '；' + result.blank + ' 位沒有填 SR，保留原狀' : '') + '。'];
+    if (result.rosterUpdated) lines.push('', '✓ 班級名冊已更新為這份資料的座號與姓名。按「確定」後整頁會重新載入。');
     if (result.conflicts.length) {
       lines.push('', '⚠️ 座號相同但姓名不同（' + result.conflicts.length + ' 筆），請確認：');
       lines.push(...result.conflicts.slice(0, 10));
@@ -3765,7 +3856,7 @@
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
   }
 
-  function parsePastedText() {
+  async function parsePastedText() {
     const text = document.getElementById('paste-textarea').value.trim();
     if (!text) return;
     const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -3787,13 +3878,13 @@
       });
     }
     if (!records.length) { alert('沒有解析到任何學生資料。' + (errors.length ? '\n\n' + errors.slice(0, 10).join('\n') : '')); return; }
-    if (!confirmMerge(records)) return;
-    const result = mergeRecords(records, errors);
-    saveRecords();
+    const result = await mergeWithChoice(records, errors);
+    if (!result) return;
     document.getElementById('paste-textarea').value = '';
     document.getElementById('paste-box').style.display = 'none';
     renderAll();
     reportMerge('已寫入「' + termName(currentTermSel) + '」', result, errors);
+    if (result.rosterUpdated) reloadToSr();
   }
 
   function handleFileUpload(event) {
@@ -3805,7 +3896,7 @@
       return;
     }
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = async function (e) {
       try {
         const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
         let parsed = null, used = '';
@@ -3828,12 +3919,12 @@
           parsed = { records, errors };
         }
         if (!parsed.records.length) { alert('檔案裡沒有找到學生資料。' + (parsed.errors.length ? '\n\n' + parsed.errors.slice(0, 10).join('\n') : '')); return; }
-        if (!confirmMerge(parsed.records)) return;
         const errors = parsed.errors.slice();
-        const result = mergeRecords(parsed.records, errors);
-        saveRecords();
+        const result = await mergeWithChoice(parsed.records, errors);
+        if (!result) return;
         renderAll();
         reportMerge('已從「' + file.name + '」的工作表「' + used + '」寫入', result, errors);
+        if (result.rosterUpdated) reloadToSr();
       } catch (err) {
         alert('Excel 解析失敗，建議改用「批次貼上」。\n（' + err.message + '）');
       } finally {
