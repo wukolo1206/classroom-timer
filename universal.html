@@ -190,6 +190,68 @@
             pointer-events: none; z-index: 50;
             animation: floatBonus 1.1s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
         }
+
+        #group-tasks-list-display {font-size:20px;line-height:1.5}
+        #group-view-toolbar {display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+        #group-view-toolbar button,#group-undo-score-btn,#group-draw-result-close-btn {padding:8px 12px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#0369a1;font-weight:700}
+        #group-view-toolbar button:disabled,#group-undo-score-btn:disabled {opacity:.4;cursor:default}
+        #group-draw-result-close-btn {display:none;margin-top:16px}
+        #group-cards-grid.group-score-armed .group-card {border-color:#38bdf8;cursor:pointer}
+        body.group-projection {padding:10px;background:#eaf3fa}
+        body.group-projection > div:first-of-type {max-width:1600px}
+        body.group-projection > div:first-of-type > div:first-of-type > div:first-child,body.group-projection #tab-bar,body.group-projection .group-prep-control {display:none!important}
+        body.group-projection #panel-group {padding:12px 18px}
+        body.group-projection #group-top-section {display:grid;grid-template-columns:7fr 5fr;gap:16px;margin-bottom:8px}
+        body.group-projection #group-topic-panel {padding:14px}
+        body.group-projection #group-topic-title-card {padding:10px 12px;margin-bottom:10px;cursor:default}
+        body.group-projection #group-tasks-card {padding:10px 12px;cursor:default}
+        body.group-projection #group-topic-title-display {font-size:30px}
+        body.group-projection #group-tasks-list-display {font-size:24px;line-height:1.4}
+        body.group-projection #group-timer-card {padding:16px}
+        body.group-projection #group-timer-clock {font-size:80px}
+        body.group-projection #group-score-section {margin-bottom:8px}
+        body.group-projection #group-bonus-panel {padding:10px 12px;margin-bottom:6px}
+        body.group-projection #group-bonus-items-container {padding-top:0;gap:6px}
+        body.group-projection .group-bonus-pill {font-size:16px;padding:8px 10px}
+        body.group-projection #group-selected-bonus-hint {margin-top:6px;padding:4px 8px;font-size:13px;gap:8px}
+        body.group-projection #group-score-toolbar {margin-bottom:8px}
+        body.group-projection #group-cards-grid {grid-template-columns:repeat(var(--group-count,6),minmax(0,1fr));gap:10px}
+        body.group-projection .group-card {padding:8px;cursor:default}
+        body.group-projection .group-card button {min-height:36px;font-size:16px}
+        body.group-projection .group-card button[title="修改組名"] {display:none}
+        body.group-projection #group-draw-section {padding:8px 12px;margin-bottom:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+        body.group-projection #group-draw-section > div:first-child {margin:0}
+        body.group-projection #group-draw-section > div:first-child > div:first-child {display:none}
+        body.group-projection #group-draw-options {padding:0;border:0;margin:0}
+        body.group-projection #group-draw-options > div > div:first-child {display:none}
+        body.group-projection #panel-group.group-draw-settings-open #group-draw-options > div > div:first-child {display:flex}
+        body.group-projection #group-draw-history-row {display:none}
+        body.group-projection #panel-group.group-draw-settings-open #group-draw-history-row {display:flex;width:100%}
+        body.group-projection #draw-result-container {display:none}
+        body.group-projection #panel-group.group-show-result #draw-result-container {display:block;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(90vw,960px);padding:32px;z-index:1000;box-shadow:0 20px 60px rgba(15,23,42,.25);max-height:90vh;overflow:auto}
+        body.group-projection #draw-result-display {font-size:clamp(32px,4.7vw,64px)}
+        body.group-projection #group-draw-result-close-btn {display:inline-block}
+        @media(max-width:1023px) {
+            body.group-projection #group-top-section {grid-template-columns:1.5fr 1fr}
+            body.group-projection #group-cards-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+            body.group-projection #group-timer-clock {font-size:64px}
+        }
+        @media(max-width:640px) {
+            body.group-projection #panel-group {padding:10px}
+            body.group-projection #group-top-section {grid-template-columns:1fr}
+            body.group-projection #group-cards-grid {grid-template-columns:repeat(2,minmax(0,1fr))}
+            body.group-projection #group-tasks-list-display {font-size:22px}
+        }
+        body.group-projection #group-top-section > div {grid-column:auto}
+        body.group-projection .group-card > div:nth-child(2) {margin:4px 0}
+        body.group-projection .group-card > div:nth-child(2) > div:nth-child(2) {display:none}
+        #group-draw-settings-btn {display:none}
+        body.group-projection #group-draw-settings-btn {display:inline-block}
+        body.group-projection #group-score-toolbar button {padding-top:6px;padding-bottom:6px}
+        #group-draw-result-backdrop {display:none}
+        body.group-projection #panel-group.group-show-result #group-draw-result-backdrop {display:block;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:999}
+        #group-projection-draw-status {display:none}
+        body.group-projection #group-projection-draw-status {display:inline-block;padding:4px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:700;font-size:14px}
         @keyframes drawPulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.08); }
@@ -403,15 +465,23 @@
 
     <!-- ══════════════ GROUP DISCUSSION PANEL ══════════════ -->
     <div id="panel-group" class="hidden p-6 md:p-8">
-
+        <div id="group-view-toolbar">
+            <span class="font-bold text-sky-800">小組討論 · 任務、時間與分數</span>
+            <span id="group-projection-draw-status" aria-live="polite"></span>
+            <div class="flex flex-wrap gap-2">
+                <button id="group-draw-settings-btn" type="button" aria-expanded="false">抽籤設定／紀錄</button>
+                <button id="group-last-result-btn" type="button" disabled>上次抽籤結果</button>
+                <button id="group-projection-btn" type="button" aria-pressed="false">進入投影</button>
+            </div>
+        </div>
         <!-- Top Section: 討論事項 + 倒數計時 -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        <div id="group-top-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
 
             <!-- 討論事項卡片 (7 cols) -->
-            <div class="lg:col-span-7 bg-sky-50/70 border border-sky-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+            <div id="group-topic-panel" class="lg:col-span-7 bg-sky-50/70 border border-sky-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                 <div>
                     <!-- 標題與操作鈕 -->
-                    <div class="flex items-center justify-between mb-3">
+                    <div class="group-prep-control flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <span class="text-xl">📋</span>
                             <h2 class="text-slate-800 font-bold text-lg">討論事項與任務指引</h2>
@@ -431,7 +501,7 @@
                     <div id="group-topic-title-card" role="button" title="點擊直接編輯討論主題" class="cursor-pointer bg-white border-2 border-sky-300 hover:border-sky-500 hover:shadow-md rounded-xl p-4 mb-3 shadow-sm transition-all group">
                         <div class="text-[11px] uppercase tracking-wider text-sky-600 font-bold mb-1 flex items-center justify-between">
                             <span class="flex items-center gap-1"><span class="inline-block w-2 h-2 rounded-full bg-sky-500"></span> 今日核心主題</span>
-                            <span class="text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯主題</span>
+                            <span class="group-prep-control text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯主題</span>
                         </div>
                         <div id="group-topic-title-display" class="text-xl md:text-2xl font-black text-slate-800 leading-snug break-words">
                             課文問題深究與小組討論
@@ -444,7 +514,7 @@
                             <span class="flex items-center gap-1">📌 進行步驟與要求：</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-[11px] text-slate-400">大屏即時提醒</span>
-                                <span class="text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯步驟</span>
+                                <span class="group-prep-control text-xs text-sky-500 group-hover:text-sky-700 flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity font-medium">✏️ 點擊編輯步驟</span>
                             </div>
                         </div>
                         <div id="group-tasks-list-display" class="space-y-1.5 text-slate-700 text-sm font-medium">
@@ -456,7 +526,7 @@
                 </div>
 
                 <!-- 底部提示 -->
-                <div class="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                <div class="group-prep-control mt-3 flex items-center justify-between text-[11px] text-slate-400">
                     <span>💡 提示：點擊上方標題、步驟或「編輯任務」即可修改並自動同步</span>
                     <span id="group-last-synced-time"></span>
                 </div>
@@ -510,8 +580,76 @@
             </div>
         </div>
 
+        <!-- Bottom Section: 組別加分項目與各組計分看板 -->
+        <div id="group-score-section" class="mb-6">
+
+            <!-- ⭐ 加分項目列 -->
+            <div id="group-bonus-panel" class="bg-white border border-sky-200/90 rounded-2xl p-5 mb-5 shadow-sm">
+                <div class="group-prep-control flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⭐</span>
+                        <div>
+                            <h3 class="text-slate-800 font-bold text-base leading-tight">組別加分項目</h3>
+                            <p class="text-slate-400 text-xs">點選加分項目後，直接點擊下方組別卡片加分；亦可在組別卡片直接按 +1 / +2</p>
+                        </div>
+                    </div>
+                    <button id="group-bonus-edit-btn" type="button" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1">
+                        <span>✏️</span> 編輯加分項目
+                    </button>
+                </div>
+
+                <!-- 加分項目按鈕列表 -->
+                <div id="group-bonus-items-container" class="flex flex-wrap gap-2 pt-2">
+                    <!-- JS 動態產生項目按鈕 -->
+                </div>
+
+                <!-- 提示：當前選取之加分項目 -->
+                <div id="group-selected-bonus-hint" class="hidden mt-3 px-4 py-2 bg-sky-50 border border-sky-300 rounded-xl text-sm font-bold text-sky-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2.5 h-2.5 bg-sky-600 rounded-full animate-ping"></span>
+                        <span id="group-selected-bonus-text">👉 目前選取：【熱烈討論 +1】請點擊下方任意組別卡片加分！</span>
+                    </div>
+                    <button id="group-cancel-bonus-selection-btn" type="button" class="text-xs bg-white text-slate-500 hover:text-red-600 border border-sky-200 px-2 py-1 rounded-lg font-semibold transition-all">
+                        ✕ 取消選取
+                    </button>
+                </div>
+            </div>
+
+            <!-- 各組計分卡片工具列 -->
+            <div id="group-score-toolbar" class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <!-- 組數切換 -->
+                <div class="group-prep-control flex items-center gap-2">
+                    <span class="text-slate-600 font-bold text-sm">組數：</span>
+                    <div class="inline-flex p-1 bg-sky-100/70 border border-sky-200 rounded-xl text-xs font-bold gap-1">
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="4">4 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="5">5 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all bg-sky-600 text-white shadow-sm" data-count="6">6 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="7">7 組</button>
+                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="8">8 組</button>
+                    </div>
+                </div>
+
+                <!-- 功能操作按鈕 -->
+                <div class="flex items-center gap-2">
+                    <button id="group-undo-score-btn" type="button" disabled>復原上一筆</button>
+                    <button id="group-award-btn" type="button" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-extrabold shadow transition-all active:scale-95 flex items-center gap-1.5">
+                        <span>🏆</span> 結算頒獎
+                    </button>
+                    <button id="group-reset-scores-btn" type="button" class="group-prep-control px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
+                        🔄 分數歸零
+                    </button>
+                </div>
+            </div>
+
+            <!-- 各組卡片網格 -->
+            <div id="group-cards-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <!-- JS 動態產生各組卡片 -->
+            </div>
+        </div>
+
+        <button id="group-draw-result-backdrop" type="button" aria-label="返回討論"></button>
         <!-- Middle Section: 抽各組號碼的選項 (Random Draw Center) -->
-        <div class="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/90 rounded-2xl p-5 mb-6 shadow-sm">
+        <div id="group-draw-section" class="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/90 rounded-2xl p-5 mb-6 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-2">
                     <span class="text-2xl">🎲</span>
@@ -536,7 +674,7 @@
             </div>
 
             <!-- 控制選項列 -->
-            <div class="bg-white/80 border border-amber-200/70 rounded-xl p-4 mb-4">
+            <div id="group-draw-options" class="bg-white/80 border border-amber-200/70 rounded-xl p-4 mb-4">
                 <!-- 模式一選項：抽各組號碼 -->
                 <div id="draw-opts-number" class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex flex-wrap items-center gap-3">
@@ -623,10 +761,11 @@
                         </button>
                     </div>
                 </div>
+                <button id="group-draw-result-close-btn" type="button">返回討論</button>
             </div>
 
             <!-- 抽籤歷史紀錄 -->
-            <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+            <div id="group-draw-history-row" class="mt-3 flex items-center justify-between text-xs text-slate-500">
                 <div class="flex items-center gap-2 overflow-x-auto py-1">
                     <span class="font-bold flex-shrink-0">抽籤紀錄：</span>
                     <div id="draw-history-tags" class="flex items-center gap-1.5 flex-wrap">
@@ -636,72 +775,6 @@
                 <button id="draw-clear-history-btn" type="button" class="text-slate-400 hover:text-red-500 text-xs ml-2 whitespace-nowrap transition-all">
                     清空紀錄
                 </button>
-            </div>
-        </div>
-
-        <!-- Bottom Section: 組別加分項目與各組計分看板 -->
-        <div class="mb-6">
-
-            <!-- ⭐ 加分項目列 -->
-            <div class="bg-white border border-sky-200/90 rounded-2xl p-5 mb-5 shadow-sm">
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xl">⭐</span>
-                        <div>
-                            <h3 class="text-slate-800 font-bold text-base leading-tight">組別加分項目</h3>
-                            <p class="text-slate-400 text-xs">點選加分項目後，直接點擊下方組別卡片加分；亦可在組別卡片直接按 +1 / +2</p>
-                        </div>
-                    </div>
-                    <button id="group-bonus-edit-btn" type="button" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1">
-                        <span>✏️</span> 編輯加分項目
-                    </button>
-                </div>
-
-                <!-- 加分項目按鈕列表 -->
-                <div id="group-bonus-items-container" class="flex flex-wrap gap-2 pt-2">
-                    <!-- JS 動態產生項目按鈕 -->
-                </div>
-
-                <!-- 提示：當前選取之加分項目 -->
-                <div id="group-selected-bonus-hint" class="hidden mt-3 px-4 py-2 bg-sky-50 border border-sky-300 rounded-xl text-sm font-bold text-sky-800 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="inline-block w-2.5 h-2.5 bg-sky-600 rounded-full animate-ping"></span>
-                        <span id="group-selected-bonus-text">👉 目前選取：【熱烈討論 +1】請點擊下方任意組別卡片加分！</span>
-                    </div>
-                    <button id="group-cancel-bonus-selection-btn" type="button" class="text-xs bg-white text-slate-500 hover:text-red-600 border border-sky-200 px-2 py-1 rounded-lg font-semibold transition-all">
-                        ✕ 取消選取
-                    </button>
-                </div>
-            </div>
-
-            <!-- 各組計分卡片工具列 -->
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <!-- 組數切換 -->
-                <div class="flex items-center gap-2">
-                    <span class="text-slate-600 font-bold text-sm">組數：</span>
-                    <div class="inline-flex p-1 bg-sky-100/70 border border-sky-200 rounded-xl text-xs font-bold gap-1">
-                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="4">4 組</button>
-                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="5">5 組</button>
-                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all bg-sky-600 text-white shadow-sm" data-count="6">6 組</button>
-                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="7">7 組</button>
-                        <button type="button" class="group-count-btn px-2.5 py-1 rounded-lg transition-all hover:bg-white/60" data-count="8">8 組</button>
-                    </div>
-                </div>
-
-                <!-- 功能操作按鈕 -->
-                <div class="flex items-center gap-2">
-                    <button id="group-award-btn" type="button" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-extrabold shadow transition-all active:scale-95 flex items-center gap-1.5">
-                        <span>🏆</span> 結算頒獎
-                    </button>
-                    <button id="group-reset-scores-btn" type="button" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
-                        🔄 分數歸零
-                    </button>
-                </div>
-            </div>
-
-            <!-- 各組卡片網格 -->
-            <div id="group-cards-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <!-- JS 動態產生各組卡片 -->
             </div>
         </div>
 
@@ -4358,7 +4431,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.12（2026-10-10）';
+    window.CTU_VERSION = 'v1.13（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -4698,6 +4771,7 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTabOrder();
 
     function switchTab(tab) {
+        updateGroupProjection(tab === 'group');
         window.ctuCurrentTab = tab;
         const tabs = defaultTabOrder;
         tabs.forEach(t => {
@@ -7882,15 +7956,20 @@ document.addEventListener('DOMContentLoaded', () => {
     var groupScores = loadGroupScores();
     var groupNames = loadGroupNames();
     var groupLastBonuses = {};
+    var groupScoreUndo = null;
+    var groupProjectionEnabled = false;
 
     var groupSelectedBonus = null; // Currently active bonus item from criteria bar
     var groupMaxDrawNumber = parseInt(ctuStore.getItem('groupMaxDrawNumber') || '5', 10);
+    if ([4,5,6].indexOf(groupMaxDrawNumber) < 0) groupMaxDrawNumber = 5;
     var groupDrawHistory = loadGroupDrawHistory();
     var groupDrawnNumbers = new Set();
     var groupDrawnGroups = new Set();
     var groupDrawnBothGroups = new Set();
     var groupCurrentDrawMode = 'number'; // 'number' | 'group' | 'both'
     var groupLastDrawResultText = '';
+    var groupLastDrawResult = null;
+    restoreGroupDrawSnapshot(loadGroupDrawProgress());
 
     // Timer variables
     var groupTimerSeconds = parseInt(ctuStore.getItem('groupTimerMinutes') || '5', 10) * 60;
@@ -8079,7 +8158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (changedTopic) renderGroupTopic();
         if (changedBonus) renderGroupBonusItems();
-        if (changedGroups) renderGroupCards();
+        if (changedGroups) {renderGroupCards();updateDrawnGroupsTag();updateDrawnBothTag();}
         updateGroupSyncBadge('synced');
     }
 
@@ -8140,9 +8219,86 @@ document.addEventListener('DOMContentLoaded', () => {
         return sc;
     }
 
-    function saveGroupScores() {
-        ctuStore.setItem('groupScores', JSON.stringify(groupScores));
+    function saveGroupScores(scores) {
+        return writeGroupLocal('groupScores', JSON.stringify(scores || groupScores));
     }
+
+    function writeGroupLocal(key,value) {
+        try {if(ctuStore.setItem(key,value)===false) throw new Error('storage');return true;}
+        catch(e) {showGroupToast('儲存失敗，請確認瀏覽器儲存空間後再試。',false);return false;}
+    }
+    function loadGroupDrawProgress() {
+        try {var data=JSON.parse(ctuStore.getItem('groupDrawProgress')||'null');return data&&data.version===1?data:{};}
+        catch(e) {return {};}
+    }
+    function validGroupDrawSet(values,max) {
+        return new Set((Array.isArray(values)?values:[]).filter(function(n){return Number.isInteger(n)&&n>=1&&n<=max;}));
+    }
+    function groupActiveDrawCount(drawn,max) {
+        return Array.from(drawn).filter(function(n){return n<=max;}).length;
+    }
+    // Persist the result, history and all three pools in one write.
+    function groupDrawSnapshot() {
+        return {version:1,numbers:Array.from(groupDrawnNumbers),groups:Array.from(groupDrawnGroups),bothGroups:Array.from(groupDrawnBothGroups),history:groupDrawHistory.slice(-15),lastResult:groupLastDrawResult};
+    }
+    function restoreGroupDrawSnapshot(data) {
+        groupDrawnNumbers=validGroupDrawSet(data.numbers,6);
+        groupDrawnGroups=validGroupDrawSet(data.groups,8);
+        groupDrawnBothGroups=validGroupDrawSet(data.bothGroups,8);
+        groupDrawHistory=Array.isArray(data.history)?data.history.filter(function(s){return typeof s==='string';}).slice(-15):groupDrawHistory;
+        groupLastDrawResult=data.lastResult&&typeof data.lastResult.text==='string'&&typeof data.lastResult.speech==='string'&&typeof data.lastResult.badge==='string'?data.lastResult:null;
+        groupLastDrawResultText=groupLastDrawResult?groupLastDrawResult.speech:'';
+    }
+    function saveGroupDrawProgress() {return writeGroupLocal('groupDrawProgress',JSON.stringify(groupDrawSnapshot()));}
+    function resetGroupDraw(mode) {
+        if(isDrawingNow)return;
+        var before=groupDrawSnapshot();
+        var drawn=mode==='number'?groupDrawnNumbers:mode==='group'?groupDrawnGroups:groupDrawnBothGroups;
+        drawn.clear();
+        if(!saveGroupDrawProgress()){restoreGroupDrawSnapshot(before);return;}
+        updateDrawnNumbersTag();updateDrawnGroupsTag();updateDrawnBothTag();
+        showGroupToast('已重設輪抽進度，可以開始下一輪。',true);
+    }
+    function updateGroupProjection(active) {
+        var projected=!!groupProjectionEnabled&&active;
+        document.body.classList.toggle('group-projection',projected);
+        var btn=document.getElementById('group-projection-btn');
+        if(btn){btn.textContent=projected?'返回備課':'進入投影';btn.setAttribute('aria-pressed',String(projected));}
+        if(!projected)document.getElementById('panel-group').classList.remove('group-show-result');
+    }
+    function showLastGroupDraw() {
+        if(!groupLastDrawResult)return;
+        document.getElementById('draw-result-placeholder').classList.add('hidden');
+        document.getElementById('draw-result-active').classList.remove('hidden');
+        document.getElementById('draw-result-display').textContent=groupLastDrawResult.text;
+        document.getElementById('draw-result-badge').textContent=groupLastDrawResult.badge;
+    }
+    function initGroupProjection() {
+        var panel=document.getElementById('panel-group');
+        document.getElementById('group-projection-btn').addEventListener('click',function(){groupProjectionEnabled=!groupProjectionEnabled;updateGroupProjection(true);window.scrollTo(0,0);});
+        document.getElementById('group-draw-settings-btn').addEventListener('click',function(){this.setAttribute('aria-expanded',String(panel.classList.toggle('group-draw-settings-open')));});
+        document.getElementById('group-last-result-btn').disabled=!groupLastDrawResult;
+        document.getElementById('group-last-result-btn').addEventListener('click',function(){
+            if(isDrawingNow)return;
+            showLastGroupDraw();panel.classList.add('group-show-result');
+            if(!document.body.classList.contains('group-projection'))document.getElementById('draw-result-container').scrollIntoView({block:'center'});
+        });
+        document.getElementById('group-draw-result-close-btn').addEventListener('click',function(){panel.classList.remove('group-show-result');});
+        document.getElementById('group-draw-result-backdrop').addEventListener('click',function(){panel.classList.remove('group-show-result');});
+        document.addEventListener('keydown',function(e){if(e.key==='Escape')panel.classList.remove('group-show-result');});
+        document.getElementById('group-undo-score-btn').addEventListener('click',undoGroupScore);
+        showLastGroupDraw();
+    }
+    function undoGroupScore() {
+        if(!groupScoreUndo)return;
+        var previous=groupScoreUndo;
+        var next=Object.assign({},groupScores);next[previous.groupId]=previous.score;
+        if(!saveGroupScores(next))return;
+        groupScores=next;
+        if(previous.bonus===undefined)delete groupLastBonuses[previous.groupId];else groupLastBonuses[previous.groupId]=previous.bonus;
+        groupScoreUndo=null;renderGroupCards();showGroupToast('已復原上一筆加減分。',true);
+    }
+
 
     function loadGroupNames() {
         try {
@@ -8168,7 +8324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveGroupDrawHistory() {
-        ctuStore.setItem('groupDrawHistory', JSON.stringify(groupDrawHistory.slice(-15)));
+        try {ctuStore.setItem('groupDrawHistory', JSON.stringify(groupDrawHistory.slice(-15)));} catch(e) {}
     }
 
     // --- Render Functions ---
@@ -8215,6 +8371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateGroupBonusHint() {
+        document.getElementById('group-cards-grid').classList.toggle('group-score-armed', !!groupSelectedBonus);
         var hintEl = document.getElementById('group-selected-bonus-hint');
         var textEl = document.getElementById('group-selected-bonus-text');
         if (!hintEl || !textEl) return;
@@ -8231,6 +8388,9 @@ document.addEventListener('DOMContentLoaded', () => {
         var grid = document.getElementById('group-cards-grid');
         if (!grid) return;
         grid.innerHTML = '';
+        grid.style.setProperty('--group-count', String(groupCount));
+        grid.classList.toggle('group-score-armed', !!groupSelectedBonus);
+        document.getElementById('group-undo-score-btn').disabled = !groupScoreUndo;
 
         // Find max score among active groups
         var maxScore = -999999;
@@ -8347,12 +8507,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.appendChild(scoreBox);
                 card.appendChild(btnRow);
 
-                // Clicking card body applies selected bonus item or +1
+                // Card body scores only when a criterion is explicitly selected.
                 card.addEventListener('click', function () {
                     if (groupSelectedBonus) {
                         applyGroupScore(id, groupSelectedBonus.pts, groupSelectedBonus.label, card);
                     } else {
-                        applyGroupScore(id, 1, '表現良好', card);
+                        showGroupToast('請先選取加分項目，或按 +1／+2 加分。', false);
                     }
                 });
 
@@ -8375,10 +8535,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyGroupScore(groupId, pts, label, cardEl) {
-        groupScores[groupId] = (groupScores[groupId] || 0) + pts;
+        var before = {groupId:groupId, score:groupScores[groupId] || 0, bonus:groupLastBonuses[groupId]};
+        var next = Object.assign({}, groupScores);
+        next[groupId] = before.score + pts;
+        if (!saveGroupScores(next)) return;
+        groupScores = next;
+        groupScoreUndo = before;
         var ptsStr = pts > 0 ? '+' + pts : String(pts);
         groupLastBonuses[groupId] = label ? (label + ' ' + ptsStr) : ptsStr;
-        saveGroupScores();
+        renderGroupCards();
+        cardEl = document.querySelectorAll('#group-cards-grid .group-card')[groupId - 1];
         playGroupChime('bonus');
 
         // Floating animated tag
@@ -8390,7 +8556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(function () { if (tag.parentNode) tag.parentNode.removeChild(tag); }, 1100);
         }
 
-        renderGroupCards();
+
     }
 
     // --- Timer Engine ---
@@ -8544,6 +8710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnBoth.className = 'px-3 py-1.5 rounded-lg transition-all bg-white text-amber-800 shadow-sm font-bold';
                 optBoth.classList.remove('hidden');
             }
+            updateGroupDrawStatus();
         }
 
         if (btnNum) btnNum.addEventListener('click', function () { setMode('number'); });
@@ -8553,14 +8720,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Max number buttons for mode 1
         document.querySelectorAll('.group-maxnum-btn').forEach(function (b) {
             b.addEventListener('click', function () {
+                if (isDrawingNow) return;
                 var max = parseInt(b.dataset.max, 10);
+                if (!writeGroupLocal('groupMaxDrawNumber', String(max))) return;
                 groupMaxDrawNumber = max;
-                ctuStore.setItem('groupMaxDrawNumber', String(max));
-                var toDel = [];
-                groupDrawnNumbers.forEach(function (num) {
-                    if (num > max) toDel.push(num);
-                });
-                toDel.forEach(function (num) { groupDrawnNumbers.delete(num); });
                 updateDrawnNumbersTag();
                 document.querySelectorAll('.group-maxnum-btn').forEach(function (x) {
                     if (parseInt(x.dataset.max, 10) === max) {
@@ -8579,6 +8742,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedNumNoRepeat !== null) noRepeatNum.checked = (savedNumNoRepeat === 'true');
             noRepeatNum.addEventListener('change', function () {
                 ctuStore.setItem('groupDrawNumberNoRepeat', String(noRepeatNum.checked));
+                updateGroupDrawStatus();
             });
         }
         var noRepeatGrp = document.getElementById('draw-group-no-repeat');
@@ -8587,6 +8751,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedGrpNoRepeat !== null) noRepeatGrp.checked = (savedGrpNoRepeat === 'true');
             noRepeatGrp.addEventListener('change', function () {
                 ctuStore.setItem('groupDrawGroupNoRepeat', String(noRepeatGrp.checked));
+                updateGroupDrawStatus();
             });
         }
         var noRepeatBoth = document.getElementById('draw-both-no-repeat');
@@ -8595,6 +8760,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (savedBothNoRepeat !== null) noRepeatBoth.checked = (savedBothNoRepeat === 'true');
             noRepeatBoth.addEventListener('change', function () {
                 ctuStore.setItem('groupDrawBothNoRepeat', String(noRepeatBoth.checked));
+                updateGroupDrawStatus();
             });
         }
 
@@ -8609,34 +8775,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset buttons
         var resetNumBtn = document.getElementById('draw-number-reset-btn');
         if (resetNumBtn) {
-            resetNumBtn.addEventListener('click', function () {
-                groupDrawnNumbers.clear();
-                updateDrawnNumbersTag();
-                showGroupToast('已重設各組號碼輪抽進度', true);
-            });
+            resetNumBtn.addEventListener('click', function () { resetGroupDraw('number'); });
         }
         var resetGrpBtn = document.getElementById('draw-group-reset-btn');
         if (resetGrpBtn) {
-            resetGrpBtn.addEventListener('click', function () {
-                groupDrawnGroups.clear();
-                updateDrawnGroupsTag();
-                showGroupToast('已重設組別輪抽進度', true);
-            });
+            resetGrpBtn.addEventListener('click', function () { resetGroupDraw('group'); });
         }
         var resetBothBtn = document.getElementById('draw-both-reset-btn');
         if (resetBothBtn) {
-            resetBothBtn.addEventListener('click', function () {
-                groupDrawnBothGroups.clear();
-                updateDrawnBothTag();
-                showGroupToast('已重設組別輪抽進度', true);
-            });
+            resetBothBtn.addEventListener('click', function () { resetGroupDraw('both'); });
         }
 
         // Clear history button
         var clearHistBtn = document.getElementById('draw-clear-history-btn');
         if (clearHistBtn) {
             clearHistBtn.addEventListener('click', function () {
+                if (isDrawingNow) return;
+                var before = groupDrawSnapshot();
                 groupDrawHistory = [];
+                if (!saveGroupDrawProgress()) { restoreGroupDrawSnapshot(before); return; }
                 saveGroupDrawHistory();
                 renderDrawHistory();
             });
@@ -8656,11 +8813,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDrawnBothTag();
     }
 
+    function updateGroupDrawStatus() {
+        var mode = groupCurrentDrawMode;
+        var status = document.getElementById('group-projection-draw-status');
+        var tag = document.getElementById('draw-' + mode + '-history-tag');
+        var checkbox = document.getElementById('draw-' + mode + '-no-repeat');
+        if (status && tag) status.textContent = checkbox && checkbox.checked ? tag.textContent : '可重複抽取';
+    }
     function updateDrawnNumbersTag() {
         var tag = document.getElementById('draw-number-history-tag');
         if (tag) {
-            tag.textContent = '已抽 ' + groupDrawnNumbers.size + ' / ' + groupMaxDrawNumber + ' 號';
+            tag.textContent = '已抽 ' + groupActiveDrawCount(groupDrawnNumbers,groupMaxDrawNumber) + ' / ' + groupMaxDrawNumber + ' 號';
         }
+        updateGroupDrawStatus();
     }
 
     function updateDrawnGroupsTag() {
@@ -8668,15 +8833,17 @@ document.addEventListener('DOMContentLoaded', () => {
         var countText = document.getElementById('draw-group-count-text');
         if (countText) countText.textContent = '第 ' + groupCount + ' 組';
         if (tag) {
-            tag.textContent = '已抽 ' + groupDrawnGroups.size + ' / ' + groupCount + ' 組';
+            tag.textContent = '已抽 ' + groupActiveDrawCount(groupDrawnGroups,groupCount) + ' / ' + groupCount + ' 組';
         }
+        updateGroupDrawStatus();
     }
 
     function updateDrawnBothTag() {
         var tag = document.getElementById('draw-both-history-tag');
         if (tag) {
-            tag.textContent = '已抽 ' + groupDrawnBothGroups.size + ' / ' + groupCount + ' 組';
+            tag.textContent = '已抽 ' + groupActiveDrawCount(groupDrawnBothGroups,groupCount) + ' / ' + groupCount + ' 組';
         }
+        updateGroupDrawStatus();
     }
 
     function renderDrawHistory() {
@@ -8698,6 +8865,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function executeGroupDraw(mode) {
         if (isDrawingNow) return;
         isDrawingNow = true;
+        var before = groupDrawSnapshot();
 
         var resultBox = document.getElementById('draw-result-container');
         var placeholder = document.getElementById('draw-result-placeholder');
@@ -8724,10 +8892,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!pool.length) {
-                // If all drawn, reset pool
-                for (var n2 = 1; n2 <= groupMaxDrawNumber; n2++) pool.push(n2);
-                groupDrawnNumbers.clear();
-                showGroupToast('🔄 號碼已全數輪抽一輪，自動重新開始！', true);
+                isDrawingNow = false;
+                if (displayEl) displayEl.classList.remove('draw-animating');
+                showGroupToast('本輪已抽完，請按「重設」開始下一輪。', true);
+                showLastGroupDraw();
+                return;
             }
             var chosenNum = pool[Math.floor(Math.random() * pool.length)];
             if (isNoRepeat) {
@@ -8749,10 +8918,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!pool.length) {
-                // If all drawn, reset pool
-                for (var j = 1; j <= groupCount; j++) pool.push(j);
-                groupDrawnGroups.clear();
-                showGroupToast('🔄 各組已全部輪抽一輪，自動重新開始！', true);
+                isDrawingNow = false;
+                if (displayEl) displayEl.classList.remove('draw-animating');
+                showGroupToast('本輪已抽完，請按「重設」開始下一輪。', true);
+                showLastGroupDraw();
+                return;
             }
             var chosenGid = pool[Math.floor(Math.random() * pool.length)];
             if (isNoRepeatGrp) {
@@ -8776,9 +8946,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!pool.length) {
-                for (var bg2 = 1; bg2 <= groupCount; bg2++) pool.push(bg2);
-                groupDrawnBothGroups.clear();
-                showGroupToast('🔄 各組已全部輪抽一輪，自動重新開始！', true);
+                isDrawingNow = false;
+                if (displayEl) displayEl.classList.remove('draw-animating');
+                showGroupToast('本輪已抽完，請按「重設」開始下一輪。', true);
+                showLastGroupDraw();
+                return;
             }
             var chosenG = pool[Math.floor(Math.random() * pool.length)];
             if (isNoRepeatBoth) {
@@ -8794,6 +8966,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (badgeEl) badgeEl.textContent = '👥 抽組別與號碼結果' + (isNoRepeatBoth ? '（組別不重複）' : '');
         }
 
+        // Reserve before animation so reload cannot erase the selection.
+        groupDrawHistory.push(historyItem);
+        groupDrawHistory = groupDrawHistory.slice(-15);
+        groupLastDrawResult = {text:targetText,speech:speakText,badge:badgeEl ? badgeEl.textContent : ''};
+        groupLastDrawResultText = speakText;
+        if (!saveGroupDrawProgress()) {
+            restoreGroupDrawSnapshot(before);
+            updateDrawnNumbersTag(); updateDrawnGroupsTag(); updateDrawnBothTag();
+            if (displayEl) displayEl.classList.remove('draw-animating');
+            if (!groupLastDrawResult) {placeholder.classList.remove('hidden');activeView.classList.add('hidden');}
+            else showLastGroupDraw();
+            isDrawingNow = false;
+            return;
+        }
+        saveGroupDrawHistory();
+        renderDrawHistory();
+        document.getElementById('group-last-result-btn').disabled = false;
+        document.getElementById('panel-group').classList.add('group-show-result');
         // Rolling animation
         var rollCount = 0;
         var maxRolls = 14;
@@ -8820,9 +9010,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     displayEl.textContent = targetText;
                 }
                 groupLastDrawResultText = speakText;
-                groupDrawHistory.push(historyItem);
-                saveGroupDrawHistory();
-                renderDrawHistory();
                 playGroupChime('win');
                 speakGroupText(speakText);
                 isDrawingNow = false;
@@ -8846,6 +9033,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var topicSaveTop = document.getElementById('group-topic-save-top-btn');
 
         function openTopicModal(focusField) {
+            if (document.body.classList.contains('group-projection')) return;
             if (topicInput) topicInput.value = groupTopic.title || '';
             if (tasksInput) tasksInput.value = (groupTopic.tasks || []).join('\n');
             if (topicModal) topicModal.classList.add('show');
@@ -9084,9 +9272,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resetScoresBtn) {
             resetScoresBtn.addEventListener('click', function () {
                 if (confirm('確定要將所有組別的分數歸零嗎？')) {
-                    for (var i = 1; i <= 8; i++) groupScores[i] = 0;
+                    var next = {};
+                    for (var i = 1; i <= 8; i++) next[i] = 0;
+                    if (!saveGroupScores(next)) return;
+                    groupScores = next;
                     groupLastBonuses = {};
-                    saveGroupScores();
+                    groupScoreUndo = null;
                     renderGroupCards();
                 }
             });
@@ -9095,10 +9286,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 5. Group Count Selector
         document.querySelectorAll('.group-count-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                if (isDrawingNow) return;
                 var c = parseInt(btn.dataset.count, 10);
                 if (c >= 4 && c <= 8) {
+                    if (!writeGroupLocal('groupCount', String(c))) return;
                     groupCount = c;
-                    ctuStore.setItem('groupCount', String(c));
+                    updateDrawnGroupsTag(); updateDrawnBothTag();
                     renderGroupCards();
                     syncGroupSettingsToCloud(false);
                 }
@@ -9160,6 +9353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         groupInitialized = true;
         initDrawingCenter();
         setupGroupModals();
+        initGroupProjection();
         if (typeof groupSyncPull === 'function') groupSyncPull();
     }
 
@@ -9180,7 +9374,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var SH150_CONFIG_KEY = 'sh150_class_config';
     var SH150_RECORDS_KEY = 'sh150_universal_all_records';
     // 有這些紀錄才算「有資料需要備份」
-    var RECORD_KEYS = ['ctu_seatCheckRecords', 'ctu_timerHistory', 'ctu_weeklyRecordData', 'ctu_sh150_records', 'ctu_groupScores', 'ctu_groupDrawHistory', 'ctu_sr_records'];
+    var RECORD_KEYS = ['ctu_seatCheckRecords', 'ctu_timerHistory', 'ctu_weeklyRecordData', 'ctu_sh150_records', 'ctu_groupScores', 'ctu_groupDrawHistory', 'ctu_groupDrawProgress', 'ctu_sr_records'];
     var REMIND_DAYS = 14;   // 【可自行修改】幾天沒備份就提醒
 
     function $(id) { return document.getElementById(id); }
