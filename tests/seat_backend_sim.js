@@ -243,12 +243,33 @@ test('操作紀錄完全存不進去時不執行清除（第 3 輪 B-高）', ()
   assert.strictEqual(sheet.rows.length, 2, '新登記不被重複刪除');
 });
 
-test('上次執行到一半（進行中）的操作，重送會重新執行', () => {
+test('「進行中」紀錄的重送：結果不確定，暫停不重做（第 2 輪程式審查 B-高）', () => {
   const { sheet, props, api } = makeEnv();
   sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
   props.seatOpLog = JSON.stringify([{ id: 'half', done: false }]);
-  assert.strictEqual(api.clearSeatDay('half', '2026-10-10'), 1);
+  assert.match(permanent(() => api.clearSeatDay('half', '2026-10-10')), /結果不確定/);
+  assert.strictEqual(sheet.rows.length, 2, '不自動重做');
+});
+
+test('完成紀錄存不進去：清除已做，之後新增的資料不會被重送刪掉', () => {
+  const { sheet, props, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
+  props.__limit = 30;   // 「進行中」(約 27 字) 存得進去、「已完成」(約 36 字) 存不進去
+  assert.strictEqual(api.clearSeatDay('x2', '2026-10-10'), 1);
   assert.strictEqual(sheet.rows.length, 1);
+  delete props.__limit;
+  api.setSeatCount('2026-10-10#4', '6', '乙', 'tilt', '坐姿', 1);   // 另一台裝置新增
+  assert.match(permanent(() => api.clearSeatDay('x2', '2026-10-10')), /結果不確定/);
+  assert.strictEqual(sheet.rows.length, 2, '新增的那筆還在');
+});
+
+test('執行失敗時移除「進行中」，重試會正常執行', () => {
+  const { sheet, props, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
+  sheet.failNextSetValues = true;
+  assert.throws(() => api.importSeatRecordsV2('imp9', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]));
+  assert.ok(!JSON.parse(props.seatOpLog || '[]').some(x => x.id === 'imp9'), '失敗的操作不留紀錄');
+  assert.deepStrictEqual(api.importSeatRecordsV2('imp9', [['2026-10-11#1', '5', '甲', '坐姿', 1, 'tilt']]), { written: 1 });
 });
 
 test('取代匯入：座號 05 與 5、#?第3節 與 #3 視為同一筆，寫入前就擋下（第 3 輪 A-中）', () => {

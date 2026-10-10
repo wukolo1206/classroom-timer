@@ -160,5 +160,22 @@ class SeatPeriodUniversal(unittest.TestCase):
         self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}})
 
 
+    def test_U08_import_partial_settings_failure_restores_everything(self):
+        p = self.open(at='10:35', records={DAY + '#3': {'1': {'tilt': 1}}})
+        items_before = p.evaluate("localStorage.getItem('ctu_seatCheckItems')")
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (k === 'ctu_seatLayout') throw new Error('QuotaExceeded'); return orig.call(this, k, v); }; }""")
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'2': {'bag': 2}}},
+                'seatCheckItems': [{'key': 'newk', 'label': '新項目', 'color': 3}], 'seatLayout': '1,2 | 3,4 | 5,6'}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(500)
+        self.assertFalse(any('已覆蓋匯入' in m for m in p._dialogs), p._dialogs)
+        self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}}, '紀錄還原')
+        self.assertEqual(p.evaluate("localStorage.getItem('ctu_seatCheckItems')"), items_before, '項目也還原')
+        self.assertTrue(p.evaluate("document.getElementById('seat-import-modal').classList.contains('show')"))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -5580,27 +5580,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 排入清除或取代匯入（可一次多筆）：先移除範圍內還沒送出的 count 工作（正在送出中的不動），整批存進佇列，**先不送**。
-     * 存成功回傳工作 id 陣列；呼叫端改好本機後再呼叫 seatFlushQueue() 開始送，本機改不成功就 seatDropOps(ids) 撤回。
-     * 存不進去回傳 null（什麼都沒排入）。
+     * 清除／取代匯入的共同流程（順序很重要）：
+     * 1. 先寫本機（writes：[[鍵, 值], …]）；任一寫不進去就把已寫的還原，什麼都不排入。
+     * 2. 再把工作存進同步佇列（同時移除範圍內還沒送出的 count，正在送出中的不動）；
+     *    佇列存不進去就把本機還原，佇列維持原樣（被移除的 count 也還在）。
+     * 最壞情況是「操作沒有成功、資料還在」，不會出現「說沒執行、其實送出了清除」。
      */
-    function seatEnqueueOps(ops) {
-        if (!SEAT_SYNC) return [];
-        var q = seatQueue().filter(function (j) {
-            if (j.type !== 'count' || j.id === seatInFlightId) return true;
-            return !ops.some(function (op) { return seatJobCovered(j, op); });
-        });
-        ops.forEach(function (op) { op.id = seatNewId(); q.push(op); });
-        var ok;
-        try { ok = saveSeatQueue(q) !== false; } catch (e) { ok = false; }
-        if (!ok) { alert('瀏覽器儲存空間不足，這次操作沒有執行。請先按「匯出秩序資料」備份。'); return null; }
-        seatDestructiveSeq++;
-        return ops.map(function (op) { return op.id; });
-    }
-    /** 撤回剛排入、還沒送出的工作 */
-    function seatDropOps(ids) {
-        if (!ids || !ids.length) return;
-        try { saveSeatQueue(seatQueue().filter(function (j) { return ids.indexOf(j.id) < 0 || j.id === seatInFlightId; })); } catch (e) {}
+    function seatCommitDestructive(writes, ops) {
+        var before = writes.map(function (w) { return [w[0], ctuStore.getItem(w[0])]; });
+        function restore() {
+            var ok = true;
+            before.forEach(function (b) {
+                if (b[1] === null) { try { ctuStore.removeItem(b[0]); } catch (e) { ok = false; } }
+                else if (!seatWrite(b[0], b[1])) ok = false;
+            });
+            return ok;
+        }
+        for (var i = 0; i < writes.length; i++) {
+            if (!seatWrite(writes[i][0], writes[i][1])) {
+                var r1 = restore();
+                alert('瀏覽器儲存失敗（空間可能不足），這次操作沒有執行。' + (r1 ? '' : '\n畫面可能和實際資料不一致，請重新整理頁面。'));
+                return false;
+            }
+        }
+        if (SEAT_SYNC && ops.length) {
+            var q = seatQueue().filter(function (j) {
+                if (j.type !== 'count' || j.id === seatInFlightId) return true;
+                return !ops.some(function (op) { return seatJobCovered(j, op); });
+            });
+            ops.forEach(function (op) { op.id = seatNewId(); q.push(op); });
+            var ok;
+            try { ok = saveSeatQueue(q) !== false; } catch (e) { ok = false; }
+            if (!ok) {
+                var r2 = restore();
+                alert('瀏覽器儲存空間不足，這次操作沒有執行（試算表沒有變動）。' + (r2 ? '' : '\n畫面可能看起來已改變；請重新整理頁面，資料會從試算表恢復。'));
+                return false;
+            }
+            seatDestructiveSeq++;
+            seatFlushQueue();
+        }
+        return true;
     }
 
     function seatScheduleRetry() {
@@ -6808,42 +6827,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /** 清除某時段（可限定座號）：先排進同步佇列，確認存好才改本機 */
     function seatClearSlot(slot, seat) {
-        var ids = seatEnqueueOps([{ type: 'clearSlot', slot: slot, seat: seat ? String(seat) : '' }]);
-        if (ids === null) return;
         var all = getSeatRecords();
         if (all[slot]) {
             if (seat) { delete all[slot][seat]; if (!Object.keys(all[slot]).length) delete all[slot]; }
             else delete all[slot];
         }
-        if (!seatWrite('seatCheckRecords', JSON.stringify(all))) {
-            seatDropOps(ids);
-            alert('瀏覽器儲存失敗，這次清除沒有執行。');
-            return;
-        }
+        if (!seatCommitDestructive([['seatCheckRecords', JSON.stringify(all)]],
+                [{ type: 'clearSlot', slot: slot, seat: seat ? String(seat) : '' }])) { renderSeatChart(); return; }
         seatUndoStack = seatUndoStack.filter(function (u) { return !(u.slot === slot && (!seat || String(u.num) === String(seat))); });
-        seatFlushQueue();
         renderSeatChart();
     }
     /** 清除某幾天（包含全部節次與未分節，可限定座號） */
     function seatClearDays(dates, seat) {
-        // 多天一次存進佇列（全成功或全不排），本機改好才開始送
-        var ids = seatEnqueueOps(dates.map(function (d) { return { type: 'clearDay', date: d, seat: seat ? String(seat) : '' }; }));
-        if (ids === null) return;
         var all = getSeatRecords();
         Object.keys(all).forEach(function (slot) {
             if (dates.indexOf(seatSlotDate(slot)) < 0) return;
             if (seat) { delete all[slot][seat]; if (!Object.keys(all[slot]).length) delete all[slot]; }
             else delete all[slot];
         });
-        if (!seatWrite('seatCheckRecords', JSON.stringify(all))) {
-            seatDropOps(ids);
-            alert('瀏覽器儲存失敗，這次清除沒有執行。');
-            return;
-        }
+        // 多天一次處理：本機與佇列都成功才算數，任一步失敗整批都不執行
+        if (!seatCommitDestructive([['seatCheckRecords', JSON.stringify(all)]],
+                dates.map(function (d) { return { type: 'clearDay', date: d, seat: seat ? String(seat) : '' }; }))) { renderSeatChart(); return; }
         seatUndoStack = seatUndoStack.filter(function (u) {
             return !(dates.indexOf(seatSlotDate(u.slot)) >= 0 && (!seat || String(u.num) === String(seat)));
         });
-        seatFlushQueue();
         renderSeatChart();
     }
 
@@ -7452,15 +7459,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function purgeAllSeatRecords() {
         exportSeatData();   // 清空前先留一份備份檔
-        var ids = seatEnqueueOps([{ type: 'clearAll' }]);
-        if (ids === null) return;
-        if (!seatWrite('seatCheckRecords', JSON.stringify({}))) {
-            seatDropOps(ids);
-            alert('瀏覽器儲存失敗，這次清除沒有執行。');
-            return;
-        }
+        if (!seatCommitDestructive([['seatCheckRecords', JSON.stringify({})]], [{ type: 'clearAll' }])) { renderSeatChart(); return; }
         seatUndoStack = [];
-        seatFlushQueue();
         renderSeatChart();
         renderSeatStats();
     }
@@ -7583,8 +7583,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!m || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3]) { bad.push('時段「' + slot + '」格式不正確'); return; }
             var day = recs[slot];
             if (!day || typeof day !== 'object' || Array.isArray(day)) { bad.push(slot + '：內容不是物件'); return; }
+            var seen = {};
             Object.keys(day).forEach(function (seat) {
                 if (!/^\d{1,3}$/.test(seat) || +seat < 1) { bad.push(slot + '：座號「' + seat + '」不正確'); return; }
+                if (seen[+seat]) { bad.push(slot + '：座號「' + seen[+seat] + '」和「' + seat + '」是同一人'); return; }
+                seen[+seat] = seat;
                 var v = day[seat];
                 if (Array.isArray(v)) {   // 很舊的格式：項目代碼陣列
                     if (!v.every(function (k) { return typeof k === 'string' && k; })) bad.push(slot + ' ' + seat + ' 號：項目代碼不正確');
@@ -7669,18 +7672,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function finishSeatImport(data, mode) {
-        var incoming = null, ids = [];
+        var incoming = null;
         if (data.seatCheckRecords) {
             incoming = {};
             Object.keys(data.seatCheckRecords).forEach(function (k) {
-                var day = normalizeSeatDay(data.seatCheckRecords[k]);
-                if (Object.keys(day).length) incoming[k] = day;
+                var day = normalizeSeatDay(data.seatCheckRecords[k]), nd = {};
+                Object.keys(day).forEach(function (seat) { nd[String(+seat)] = day[seat]; });   // 座號 05 → 5（與後端一致）
+                if (Object.keys(nd).length) incoming[k] = nd;
             });
-            // 取代：先把整批工作存進佇列（先不送），本機寫好才開始送
-            if (mode !== 'merge') {
-                ids = seatEnqueueOps([{ type: 'import', rows: seatImportRows(incoming) }]);
-                if (ids === null) return;
-            }
         }
         var before = getSeatRecords();
         var next = incoming ? (mode === 'merge' ? mergeSeatRecords(before, incoming) : incoming) : null;
@@ -7693,16 +7692,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 items = seatItems.concat(data.seatCheckItems.filter(function (it) { return !have[it.key]; }));
             }
         }
-        // 寫入本機：任何一項寫不進去就整個取消（佇列撤回、匯入視窗保留、不回報成功）
-        var ok = (!next || seatWrite('seatCheckRecords', JSON.stringify(next))) &&
-                 (!items || seatWrite('seatCheckItems', JSON.stringify(items))) &&
-                 (!data.seatLayout || seatWrite('seatLayout', data.seatLayout));
-        if (!ok) {
-            seatDropOps(ids);
-            seatWrite('seatCheckRecords', JSON.stringify(before));
-            alert('瀏覽器儲存失敗（空間可能不足），這次匯入沒有完成。請先清出空間或匯出備份再試。');
-            return;
-        }
+        var writes = [];
+        if (next) writes.push(['seatCheckRecords', JSON.stringify(next)]);
+        if (items) writes.push(['seatCheckItems', JSON.stringify(items)]);
+        if (data.seatLayout) writes.push(['seatLayout', data.seatLayout]);
+        var ops = (incoming && mode !== 'merge') ? [{ type: 'import', rows: seatImportRows(incoming) }] : [];
+        // 紀錄、項目、座位任一寫不進去：全部還原、匯入視窗保留、不回報成功
+        if (!seatCommitDestructive(writes, ops)) return;
+
         if (data.seatLayout) seatLayout = parseSeatLayout(data.seatLayout);
         if (items) seatItems = loadSeatItems();
         if (next && mode === 'merge') {
@@ -7716,7 +7713,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
-        seatFlushQueue();
 
         seatImportPending = null;
         seatUndoStack = [];

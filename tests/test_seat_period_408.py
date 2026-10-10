@@ -484,5 +484,56 @@ class SeatPeriod408(unittest.TestCase):
         self.assertEqual(self.sheet_counts(p), {})
         self.assertIn('已同步', p.inner_text('#seat-sync-status'))
 
+    # ── 第 2 輪程式審查（修正驗收）補測 ──
+    def test_R08_queue_save_failure_restores_local_and_keeps_pending_counts(self):
+        t = '2026-10-12T00:00:00.000Z'
+        queue = [{'id': 'jfly', 'type': 'count', 'date': DAY + '#3', 'seat': '9', 'name': '', 'key': 'tilt', 'label': 'x', 'count': 1},
+                 {'id': 'jzero', 'type': 'count', 'date': DAY + '#3', 'seat': '5', 'name': '', 'key': 'tilt', 'label': 'x', 'count': 0}]
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']],
+                      local={'seatSyncQueue': json.dumps(queue), 'seatCheckRecords': json.dumps({DAY + '#3': {'9': {'tilt': 1}}})},
+                      session={'__delay': json.dumps({'setSeatCount': 4000})})
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (k === 'seatSyncQueue' && String(v).indexOf('clearSlot') >= 0) throw new Error('QuotaExceeded'); return orig.call(this, k, v); }; }""")
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(300)
+        self.assertIn('儲存空間不足', p._dialogs[-1])
+        self.assertEqual(self.local(p).get(DAY + '#3', {}).get('9'), {'tilt': 1}, '本機還原')
+        q = json.loads(p.evaluate("localStorage.getItem('seatSyncQueue')"))
+        self.assertIn('jzero', [j['id'] for j in q], '原本排隊的「減到 0」工作還在')
+        self.assertFalse(any(j['type'] == 'clearSlot' for j in q))
+        self.assertNotIn('clearSeatSlot', p.evaluate('window.__calls'))
+
+    def test_R09_restore_also_fails_still_no_clear_sent(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        p.evaluate("""() => { const orig = Storage.prototype.setItem; let recWrites = 0;
+            Storage.prototype.setItem = function (k, v) {
+              if (k === 'seatSyncQueue' && String(v).indexOf('clearSlot') >= 0) throw new Error('QuotaExceeded');
+              if (k === 'seatCheckRecords' && ++recWrites >= 2) throw new Error('QuotaExceeded');   // 第 1 次（清除）成功，還原失敗
+              return orig.call(this, k, v); }; }""")
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(300)
+        self.assertIn('重新整理', p._dialogs[-1])
+        self.assertNotIn('clearSeatSlot', p.evaluate('window.__calls'))
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2}, '試算表沒動')
+        p.reload(); p.wait_for_timeout(300); p.click('#tab-seat-btn'); self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2, '重新整理後從試算表恢復')
+
+    def test_R10_import_normalizes_seat_aliases(self):
+        p = self.open(at='10:35', sheet=[])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#3': {'05': {'tilt': 2}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-merge')
+        self.settle(p)
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn'); self.settle(p)
+        self.assertEqual(self.local(p), {DAY + '#3': {'5': {'tilt': 2}}}, '本機只有 5 號，沒有 05')
+        self.assertEqual(p.inner_text('#seat-count-total'), '2')
+        bad = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'05': {'tilt': 1}, '5': {'tilt': 1}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'c.json', 'mimeType': 'application/json', 'buffer': json.dumps(bad).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        self.assertIn('同一人', p._dialogs[-1])
+
+
 if __name__ == '__main__':
     unittest.main()

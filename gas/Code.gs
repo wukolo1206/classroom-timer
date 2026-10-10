@@ -286,16 +286,26 @@ function withSeatOp_(opId, fn) {
   try {
     var log = seatOpLog_();
     for (var i = 0; i < log.length; i++) {
-      // 已完成：直接回覆上次結果。「進行中」代表上次執行到一半就中斷（逾時），這次重新執行。
-      if (log[i].id === opId && log[i].done) return log[i].result;
+      if (log[i].id !== opId) continue;
+      // 已完成：直接回覆上次結果
+      if (log[i].done) return log[i].result;
+      // 「進行中」：上次可能已經做完、只是沒記到完成（或執行到一半逾時）。結果不確定，
+      // 不自動重做（重做可能刪掉之後其他裝置新增的資料），請老師重新整理確認。
+      throw permanentError_('上一次的清除／匯入結果不確定（可能已完成但沒有收到確認）。為了不誤刪之後新增的資料，不會自動再做一次。請重新整理確認畫面；資料若還在，再操作一次。');
     }
-    log = log.filter(function (x) { return x.id !== opId; });
     log.push({ id: opId, done: false });
     // 先把「進行中」存起來；存不進去就不執行（否則重送時無法辨識是否已做過）
     if (!saveSeatOpLog_(log)) throw new Error('暫時無法記錄操作，稍後自動重試');
-    var result = fn();
+    var result;
+    try {
+      result = fn();
+    } catch (e) {
+      // 執行失敗（試算表沒有被改，或驗證不通過）：移除「進行中」，讓重試能正常執行
+      saveSeatOpLog_(log.filter(function (x) { return x.id !== opId; }));
+      throw e;
+    }
     log[log.length - 1] = { id: opId, done: true, result: result };
-    saveSeatOpLog_(log);   // 若這一步失敗，紀錄停在「進行中」，重送時會重新執行一次清除（同一裝置的後續工作都排在它後面，不會被誤刪）
+    saveSeatOpLog_(log);   // 這一步失敗時紀錄停在「進行中」，重送會被當成結果不確定而暫停（見上）
     return result;
   } finally {
     lock.releaseLock();
@@ -305,6 +315,9 @@ function withSeatOp_(opId, fn) {
 /** 保存操作紀錄：超過大小就少留舊的幾筆再試；完全存不進去回傳 false */
 function saveSeatOpLog_(log) {
   if (log.length > SEAT_OP_LOG_MAX) log = log.slice(log.length - SEAT_OP_LOG_MAX);
+  if (!log.length) {
+    try { PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, '[]'); return true; } catch (e) { return false; }
+  }
   for (var keep = log.length; keep > 0; keep = Math.floor(keep / 2)) {
     try {
       PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log.slice(log.length - keep)));
