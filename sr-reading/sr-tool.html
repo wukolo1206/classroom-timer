@@ -258,7 +258,7 @@
         </label>
         <button class="btn btn-light btn-sm" onclick="downloadTemplate()" title="下載已帶入班級名冊的空白試算表，填好 SR 後用「匯入 Excel」匯回">📄 下載空白範本</button>
         <button class="btn btn-light btn-sm" onclick="exportExcel()">📥 匯出試算表（.xlsx）</button>
-        <button class="btn btn-light btn-sm" onclick="openClassSettings()">⚙️ 修改班級名冊</button>
+        <button class="btn btn-light btn-sm" id="btn-edit-roster" onclick="openClassSettings()">⚙️ 修改班級名冊</button>
       </div>
       <div class="toolbar-group">
         <span class="toolbar-label">檢視：</span>
@@ -1013,7 +1013,8 @@
   async function chooseMerge(records) {
     const pre = mergeRecords(records, [], true);
     const mismatch = pre.conflicts.length > 0 || pre.outside > pre.updated;
-    const fileRoster = rosterFromRecords(records);
+    // 名冊由外層程式固定（例如 408 版）時，不提供用匯入資料改名冊
+    const fileRoster = (HOST && HOST.ctuRosterReadOnly) ? null : rosterFromRecords(records);
     const rosterEmpty = !students.some(s => s.full);
     const fileDiffers = fileRoster && (pre.conflicts.length > 0 || pre.outside > 0 || rosterEmpty);
     if (!mismatch && !fileDiffers) return 'merge';
@@ -1516,6 +1517,7 @@
       document.getElementById('app').innerHTML = '<div class="standalone-warning"><strong>這個頁面要從「班級工具箱」開啟。</strong><br>請開啟班級工具箱，切到「📚 SR 閱讀小卡」分頁使用。</div>';
       return;
     }
+    if (HOST.ctuRosterReadOnly) document.getElementById('btn-edit-roster').style.display = 'none';
     renderNormGrid();
     setupEnterNavigation();
     loadRecords();

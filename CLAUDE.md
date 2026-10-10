@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @25
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: universal v1.11（SR 閱讀小卡）與說明網頁已上線；Word 版說明待補 SR 章節；2027-02 換學期前處理舊紀錄套新日期
+next_action: 408 GAS 版加 SR 分頁待部署（clasp push＋deploy、git push）；Word 版說明待補 SR 章節；2027-02 換學期前處理舊紀錄套新日期
 updated: 2026-10-10
 ---
 
@@ -48,6 +48,7 @@ updated: 2026-10-10
 - SH150 分頁是嵌入的原版原始碼（`#sh150-source`），更新方式見 DECISIONS。
 - SH150 學校表單填報只能寫 `ctu_school_form_config`；計分規則不可放進設定。說明見 `docs/sh150-school-form-guide.md`。
 - **📚 SR 閱讀小卡分頁**：原始檔 `sr-reading/sr-tool.html`，改完執行 `python tools/embed_sr.py` 嵌入 `#sr-source`，**不要直接改 universal.html 裡的嵌入區塊**。原始檔不可出現 `<\!--`、`<\/script`（結尾標籤用 `'<' + '/script>'`）。資料只寫 `ctu_sr_records`（依座號、學期鍵 `115-1`）。測試：`python -m unittest discover -s tests -p test_sr_tab.py -v`。
+- **408 版（index.html）也有 SR 分頁**：同一份原始檔，`embed_sr.py` 會同時嵌入 universal.html 與 index.html 並複製到 gas/index.html。408 版名冊讀 `seatRoster`、資料存 `c408_sr_records` 並同步到 GAS 文件屬性（`getSrRecords`／`saveSrRecords`，分段 `srRecords_*`）。測試：`python -m unittest discover -s tests -p test_sr_408.py -v`。
 - 408 自用的單機版在 `G:\我的雲端硬碟\碧華國小班級\116碧小408\01_班級日常營運\閱讀能力與SR適性診斷\index.html`（含 408 姓名，key `sr408-roster-v1`），與本專案分開維護。
 
 ## 子資料夾 sh150-tracker/（獨立 repo）

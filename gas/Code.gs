@@ -11,6 +11,9 @@ var HEADERS = ['日期', '座號', '姓名', '項目', '次數', '最後更新',
 var WEEKLY_RECORDS_PROPERTY = 'weeklyRecordData';
 var WEEKLY_SETTINGS_PROPERTY = 'weeklyRecordSettings';
 var GROUP_SETTINGS_PROPERTY = 'groupDiscussionSettings';
+var SR_META_PROPERTY = 'srRecordsMeta';       // { chunks, savedAt, updatedAt }
+var SR_CHUNK_PREFIX = 'srRecords_';           // SR 閱讀小卡整份 JSON 分段存（文件屬性單筆上限 9KB）
+var SR_CHUNK_CHARS = 2000;                    // 中文 UTF-8 一字 3 bytes，2000 字約 6KB，留餘裕
 
 /** 網頁進入點：支援班級紀錄器 HTML 介面與 SH150 運動登記 REST API */
 function doGet(e) {
@@ -340,6 +343,54 @@ function setWeeklyCell(week, seat, state) {
     if (Object.keys(records).length) props.setProperty(WEEKLY_RECORDS_PROPERTY, JSON.stringify(records));
     else props.deleteProperty(WEEKLY_RECORDS_PROPERTY);
     return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** SR 閱讀小卡：讀回整份資料（前端 sr-reading/sr-tool.html 的 ctu_sr_records 格式）。沒有資料時 json 為 null。 */
+function getSrRecords() {
+  var props = PropertiesService.getDocumentProperties();
+  var meta = null;
+  try { meta = JSON.parse(props.getProperty(SR_META_PROPERTY) || 'null'); } catch (e) { meta = null; }
+  if (!meta || !(meta.chunks > 0)) return { json: null, savedAt: 0 };
+  var parts = [];
+  for (var i = 0; i < meta.chunks; i++) {
+    var part = props.getProperty(SR_CHUNK_PREFIX + i);
+    if (part === null) return { json: null, savedAt: 0 };   // 分段不完整就當作沒有，不回傳壞資料
+    parts.push(part);
+  }
+  return { json: parts.join(''), savedAt: Number(meta.savedAt) || 0 };
+}
+
+/**
+ * SR 閱讀小卡：整份覆寫（送整份＋前端修改時間，重送結果相同）。
+ * 只寫文件屬性，不動任何試算表分頁。比雲端舊的資料不覆蓋。
+ */
+function saveSrRecords(json, savedAt) {
+  json = String(json || '');
+  savedAt = Number(savedAt) || 0;
+  if (json.length > 300000) throw new Error('SR 資料太大');
+  var obj;
+  try { obj = JSON.parse(json); } catch (e) { throw new Error('SR 資料格式錯誤'); }
+  if (!obj || typeof obj !== 'object' || !obj.bySeat || typeof obj.bySeat !== 'object') throw new Error('SR 資料格式錯誤');
+
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(20000);
+  try {
+    var props = PropertiesService.getDocumentProperties();
+    var old = null;
+    try { old = JSON.parse(props.getProperty(SR_META_PROPERTY) || 'null'); } catch (e) { old = null; }
+    if (old && Number(old.savedAt) > savedAt) return { savedAt: Number(old.savedAt), skipped: true };
+
+    var chunks = Math.max(1, Math.ceil(json.length / SR_CHUNK_CHARS));
+    var data = {};
+    for (var i = 0; i < chunks; i++) data[SR_CHUNK_PREFIX + i] = json.slice(i * SR_CHUNK_CHARS, (i + 1) * SR_CHUNK_CHARS);
+    data[SR_META_PROPERTY] = JSON.stringify({ chunks: chunks, savedAt: savedAt, updatedAt: new Date().toISOString() });
+    props.setProperties(data);
+    // 舊資料若分段比較多，刪掉多出來的
+    for (var j = chunks; old && j < (old.chunks || 0); j++) props.deleteProperty(SR_CHUNK_PREFIX + j);
+    return { savedAt: savedAt };
   } finally {
     lock.releaseLock();
   }

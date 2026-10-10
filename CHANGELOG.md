@@ -1,5 +1,12 @@
 # CHANGELOG — 班級計時器
 
+## 408 GAS 版（index.html）— 新增「📚 SR 閱讀小卡」分頁，資料同步到 GAS（2026-10-10，本機完成，待部署）
+- 與全校版共用同一份 SR 原始檔（`sr-reading/sr-tool.html`），`tools/embed_sr.py` 一次嵌入 universal.html 與 index.html，並複製到 gas/index.html。
+- 名冊直接讀 408 內建 `seatRoster`（07 號空號），SR 分頁隱藏「修改班級名冊」，匯入也不提供改名冊（`ctuRosterReadOnly`）。
+- 資料：本機存 `c408_sr_records`（與全校版 `ctu_` 分開），修改後 1.2 秒整份送 GAS `saveSrRecords(json, savedAt)`；第一次開分頁先 `getSrRecords()`，本機有未同步且較新的修改就保留並補送，否則用雲端。寫入失敗 15 秒重試，分頁上方顯示 ☁ 已同步／⚠ 待同步／○ 本機模式。
+- 後端 Code.gs：SR 整份存文件屬性，2000 字一段（`srRecords_0..n`＋`srRecordsMeta`），比雲端舊的不覆蓋；不動任何試算表分頁。
+- 測試：新增 `tests/test_sr_408.py` 8 項（模擬 google.script.run）；Node 模擬文件屬性驗證分段存取；全部 68 項通過。
+
 ## universal.html v1.11 — SR 匯入可直接更新班級名冊（2026-10-10）
 - 匯入／貼上的資料有「座號＋姓名」，且和班級設定對不上（或班級設定還沒填姓名）時，跳出三選一：用這份資料更新班級名冊再寫入（跳號自動空號、先下載「_更新名冊前」完整備份、班級／導師等欄位保留、整頁重新載入回 SR 分頁）／不改名冊依座號寫入／取消。沒有姓名的資料維持原本的確認視窗。
 - 名冊以最後一次設定為準：之後在班級設定重貼，SR 成績依座號保留並顯示新姓名。

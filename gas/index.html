@@ -217,6 +217,7 @@
         <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
         <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 秩序登記</button>
         <button id="tab-weekly-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🗓 含氟每週紀錄</button>
+        <button id="tab-sr-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">📚 SR 閱讀小卡</button>
         <a href="https://wukolo1206.github.io/sh150-tracker/" target="_blank" class="py-3 px-3 font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-all border-b-[3px] border-transparent flex items-center gap-1 text-sm whitespace-nowrap" title="前往 408 SH150 跑跳遊臺灣每日運動登記">🏃 SH150 登記 ↗</a>
         <button id="tab-order-btn" title="調整分頁順序" class="px-3 text-slate-300 hover:text-sky-600 transition-all border-b-[3px] border-transparent">⚙️</button>
     </div>
@@ -880,6 +881,13 @@
         </div>
     </div><!-- end #panel-weekly -->
 
+    <!-- ══════════════ SR 閱讀小卡 PANEL ══════════════ -->
+    <!-- 原始檔 sr-reading/sr-tool.html（與全校版共用），用 tools/embed_sr.py 嵌入下方 #sr-source；資料同步到 GAS 文件屬性 -->
+    <div id="panel-sr" class="hidden">
+        <div id="sr-sync-status" class="px-4 py-1.5 text-xs font-semibold text-slate-500 bg-slate-50 border-b border-slate-100">○ 本機模式</div>
+        <iframe id="sr-frame" title="SR 閱讀小卡" style="width:100%;height:calc(100vh - 180px);min-height:640px;border:0;display:block;"></iframe>
+    </div><!-- end #panel-sr -->
+
     <!-- ══════════════ SEAT CHECK PANEL ══════════════ -->
     <div id="panel-seat" class="hidden p-6 md:p-8">
 
@@ -1387,9 +1395,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
     document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
     document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
+    document.getElementById('tab-sr-btn').addEventListener('click', () => switchTab('sr'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'weekly'];
+    var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'weekly', 'sr'];
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
 
@@ -1500,6 +1509,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'weekly') {
             stopCleaningCountdown(); stopExamClock();
             renderWeeklyTable(); weeklySyncPull();
+        } else if (tab === 'sr') {
+            stopCleaningCountdown(); stopExamClock();
+            if (window.c408LoadSr) window.c408LoadSr();
         } else if (tab === 'group') {
             stopCleaningCountdown(); stopExamClock();
             if (typeof initGroupPanel === 'function') initGroupPanel();
@@ -2381,6 +2393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         29:['游穠羽','鑰匙長'], 30:['沈芷心','洗手台長'], 31:['吳苡熙','櫃子檢查長'],
         32:['吳芊妤','抬餐(1)']
     };
+    window.c408SeatRoster = seatRoster;   // SR 閱讀小卡分頁讀這份名冊
 
     // 預設座位表（408 雙桌合併）：一行一排，左區 | 中區 | 右區
     var defaultSeatLayoutText = [
@@ -5353,6 +5366,1689 @@ document.addEventListener('DOMContentLoaded', () => {
     // 分頁模組都就緒後，再切到使用者排的第一個分頁
     if (tabOrder[0] !== 'timer' && !localStorage.getItem('timerActiveState')) switchTab(tabOrder[0]);
 });
+</script>
+
+<!-- 【請勿直接修改】SR 閱讀小卡原始碼：請改 sr-reading/sr-tool.html，再執行 python tools/embed_sr.py（載入時還原 <\!-- 與 <\/script 跳脫） -->
+<script type="text/plain" id="sr-source">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SR 閱讀小卡（班級工具箱）</title>
+  <\!--
+    【原始檔】班級工具箱「📚 SR 閱讀小卡」分頁
+    改完這個檔案後執行：python tools/embed_sr.py
+    會把本檔嵌入 universal.html 的 #sr-source。不要直接改 universal.html 裡的嵌入區塊。
+    名冊一律讀外層「班級設定」；資料只寫 ctu_sr_records（經外層 ctuStore）。
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-light: #f0f9ff;
+      --primary-border: #bae6fd;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background-color: #ffffff;
+      color: var(--gray-800);
+      line-height: 1.5;
+      padding-bottom: 40px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.5rem 0.9rem; font-size: 0.875rem; font-weight: 600; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s ease-in-out; border: 1px solid transparent; text-decoration: none;
+      background: none; color: inherit; font-family: inherit;
+    }
+    .btn-primary { background-color: var(--primary); color: white; }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-print { background: #059669; color: white; }
+    .btn-print:hover { background: #047857; }
+    .btn-light { background-color: white; color: var(--gray-700); border-color: var(--gray-300); }
+    .btn-light:hover { background-color: var(--gray-100); color: var(--gray-900); }
+    .btn-danger-light { background: #fee2e2; color: var(--danger); }
+    .btn-danger-light:hover { background: #fecaca; }
+    .btn-sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 1rem 1.25rem; }
+    .grid-top { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 1024px) { .grid-top { grid-template-columns: 1fr; } }
+
+    .card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 1rem 1.15rem; }
+    .card-header {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;
+      margin-bottom: 0.85rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--gray-200);
+    }
+    .card-header h2 { font-size: 1.02rem; font-weight: 700; color: var(--gray-900); }
+
+    .form-row { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+    .form-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; min-width: 120px; }
+    .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--gray-600); }
+    .input-text {
+      width: 100%; padding: 0.5rem 0.7rem; font-size: 0.95rem; border: 1px solid var(--gray-300);
+      border-radius: 6px; outline: none; font-family: inherit; background: white;
+    }
+    .input-text:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); }
+
+    .calc-result-box {
+      background: var(--primary-light); border: 1px solid var(--primary-border); border-radius: 8px;
+      padding: 0.75rem 1rem; margin-top: 0.75rem;
+    }
+    .calc-result-val { font-size: 1.15rem; font-weight: 800; color: #075985; }
+    .calc-result-desc { font-size: 0.8rem; color: var(--gray-600); }
+
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin-bottom: 0.75rem; }
+    .stat-badge { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 0.6rem; text-align: center; }
+    .stat-num { font-size: 1.4rem; font-weight: 800; color: var(--primary); }
+    .stat-label { font-size: 0.75rem; color: var(--gray-600); font-weight: 600; }
+    .hint { font-size: 0.8rem; color: var(--gray-600); line-height: 1.45; }
+
+    .tab-nav { display: flex; gap: 0.25rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1rem; overflow-x: auto; }
+    .tab-btn {
+      padding: 0.6rem 1rem; font-size: 0.92rem; font-weight: 700; background: transparent; border: none;
+      border-bottom: 3px solid transparent; margin-bottom: -2px; cursor: pointer; color: var(--gray-600);
+      white-space: nowrap; font-family: inherit;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.6rem;
+      margin-bottom: 0.75rem; background: var(--gray-50); padding: 0.65rem 0.9rem; border-radius: 8px; border: 1px solid var(--gray-200);
+    }
+    .toolbar-group { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+    .toolbar-label { font-size: 0.8rem; font-weight: 600; color: var(--gray-600); }
+    .toolbar select { width: auto; padding: 0.3rem 0.5rem; font-size: 0.82rem; }
+
+    .table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--gray-200); background: white; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; text-align: left; }
+    table.data-table th {
+      background: var(--gray-100); color: var(--gray-700); font-weight: 700; padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--gray-200); white-space: nowrap;
+    }
+    table.data-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--gray-200); color: var(--gray-800); }
+    table.data-table tr:hover { background-color: var(--gray-50); }
+    .table-input { padding: 0.3rem 0.45rem; font-size: 0.875rem; border: 1px solid var(--gray-300); border-radius: 4px; width: 100%; font-family: inherit; }
+    .table-input:focus { outline: none; border-color: var(--primary); }
+    .badge-grade { display: inline-block; padding: 0.2rem 0.55rem; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; }
+    .badge-untested { display: inline-block; padding: 0.2rem 0.55rem; background: #f1f5f9; color: #64748b; border-radius: 6px; font-size: 0.8rem; }
+    .empty-note { padding: 1.5rem; text-align: center; color: var(--gray-600); }
+
+    .paste-box { margin-bottom: 0.75rem; display: none; background: white; border: 1px solid var(--primary-border); border-radius: 8px; padding: 0.9rem; }
+    .paste-box textarea {
+      width: 100%; height: 120px; padding: 0.5rem; font-size: 0.85rem; font-family: monospace;
+      border: 1px solid var(--gray-300); border-radius: 6px; resize: vertical;
+    }
+
+    .norm-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.6rem; margin-top: 0.75rem; }
+    .norm-item { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px; padding: 0.5rem 0.75rem; display: flex; justify-content: space-between; }
+    .norm-grade { font-weight: 700; font-size: 0.85rem; color: var(--gray-700); }
+    .norm-range { font-size: 0.85rem; color: var(--primary); font-weight: 600; }
+
+    /* ── A4 每頁 8 張小卡（2 欄 × 4 列）── */
+    .print-toolbar {
+      display: flex; justify-content: space-between; align-items: center; background: white;
+      border: 1px solid var(--gray-200); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.6rem;
+    }
+    .settings-panel {
+      background: white; border: 1px solid var(--gray-200); border-radius: 8px; padding: 0.9rem; margin-bottom: 1rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem;
+    }
+    .print-view-wrapper { overflow-x: auto; padding-bottom: 1rem; }
+    .a4-sheet {
+      width: 210mm; min-height: 297mm; height: 297mm; padding: 10mm; margin: 0 auto 12mm auto; background: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12); position: relative; display: grid;
+      grid-template-columns: repeat(2, 92mm); grid-template-rows: repeat(4, 66mm);
+      justify-content: space-between; align-content: space-between; page-break-after: always; break-after: page;
+    }
+    .page-indicator { position: absolute; bottom: 2mm; right: 10mm; font-size: 8pt; color: #94a3b8; }
+    /* 小卡 92×66mm：上方標題與功能說明，下方左邊結果、右邊說明 QR Code；內容自然往下排，不再上下撐開留白 */
+    .sr-card {
+      width: 92mm; height: 66mm; border: 1.5px solid #000; padding: 3.5mm 4mm; display: flex; flex-direction: column;
+      gap: 2mm; background: white; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; color: #000;
+      overflow: hidden; position: relative;
+    }
+    .card-border-dashed .sr-card { border: 1.2px dashed #4b5563; }
+    .card-border-light .sr-card { border: 1px solid #94a3b8; }
+    .sr-card-header { border-bottom: 0.3mm solid #94a3b8; padding-bottom: 1.6mm; }
+    .sr-card-title { font-size: 10.5pt; font-weight: 800; line-height: 1.3; margin-bottom: 0.6mm; }
+    .sr-card-funcs { font-size: 12pt; line-height: 1.3; color: #111; }
+    .sr-card-body { flex: 1; min-height: 0; display: flex; gap: 3mm; align-items: center; }
+    .sr-card-main { flex: 1; min-width: 0; }
+    .sr-card-notice-title { font-size: 10pt; font-weight: 800; margin-bottom: 1.8mm; }
+    .sr-card-info-list { list-style: none; display: flex; flex-direction: column; gap: 1.8mm; }
+    .sr-card-info-item { font-size: 10.5pt; line-height: 1.3; display: flex; align-items: baseline; }
+    .sr-card-info-label { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .sr-card-info-value { font-weight: 600; word-break: break-all; }
+    .sr-card-grade-highlight { font-size: 12pt; font-weight: 900; }
+    .sr-card-grade-highlight.long { font-size: 9.5pt; }
+    /* 內容多（完整列出很多年級、或加印前一次 SR）時自動排緊一點，避免被裁掉 */
+    .sr-card.dense { gap: 1.4mm; }
+    .sr-card.dense .sr-card-info-list { gap: 0.9mm; }
+    .sr-card.dense .sr-card-notice-title { margin-bottom: 1mm; }
+    .sr-card.dense .sr-card-grade-highlight.long { font-size: 9pt; line-height: 1.2; }
+    /* 年級清單很長時換到標籤下一行，用整行寬度排 */
+    .sr-card-info-item.wrap { flex-wrap: wrap; }
+    .sr-card-info-item.wrap .sr-card-info-value { flex-basis: 100%; padding-left: 1em; }
+    .sr-card-qr { width: 25mm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .sr-card-qr svg { width: 24mm; height: 24mm; display: block; }
+    .sr-card-qr-cap { font-size: 12pt; line-height: 1.25; margin-top: 0.8mm; font-weight: 600; }
+    .sr-card-qr-missing { width: 24mm; height: 24mm; border: 0.3mm dashed #94a3b8; font-size: 7pt; color: #64748b; display: flex; align-items: center; justify-content: center; }
+
+    .standalone-warning { margin: 2rem auto; max-width: 560px; padding: 1.25rem; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; color: #92400e; }
+
+    @media (max-width: 640px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .container { padding: 0.75rem 0.5rem; }
+    }
+
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      body { background: white !important; padding: 0 !important; margin: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      /* 小卡區 #print-section 包在 #print-tab 內，必須保留 #print-tab，否則整份印成空白 */
+      .container > *:not(#print-tab), .print-toolbar, .settings-panel, .page-indicator, .btn, .toolbar, .tab-nav { display: none !important; }
+      #print-tab { display: block !important; }
+      .container { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+      #print-section { display: block !important; margin: 0 !important; padding: 0 !important; width: 100% !important; overflow: visible !important; }
+      .a4-sheet { margin: 0 !important; box-shadow: none !important; border: none !important; width: 210mm !important; height: 297mm !important; min-height: 297mm !important; padding: 10mm !important; page-break-after: always !important; break-after: page !important; }
+      /* 最後一頁不再強制換頁，避免多印一張白紙 */
+      .a4-sheet:last-child { page-break-after: auto !important; break-after: auto !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="app">
+
+  <\!-- 頂部：快速試算 + 班級統計 -->
+  <div class="grid-top">
+    <div class="card">
+      <div class="card-header">
+        <h2>⚡ 快速 SR 值試算</h2>
+        <span class="hint">單值（如 442）或範圍（如 411-417）</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="quick-sr">SR 數值或範圍</label>
+          <input type="text" id="quick-sr" class="input-text" placeholder="例如：411-417 或 394" oninput="doQuickCalc()">
+        </div>
+      </div>
+      <div class="calc-result-box">
+        <div class="calc-result-val" id="quick-result-text">請輸入 SR 數值</div>
+        <div class="calc-result-desc" id="quick-result-desc">依 DACC 常模換算建議適讀年級</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2 id="stats-title">📊 班級 SR 施測統計</h2>
+        <span id="term-badge" class="hint"></span>
+      </div>
+      <div class="stats-row">
+        <div class="stat-badge"><div class="stat-num" id="stat-total">0</div><div class="stat-label">名冊人數</div></div>
+        <div class="stat-badge"><div class="stat-num" style="color: var(--success);" id="stat-tested">0</div><div class="stat-label">已施測</div></div>
+        <div class="stat-badge"><div class="stat-num" style="color: var(--warning);" id="stat-untested">0</div><div class="stat-label">待補測</div></div>
+        <div class="stat-badge"><div class="stat-num" style="color: #6366f1;" id="stat-pages">1</div><div class="stat-label">列印 A4 張數</div></div>
+      </div>
+      <div class="hint" id="print-tip"></div>
+      <div class="hint" id="orphan-note" style="margin-top: 0.3rem;"></div>
+    </div>
+  </div>
+
+  <\!-- 頁籤 -->
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="roster-tab" onclick="showTab('roster-tab')">📋 全班 SR 登記</button>
+    <button class="tab-btn" data-tab="print-tab" onclick="showTab('print-tab')">🏷️ 小卡列印（A4 八格）</button>
+    <button class="tab-btn" data-tab="parent-tab" onclick="showTab('parent-tab')">👨‍👩‍👧 給家長的說明</button>
+    <button class="tab-btn" data-tab="norm-tab" onclick="showTab('norm-tab')">📖 DACC 常模對照表</button>
+  </div>
+
+  <\!-- ══════ 頁籤 1：全班 SR 登記 ══════ -->
+  <div id="roster-tab" class="tab-content active">
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button class="btn btn-primary btn-sm" onclick="togglePasteBox()">📋 批次貼上（Excel／試算表）</button>
+        <label class="btn btn-light btn-sm" style="cursor: pointer;" title="依座號合併；可直接匯入本頁匯出的試算表">
+          📁 匯入 Excel
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileUpload(event)">
+        </label>
+        <button class="btn btn-light btn-sm" onclick="downloadTemplate()" title="下載已帶入班級名冊的空白試算表，填好 SR 後用「匯入 Excel」匯回">📄 下載空白範本</button>
+        <button class="btn btn-light btn-sm" onclick="exportExcel()">📥 匯出試算表（.xlsx）</button>
+        <button class="btn btn-light btn-sm" id="btn-edit-roster" onclick="openClassSettings()">⚙️ 修改班級名冊</button>
+      </div>
+      <div class="toolbar-group">
+        <span class="toolbar-label">檢視：</span>
+        <select id="view-mode-select" class="input-text" onchange="renderRosterTable()">
+          <option value="single">單學期登記</option>
+          <option value="comparison">跨學期比較</option>
+        </select>
+        <span class="toolbar-label">學期：</span>
+        <select id="term-select" class="input-text" onchange="switchTerm(this.value)"></select>
+        <span class="toolbar-label">年級顯示：</span>
+        <select id="format-select" class="input-text" onchange="renderRosterTable()">
+          <option value="range">區間簡記（四～八年級）</option>
+          <option value="full">完整列出</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="paste-box" id="paste-box">
+      <div style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.3rem;">
+        📋 從 Excel／Google 試算表複製貼上（一行一位：座號＋姓名＋SR，也可加測驗時間、就讀年級）
+      </div>
+      <div class="hint" style="margin-bottom: 0.4rem;">
+        依<strong>座號</strong>（沒有座號時依姓名）寫入目前選的學期；其他學期不會被清掉，空白的 SR 也不會蓋掉原有成績。座號不在班級名冊的會略過並列出。
+      </div>
+      <textarea id="paste-textarea" placeholder="例如：&#10;02 王小明 411-417&#10;03 李小華 2026/09/21 四年級 450-514"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem;">
+        <button class="btn btn-light btn-sm" onclick="togglePasteBox()">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="parsePastedText()">寫入目前學期</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead id="roster-thead"></thead>
+        <tbody id="roster-tbody"></tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top: 0.4rem;">畫面上的姓名已遮罩，列印小卡時才顯示全名。輸入 SR 後按 Enter 可跳到下一位同學。</p>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem;">
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button class="btn btn-light btn-sm" onclick="selectOnlyTested()">只勾選本學期已施測</button>
+        <button class="btn btn-light btn-sm" onclick="toggleCheckAll(true)">全部勾選</button>
+        <button class="btn btn-danger-light btn-sm" onclick="clearTermData()">🗑️ 清除本學期 SR</button>
+      </div>
+      <button class="btn btn-print" onclick="prepareAndPrint()">🖨️ 列印已勾選的小卡</button>
+    </div>
+  </div>
+
+  <\!-- ══════ 頁籤 2：小卡列印 ══════ -->
+  <div id="print-tab" class="tab-content">
+    <div class="settings-panel">
+      <div class="form-group">
+        <label for="cfg-exam-title">評量名稱標題</label>
+        <input type="text" id="cfg-exam-title" class="input-text" value="中文閱讀能力適性診斷評量（DACC）功能：" oninput="renderPrintCards()">
+      </div>
+      <div class="form-group">
+        <label for="cfg-notice-title">結果通知區塊標題</label>
+        <input type="text" id="cfg-notice-title" class="input-text" value="<SR閱讀適性檢測後的結果通知>" oninput="renderPrintCards()">
+      </div>
+      <div class="form-group">
+        <label for="cfg-date">施測日期（學生沒有個別測驗時間時使用）</label>
+        <input type="text" id="cfg-date" class="input-text" oninput="renderPrintCards()">
+      </div>
+      <div class="form-group">
+        <label for="cfg-border">小卡裁切框線</label>
+        <select id="cfg-border" class="input-text" onchange="updateCardBorderStyle()">
+          <option value="solid">黑色實線框</option>
+          <option value="dashed">灰色虛線框</option>
+          <option value="light">極細淺灰線</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="cfg-seat-toggle">姓名格式</label>
+        <select id="cfg-seat-toggle" class="input-text" onchange="renderPrintCards()">
+          <option value="with-seat">座號＋姓名</option>
+          <option value="only-name">只有姓名</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="cfg-history-toggle">小卡內容</label>
+        <select id="cfg-history-toggle" class="input-text" onchange="renderPrintCards()">
+          <option value="standard">本學期結果</option>
+          <option value="history">本學期結果＋前一次 SR</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label for="cfg-qr-url">小卡右邊的說明 QR Code 連結（清空＝不印 QR Code）</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="cfg-qr-url" class="input-text" oninput="updateQrUrl(this.value)">
+          <button class="btn btn-light btn-sm" onclick="resetQrUrl()" title="改回預設的家長說明頁">預設</button>
+          <button class="btn btn-light btn-sm" onclick="openQrUrl()">開啟看看</button>
+        </div>
+      </div>
+    </div>
+    <div class="print-toolbar">
+      <span style="font-weight: 700;" id="print-summary-text"></span>
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-light" onclick="showTab('roster-tab')">返回名單</button>
+        <button class="btn btn-print" onclick="prepareAndPrint()">🖨️ 列印／另存 PDF</button>
+      </div>
+    </div>
+    <div id="print-section" class="print-view-wrapper"></div>
+  </div>
+
+  <\!-- ══════ 頁籤 3：給家長的說明 ══════ -->
+  <div id="parent-tab" class="tab-content">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+      <div class="card">
+        <div class="card-header"><h2>💡 什麼是 SR 值？</h2></div>
+        <div style="font-size: 0.9rem; color: var(--gray-700); line-height: 1.6;">
+          <p style="margin-bottom: 0.5rem;">在 SmartReading 適性閱讀系統中，<strong>SR 值代表書籍難度</strong>，由機器學習技術分析而來（數值範圍 0～1000），形成客觀的華文書籍難度分級。</p>
+          <p><strong>SR 值也代表讀者的閱讀能力</strong>：透過計量等化把學生能力對應到書籍難度，讓孩子依自己的數值選擇最適合的書。</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>🔍 SR 適讀年級 vs 出版社標示年齡</h2></div>
+        <div style="font-size: 0.88rem; color: var(--gray-700); line-height: 1.6;">
+          <p style="margin-bottom: 0.4rem;"><strong>出版社標示年齡 ＜ SR 適讀年級</strong>：字詞或概念較深，適合<strong>親子共讀</strong>、由家長引導提問。</p>
+          <p><strong>出版社標示年齡 ＞ SR 適讀年級</strong>：文字淺白但寓意深刻，適合孩子<strong>獨立品讀</strong>。</p>
+          <p class="hint" style="margin-top: 0.5rem;">資料來源：國立臺灣師範大學 SmartReading 官方指引</p>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>💬 給家長的 LINE 訊息（可先修改再複製）</h2>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-light btn-sm" onclick="resetParentText()">還原預設文字</button>
+          <button class="btn btn-primary btn-sm" onclick="copyParentLineText()">📋 複製文字</button>
+          <button class="btn btn-print btn-sm" onclick="printParentLetter()">🖨️ 列印家長說明信（A4）</button>
+        </div>
+      </div>
+      <textarea id="parent-line-text" class="input-text" style="height: 300px; line-height: 1.6; resize: vertical;"></textarea>
+    </div>
+  </div>
+
+  <\!-- ══════ 頁籤 4：常模對照表 ══════ -->
+  <div id="norm-tab" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>📖 DACC 中文閱讀能力適性診斷評量 年級常模</h2>
+        <span class="hint">資料來源：國立臺灣師範大學 SmartReading／DACC</span>
+      </div>
+      <p class="hint">範圍值（如 411-417）採交集判定：與學生範圍有重疊的年級都列為建議適讀年級。各年級區間本身有重疊。</p>
+      <div class="norm-table-grid" id="norm-grid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // 0. 外層班級工具箱（同源框架）提供：班級設定、姓名遮罩、儲存、學期
+  // ============================================================
+  var HOST = (window.parent && window.parent !== window && window.parent.ctuGetClass) ? window.parent : null;
+
+  // 【可自行修改】學校名稱（家長說明信、LINE 訊息使用）
+  var SCHOOL_NAME = '碧華國小';
+  var STORE_KEY = 'sr_records';   // 實際存成 ctu_sr_records
+  // 【可自行修改】小卡 QR Code 預設連結：公開的家長說明頁（不含任何學生資料）
+  var DEFAULT_QR_URL = 'https:/' + '/wukolo1206.github.io/classroom-timer/sr-reading/parent.html';
+
+  // ============================================================
+  // 1. DACC 常模與換算
+  // ============================================================
+  const NORM_TABLE = [
+    { grade: "一年級以下", min: 0, max: 284, label: "~ 284" },
+    { grade: "二年級", min: 284, max: 357, label: "284 ~ 357" },
+    { grade: "三年級", min: 345, max: 404, label: "345 ~ 404" },
+    { grade: "四年級", min: 395, max: 453, label: "395 ~ 453" },
+    { grade: "五年級", min: 449, max: 508, label: "449 ~ 508" },
+    { grade: "六年級", min: 478, max: 536, label: "478 ~ 536" },
+    { grade: "七年級", min: 496, max: 566, label: "496 ~ 566" },
+    { grade: "八年級", min: 503, max: 581, label: "503 ~ 581" },
+    { grade: "九年級", min: 535, max: 622, label: "535 ~ 622" },
+    { grade: "十年級", min: 602, max: 659, label: "602 ~ 659" },
+    { grade: "十一年級", min: 646, max: 708, label: "646 ~ 708" },
+    { grade: "十二年級", min: 661, max: 720, label: "661 ~ 720" },
+  ];
+
+  // 範圍分隔符：連字號、Word／試算表常自動轉成的長短破折號與減號、波浪號
+  const RANGE_RE = /^(\d+(?:\.\d+)?)\s*[-‐‑‒–—−~～至到]\s*(\d+(?:\.\d+)?)$/;
+  const SINGLE_RE = /^(\d+(?:\.\d+)?)\s*分?$/;
+
+  function normalizeSR(v) {
+    if (v === null || v === undefined) return "";
+    return String(v)
+      .replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 48))
+      .replace(/－/g, "-")
+      .trim();
+  }
+
+  function convertSRToGrades(valStr, formatMode) {
+    const s = normalizeSR(valStr);
+    if (!s || s === '-') return { text: "未測驗", isTested: false, matched: [] };
+
+    let matched = [];
+    const rm = s.match(RANGE_RE);
+    if (rm) {
+      let lo = parseFloat(rm[1]), hi = parseFloat(rm[2]);
+      if (lo > hi) [lo, hi] = [hi, lo];
+      NORM_TABLE.forEach(it => { if (Math.max(lo, it.min) <= Math.min(hi, it.max)) matched.push(it.grade); });
+      if (hi > 720) matched.push("十二年級以上");
+    } else {
+      const sm = s.match(SINGLE_RE);
+      if (!sm) return { text: "格式不符", isTested: false, matched: [] };
+      const v = parseFloat(sm[1]);
+      NORM_TABLE.forEach(it => { if (v >= it.min && v <= it.max) matched.push(it.grade); });
+      if (v > 720) matched.push("十二年級以上");
+    }
+    if (matched.length === 0) return { text: "無對應年級", isTested: false, matched: [] };
+
+    if (formatMode === 'range' && matched.length > 1) {
+      // 「一年級以下」不能去掉「年級」，否則變成「一以下」
+      const f = matched[0];
+      const first = /^.+年級$/.test(f) ? f.replace(/年級$/, "") : f;
+      return { text: first + "～" + matched[matched.length - 1], isTested: true, matched };
+    }
+    return { text: matched.join("、"), isTested: true, matched };
+  }
+
+  function parseMidSR(valStr) {
+    const s = normalizeSR(valStr);
+    if (!s || s === '-') return null;
+    const m = s.match(RANGE_RE);
+    if (m) return (parseFloat(m[1]) + parseFloat(m[2])) / 2;
+    const sm = s.match(SINGLE_RE);
+    return sm ? parseFloat(sm[1]) : null;
+  }
+
+  // 兩次中點相減，只供老師參考（區間寬度不同，門檻沒有官方依據，不印在給家長的小卡上）
+  function diffText(sr1, sr2) {
+    const a = parseMidSR(sr1), b = parseMidSR(sr2);
+    if (a === null || b === null) return { text: "-", color: "var(--gray-600)" };
+    const d = Math.round(b - a);
+    if (d > 0) return { text: "+" + d + " ↗", color: "var(--success)" };
+    if (d < 0) return { text: d + " ↘", color: "var(--warning)" };
+    return { text: "0 →", color: "var(--gray-600)" };
+  }
+
+  // ============================================================
+  // 2. 學期（依學年度保存，班級名稱明年改了也不會對錯學期）
+  // ============================================================
+  const CN_NUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
+
+  function curTerm() {
+    const lbl = HOST && HOST.CTU_SEMESTER ? String(HOST.CTU_SEMESTER.label) : '';
+    return /^\d{2,3}-[12]$/.test(lbl) ? lbl : '115-1';
+  }
+  function parseTerm(t) { const m = /^(\d{2,3})-([12])$/.exec(t || ''); return m ? { y: +m[1], h: +m[2] } : null; }
+  function termKey(t) { const p = parseTerm(t); return p ? p.y * 10 + p.h : 0; }
+  function nextTerm(t) { const p = parseTerm(t); return p.h === 1 ? p.y + '-2' : (p.y + 1) + '-1'; }
+  function prevTerm(t) { const p = parseTerm(t); return p.h === 2 ? p.y + '-1' : (p.y - 1) + '-2'; }
+
+  // 班級年級：班級名稱開頭的數字（408 → 4）；看不出來時為 null
+  function classGrade() {
+    const n = String(getClass().className || '').trim();
+    let m = /^([1-6])/.exec(n);
+    if (m) return +m[1];
+    m = /^([一二三四五六])年/.exec(n);
+    return m ? CN_NUM.indexOf(m[1]) : null;
+  }
+  // 某學期學生就讀的年級（以目前學期為基準往前後推）
+  function gradeAt(t) {
+    const g = classGrade(), p = parseTerm(t), c = parseTerm(curTerm());
+    if (!g || !p || !c) return null;
+    const v = g + (p.y - c.y);
+    return v >= 1 && v <= 12 ? v : null;
+  }
+  function termName(t) {
+    const p = parseTerm(t);
+    if (!p) return t;
+    const half = p.h === 1 ? '上' : '下';
+    const g = gradeAt(t);
+    return p.y + half + (g ? '（' + CN_NUM[g] + half + '）' : '');
+  }
+  function termShort(t) {
+    const p = parseTerm(t), g = gradeAt(t);
+    if (!p) return t;
+    const half = p.h === 1 ? '上' : '下';
+    return g ? CN_NUM[g] + half : p.y + half;
+  }
+  function defaultGradeLevel(t) { const g = gradeAt(t); return g ? CN_NUM[g] + '年級' : ''; }
+
+  // ============================================================
+  // 3. 資料：依座號保存，名冊改動也不刪紀錄（只在畫面過濾）
+  //    { schema: 1, current: '115-1', bySeat: { '2': { checked: true, terms: { '115-1': {date, gradeLevel, sr} } } } }
+  // ============================================================
+  let rec = { schema: 1, current: '', bySeat: {} };
+  let students = [];        // 目前名冊（畫面用）
+  let currentTermSel = '';
+
+  function getClass() {
+    return HOST ? HOST.ctuGetClass() : { className: '', teacherName: '', studentCount: 0, studentNames: [] };
+  }
+  function maskName(n) { return HOST && HOST.ctuMaskName ? HOST.ctuMaskName(n) : n; }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function loadRecords() {
+    let raw = null;
+    try { raw = HOST ? HOST.ctuStore.getItem(STORE_KEY) : null; } catch (e) { raw = null; }
+    let obj = null;
+    try { obj = raw ? JSON.parse(raw) : null; } catch (e) { obj = null; }
+    if (obj && typeof obj === 'object' && obj.bySeat && typeof obj.bySeat === 'object' && !Array.isArray(obj.bySeat)) {
+      rec = { schema: 1, current: typeof obj.current === 'string' ? obj.current : '', bySeat: obj.bySeat };
+      if (obj.settings && typeof obj.settings === 'object' && !Array.isArray(obj.settings)) rec.settings = obj.settings;
+    } else {
+      if (raw) {
+        // 壞掉的資料另存，不直接丟掉
+        try { HOST.ctuStore.setItem('corrupt_' + STORE_KEY, raw); } catch (e) {}
+      }
+      rec = { schema: 1, current: '', bySeat: {} };
+    }
+  }
+
+  function saveRecords() {
+    if (!HOST) return;
+    rec.current = currentTermSel;
+    HOST.ctuStore.setItem(STORE_KEY, JSON.stringify(rec));
+  }
+
+  function seatRec(seatNum, create) {
+    const k = String(seatNum);
+    let r = rec.bySeat[k];
+    if (!r && create) r = rec.bySeat[k] = { checked: true, terms: {} };
+    if (r && (!r.terms || typeof r.terms !== 'object')) r.terms = {};
+    return r || null;
+  }
+  function entry(seatNum, term) {
+    const r = seatRec(seatNum, false);
+    return (r && r.terms[term]) || {};
+  }
+  function setEntryField(seatNum, term, field, val) {
+    const r = seatRec(seatNum, true);
+    if (!r.terms[term]) r.terms[term] = {};
+    r.terms[term][field] = val;
+  }
+  function isChecked(seatNum) {
+    const r = seatRec(seatNum, false);
+    return r ? r.checked !== false : true;
+  }
+
+  function buildStudents() {
+    const c = getClass();
+    const names = c.studentNames || [];
+    const hasNames = names.some(Boolean);
+    students = [];
+    for (let i = 1; i <= c.studentCount; i++) {
+      const full = names[i - 1] || '';
+      if (hasNames && !full) continue;   // 名冊空行＝空號
+      students.push({ seatNum: i, seat: String(i).padStart(2, '0'), full: full, masked: full ? maskName(full) : '' });
+    }
+  }
+
+  function allDataTerms() {
+    const set = {};
+    Object.keys(rec.bySeat).forEach(k => {
+      const t = (rec.bySeat[k] && rec.bySeat[k].terms) || {};
+      Object.keys(t).forEach(term => { if (parseTerm(term) && normalizeSR(t[term].sr)) set[term] = 1; });
+    });
+    return Object.keys(set);
+  }
+
+  function termOptions() {
+    const set = {};
+    const cur = curTerm();
+    set[cur] = 1;
+    set[prevTerm(cur)] = 1;
+    allDataTerms().forEach(t => set[t] = 1);
+    if (parseTerm(rec.current)) set[rec.current] = 1;
+    const sorted = Object.keys(set).sort((a, b) => termKey(a) - termKey(b));
+    sorted.push(nextTerm(sorted[sorted.length - 1]));
+    return sorted;
+  }
+
+  function renderTermSelect() {
+    const sel = document.getElementById('term-select');
+    const cur = curTerm();
+    sel.innerHTML = termOptions().map(t =>
+      `<option value="${t}"${t === currentTermSel ? ' selected' : ''}>${esc(termName(t))}${t === cur ? '（本學期）' : ''}</option>`).join('');
+  }
+
+  function switchTerm(t) {
+    currentTermSel = t;
+    saveRecords();
+    renderAll();
+  }
+
+  // ============================================================
+  // 4. 名冊表格
+  // ============================================================
+  function cellInput(idx, col, value, placeholder, onchange, style) {
+    return `<input type="text" class="table-input" data-row="${idx}" data-col="${col}" value="${esc(value || '')}" placeholder="${esc(placeholder)}" onchange="${onchange}"${style ? ` style="${style}"` : ''}>`;
+  }
+  function gradeCellHtml(conv) {
+    return `<span class="${conv.isTested ? 'badge-grade' : 'badge-untested'}">${esc(conv.text)}</span>`;
+  }
+  function statusCellHtml(conv) {
+    return `<span style="font-size: 0.75rem; font-weight: 600; color: ${conv.isTested ? 'var(--success)' : 'var(--warning)'};">${conv.isTested ? '● 已測驗' : '○ 待測驗'}</span>`;
+  }
+  function compareTerms() {
+    const set = {};
+    allDataTerms().forEach(t => set[t] = 1);
+    set[currentTermSel] = 1;
+    return Object.keys(set).sort((a, b) => termKey(a) - termKey(b)).slice(-4);
+  }
+  function latestTwo(seatNum) {
+    const ts = Object.keys((seatRec(seatNum, false) || { terms: {} }).terms)
+      .filter(t => parseTerm(t) && convertSRToGrades(entry(seatNum, t).sr).isTested)
+      .sort((a, b) => termKey(a) - termKey(b));
+    return ts.length >= 2 ? [ts[ts.length - 2], ts[ts.length - 1]] : null;
+  }
+  function diffCellHtml(seatNum) {
+    const two = latestTwo(seatNum);
+    if (!two) return '<span class="hint">-</span>';
+    const d = diffText(entry(seatNum, two[0]).sr, entry(seatNum, two[1]).sr);
+    return `<span style="font-size: 0.8rem; font-weight: 700; color: ${d.color};" title="${esc(termShort(two[0]) + '→' + termShort(two[1]))}">${esc(d.text)}</span>`;
+  }
+
+  function renderRosterTable() {
+    const thead = document.getElementById('roster-thead');
+    const tbody = document.getElementById('roster-tbody');
+    const viewMode = document.getElementById('view-mode-select').value;
+    const fmt = document.getElementById('format-select').value;
+    tbody.innerHTML = '';
+
+    if (!students.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td class="empty-note">還沒有班級名冊。請按「⚙️ 修改班級名冊」設定人數或貼上姓名。</td></tr>';
+      updateStats();
+      return;
+    }
+
+    const checkAllTh = '<th style="width: 42px; text-align: center;"><input type="checkbox" id="check-all" onchange="toggleCheckAll(this.checked)" title="全選／全不選"></th>';
+    const t = currentTermSel;
+
+    if (viewMode === 'single') {
+      thead.innerHTML = `<tr>${checkAllTh}
+        <th style="width: 56px; text-align: center;">座號</th>
+        <th style="width: 100px;">姓名</th>
+        <th style="width: 120px;">測驗時間</th>
+        <th style="width: 90px;">就讀年級</th>
+        <th style="width: 140px;">SR 數值／範圍</th>
+        <th>建議適讀書籍年級</th>
+        <th style="width: 86px; text-align: center;">狀態</th></tr>`;
+      students.forEach((st, idx) => {
+        const e = entry(st.seatNum, t);
+        const conv = convertSRToGrades(e.sr, fmt);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align: center;"><input type="checkbox" ${isChecked(st.seatNum) ? 'checked' : ''} onchange="updateCheck(${idx}, this.checked)"></td>
+          <td style="text-align: center; font-weight: 600;">${st.seat}</td>
+          <td style="font-weight: 600;">${esc(st.masked || '')}</td>
+          <td>${cellInput(idx, 'date', e.date, '例：2026/09/21', `updateField(${idx}, 'date', this.value)`)}</td>
+          <td>${cellInput(idx, 'gradeLevel', e.gradeLevel || defaultGradeLevel(t), '例：四年級', `updateField(${idx}, 'gradeLevel', this.value)`, 'width: 76px; text-align: center;')}</td>
+          <td>${cellInput(idx, 'sr', e.sr, '例：411-417', `updateField(${idx}, 'sr', this.value)`)}</td>
+          <td id="cell-grade-${idx}">${gradeCellHtml(conv)}</td>
+          <td style="text-align: center;" id="cell-status-${idx}">${statusCellHtml(conv)}</td>`;
+        tbody.appendChild(tr);
+      });
+    } else {
+      const terms = compareTerms();
+      thead.innerHTML = `<tr>${checkAllTh}
+        <th style="width: 56px; text-align: center;">座號</th>
+        <th style="width: 100px;">姓名</th>
+        ${terms.map(x => `<th style="width: 150px;">${esc(termShort(x))} SR${x === t ? '（目前）' : ''}</th>`).join('')}
+        <th style="width: 120px; text-align: center;" title="最近兩次有成績的學期，SR 中點相減；只供老師參考，不印在給家長的小卡上">最近兩次差異（教師參考）</th></tr>`;
+      students.forEach((st, idx) => {
+        const cells = terms.map(x => {
+          const e = entry(st.seatNum, x);
+          return `<td>${cellInput(idx, 'sr@' + x, e.sr, termShort(x) + ' SR', `updateFieldTerm(${idx}, '${x}', this.value)`)}
+            <div style="font-size: 0.75rem; color: #0284c7; margin-top: 2px;" id="cell-conv-${idx}-${x}">${esc(convertSRToGrades(e.sr, fmt).text)}</div></td>`;
+        }).join('');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="text-align: center;"><input type="checkbox" ${isChecked(st.seatNum) ? 'checked' : ''} onchange="updateCheck(${idx}, this.checked)"></td>
+          <td style="text-align: center; font-weight: 600;">${st.seat}</td>
+          <td style="font-weight: 600;">${esc(st.masked || '')}</td>
+          ${cells}
+          <td style="text-align: center;" id="cell-diff-${idx}">${diffCellHtml(st.seatNum)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    updateStats();
+  }
+
+  // 只更新該列的換算結果，不重畫整張表（輸入時 Tab、Enter 不會跑掉）
+  function refreshRow(idx) {
+    const st = students[idx];
+    if (!st) return;
+    const fmt = document.getElementById('format-select').value;
+    const g = document.getElementById('cell-grade-' + idx);
+    if (g) {
+      const conv = convertSRToGrades(entry(st.seatNum, currentTermSel).sr, fmt);
+      g.innerHTML = gradeCellHtml(conv);
+      document.getElementById('cell-status-' + idx).innerHTML = statusCellHtml(conv);
+    }
+    compareTerms().forEach(x => {
+      const el = document.getElementById('cell-conv-' + idx + '-' + x);
+      if (el) el.textContent = convertSRToGrades(entry(st.seatNum, x).sr, fmt).text;
+    });
+    const d = document.getElementById('cell-diff-' + idx);
+    if (d) d.innerHTML = diffCellHtml(st.seatNum);
+  }
+
+  function updateField(idx, field, val) {
+    const st = students[idx];
+    setEntryField(st.seatNum, currentTermSel, field, String(val).trim());
+    saveRecords();
+    refreshRow(idx);
+    updateStats();
+  }
+  function updateFieldTerm(idx, term, val) {
+    const st = students[idx];
+    setEntryField(st.seatNum, term, 'sr', String(val).trim());
+    const e = entry(st.seatNum, term);
+    if (!e.gradeLevel) setEntryField(st.seatNum, term, 'gradeLevel', defaultGradeLevel(term));
+    saveRecords();
+    refreshRow(idx);
+    updateStats();
+  }
+  function updateCheck(idx, checked) {
+    seatRec(students[idx].seatNum, true).checked = checked;
+    saveRecords();
+    updateStats();
+  }
+  function toggleCheckAll(checked) {
+    students.forEach(st => seatRec(st.seatNum, true).checked = checked);
+    saveRecords();
+    renderRosterTable();
+  }
+  function selectOnlyTested() {
+    students.forEach(st => seatRec(st.seatNum, true).checked = convertSRToGrades(entry(st.seatNum, currentTermSel).sr).isTested);
+    saveRecords();
+    renderRosterTable();
+  }
+  function clearTermData() {
+    const n = students.filter(st => normalizeSR(entry(st.seatNum, currentTermSel).sr)).length;
+    if (!n) { alert('「' + termName(currentTermSel) + '」沒有 SR 紀錄。'); return; }
+    if (!confirm('要清除「' + termName(currentTermSel) + '」全班 ' + n + ' 筆 SR（含測驗時間）嗎？\n其他學期不受影響。\n\n按「確定」後會先下載一份完整備份。')) return;
+    if (HOST && HOST.ctuFullBackup) HOST.ctuFullBackup('_清除SR前');
+    if (!confirm('已開始下載備份（檔名結尾是「_清除SR前」）。\n請確認檔案已存好，再按「確定」清除。')) return;
+    Object.keys(rec.bySeat).forEach(k => { if (rec.bySeat[k] && rec.bySeat[k].terms) delete rec.bySeat[k].terms[currentTermSel]; });
+    saveRecords();
+    renderAll();
+  }
+
+  function updateStats() {
+    let tested = 0;
+    students.forEach(st => { if (convertSRToGrades(entry(st.seatNum, currentTermSel).sr).isTested) tested++; });
+    const checked = students.filter(st => isChecked(st.seatNum)).length;
+    const pages = Math.ceil(checked / 8) || 1;
+    document.getElementById('stat-total').textContent = students.length;
+    document.getElementById('stat-tested').textContent = tested;
+    document.getElementById('stat-untested').textContent = students.length - tested;
+    document.getElementById('stat-pages').textContent = pages;
+    document.getElementById('term-badge').textContent = termName(currentTermSel);
+
+    const ca = document.getElementById('check-all');
+    if (ca) { ca.checked = students.length > 0 && checked === students.length; ca.indeterminate = checked > 0 && checked < students.length; }
+
+    const blanks = pages * 8 - checked;
+    document.getElementById('print-tip').innerHTML = '💡 一張 A4 印 8 張小卡。目前勾選 ' + checked + ' 位，需 ' + pages + ' 張' +
+      (checked > 0 && blanks > 0 ? '，最後一頁有 ' + blanks + ' 格空白小卡（可手寫補測學生）。' : (checked > 0 ? '，剛好排滿。' : '。'));
+
+    // 名冊外的座號仍保留紀錄，提醒老師
+    const shown = {};
+    students.forEach(st => shown[st.seatNum] = 1);
+    const orphan = Object.keys(rec.bySeat).filter(k => !shown[k] && Object.keys((rec.bySeat[k] && rec.bySeat[k].terms) || {}).some(t => normalizeSR(rec.bySeat[k].terms[t].sr)));
+    document.getElementById('orphan-note').textContent = orphan.length
+      ? 'ℹ️ 另有 ' + orphan.length + ' 個座號（' + orphan.slice(0, 6).join('、') + (orphan.length > 6 ? '…' : '') + '）不在目前名冊，SR 紀錄仍保留。'
+      : '';
+    renderPrintCards();
+  }
+
+  // ============================================================
+  // 5. 貼上／匯入：解析成紀錄，再依座號寫入
+  //    紀錄：{ seat: '02', name, terms: { '115-1': { date, gradeLevel, sr } } }
+  // ============================================================
+  const SINGLE_SR_HEADERS = ['SR測驗數值', 'SR數值', 'SR', 'SR值'];
+  const EMPTY_SR_TOKENS = ['-', '—', '未測', '未測驗', '缺考', '待測'];
+
+  function normSeat(s) {
+    const t = String(s == null ? '' : s).trim();
+    return /^\d+$/.test(t) ? String(parseInt(t, 10)) : t;
+  }
+  function isDateToken(t) { return /^\d{2,4}[\/.\-]\d{1,2}[\/.\-]\d{1,2}$/.test(t); }
+  function isSRToken(t) { return RANGE_RE.test(t) || SINGLE_RE.test(t); }
+
+  // 依每一格長什麼樣子判斷欄位，不靠欄數
+  function parseRecordTokens(tokens, term) {
+    let name = '', date = '', gradeLevel = '';
+    const nums = [];
+    let sawEmpty = false;
+    tokens.forEach(raw => {
+      const t = normalizeSR(raw);
+      if (!t) return;
+      if (isDateToken(t)) { if (!date) date = t; }
+      else if (/年級$/.test(t)) { if (!gradeLevel) gradeLevel = t; }
+      else if (EMPTY_SR_TOKENS.includes(t)) sawEmpty = true;
+      else if (isSRToken(t)) nums.push(t);
+      else if (!name) name = t;
+    });
+    if (['座號', '姓名', '學生姓名'].includes(name)) return { skip: true };
+
+    let seat = '', sr = '';
+    if (nums.length >= 1 && /^\d{1,2}$/.test(nums[0]) && (nums.length >= 2 || sawEmpty || name)) {
+      seat = nums[0];
+      const rest = nums.slice(1);
+      if (rest.length > 1) return { error: 'SR 欄有多個數字（範圍請用 - 連接，如 411-417）' };
+      sr = rest[0] || '';
+    } else if (nums.length === 1) {
+      sr = nums[0];
+    } else if (nums.length > 1) {
+      return { error: '看不出哪個是座號、哪個是 SR' };
+    }
+    if (!seat && !name) return { error: '沒有座號也沒有姓名' };
+    const e = {};
+    if (date) e.date = date;
+    if (gradeLevel) e.gradeLevel = gradeLevel;
+    if (sr) e.sr = sr;
+    return { seat: normSeat(seat), name, terms: { [term]: e } };
+  }
+
+  // 「X上SR」「X下SR」（例如 408 舊版的「四上SR」）→ 依班級年級換算成學年度學期
+  function legacyHeaderTerm(h) {
+    const m = /^([一二三四五六])([上下])SR$/.exec(h);
+    if (!m) return null;
+    const g = classGrade(), c = parseTerm(curTerm());
+    if (!g || !c) return null;
+    return (c.y + (CN_NUM.indexOf(m[1]) - g)) + '-' + (m[2] === '上' ? 1 : 2);
+  }
+
+  // 有「座號」表頭的表格：依表頭名稱找欄位
+  function rowsWithHeaderToRecords(rows, term) {
+    const hIdx = rows.findIndex(r => r && r.some(c => String(c).trim() === '座號'));
+    if (hIdx === -1) return null;
+    const header = rows[hIdx].map(c => String(c == null ? '' : c).trim());
+    const seatCol = header.indexOf('座號');
+    const nameCol = header.findIndex(h => h === '學生姓名' || h === '姓名');
+    const srCols = [];
+    const errors = [];
+    header.forEach((h, i) => {
+      const m = /^SR[（(](\d{2,3}-[12])[)）]$/.exec(h.replace(/\s/g, ''));
+      if (m) srCols.push({ col: i, term: m[1] });
+      else if (SINGLE_SR_HEADERS.includes(h)) srCols.push({ col: i, term: term });
+      else if (/^[一二三四五六][上下]SR$/.test(h)) {
+        const lt = legacyHeaderTerm(h);
+        if (lt) srCols.push({ col: i, term: lt });
+        else errors.push('「' + h + '」欄：班級名稱看不出年級，無法對應學期，已略過');
+      }
+    });
+    if (!srCols.length) return { records: [], errors: ['找不到 SR 欄位（表頭需有「SR(115-1)」「SR」或「SR測驗數值」）'] };
+
+    const records = [];
+    rows.slice(hIdx + 1).forEach((row, i) => {
+      if (!row || row.every(c => String(c == null ? '' : c).trim() === '')) return;
+      const cell = c => (c >= 0 && row[c] != null) ? String(row[c]).trim() : '';
+      const seat = normSeat(cell(seatCol));
+      const name = cell(nameCol);
+      if (!seat && !name) { errors.push('第 ' + (hIdx + i + 2) + ' 列：沒有座號也沒有姓名'); return; }
+      const terms = {};
+      srCols.forEach(({ col, term: t }) => {
+        const sr = normalizeSR(cell(col));
+        if (!sr || EMPTY_SR_TOKENS.includes(sr)) return;
+        const e = { sr };
+        if (header[col - 2] === '測驗時間' && cell(col - 2)) e.date = cell(col - 2);
+        if (header[col - 1] === '就讀年級' && cell(col - 1)) e.gradeLevel = cell(col - 1);
+        terms[t] = e;
+      });
+      records.push({ seat, name, terms });
+    });
+    return { records, errors };
+  }
+
+  // dry=true 只試算結果、不寫入（給 confirmMerge 預先檢查用）
+  function mergeRecords(records, errors, dry) {
+    let updated = 0, blank = 0, outside = 0;
+    const conflicts = [];
+    records.forEach(r => {
+      // 這一列沒有任何 SR、日期、年級：不寫入，只計數
+      if (!Object.keys(r.terms).some(t => Object.keys(r.terms[t]).length)) { blank++; return; }
+      let st = null;
+      if (r.seat) {
+        st = students.find(s => String(s.seatNum) === r.seat);
+        if (!st) { outside++; errors.push('座號 ' + r.seat + (r.name ? '（' + maskName(r.name) + '）' : '') + ' 不在班級名冊，已略過'); return; }
+      } else {
+        st = students.find(s => s.full && s.full === r.name);
+        if (!st) { outside++; errors.push('姓名「' + maskName(r.name) + '」不在班級名冊，已略過'); return; }
+      }
+      if (r.name && st.full && r.name !== st.full) {
+        conflicts.push(st.seat + ' 號名冊是「' + st.masked + '」，匯入的是「' + maskName(r.name) + '」' + (dry ? '' : '（已依座號寫入）'));
+      }
+      if (dry) { updated++; return; }
+      Object.keys(r.terms).forEach(t => {
+        const src = r.terms[t];
+        // 只寫入有值的欄位：空白不覆蓋原有成績
+        ['date', 'gradeLevel', 'sr'].forEach(f => { if (src[f]) setEntryField(st.seatNum, t, f, src[f]); });
+        if (src.sr && !entry(st.seatNum, t).gradeLevel) setEntryField(st.seatNum, t, 'gradeLevel', defaultGradeLevel(t));
+      });
+      updated++;
+    });
+    return { updated, blank, outside, conflicts };
+  }
+
+  // 從匯入資料整理出名冊：大多數列都有「座號＋姓名」、座號不重複時才採用；跳號補空號
+  function rosterFromRecords(records) {
+    const withSeat = records.filter(r => r.seat && /^\d+$/.test(r.seat));
+    const named = withSeat.filter(r => r.name);
+    if (!named.length || named.length < records.length * 0.8) return null;
+    const bySeat = {};
+    for (const r of named) {
+      const n = parseInt(r.seat, 10);
+      if (n < 1 || n > 60 || bySeat[n]) return null;
+      bySeat[n] = r.name;
+    }
+    const max = Math.max(...Object.keys(bySeat).map(Number));
+    const names = [];
+    for (let i = 1; i <= max; i++) names.push(bySeat[i] || '');
+    return names;
+  }
+
+  // 三選一視窗（瀏覽器內建 confirm 只有兩個按鈕）
+  function chooseDialog(message, buttons) {
+    return new Promise(resolve => {
+      const wrap = document.createElement('div');
+      wrap.id = 'choice-modal';
+      wrap.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:18px 20px;box-shadow:0 10px 30px rgba(0,0,0,.2);';
+      const msg = document.createElement('div');
+      msg.style.cssText = 'white-space:pre-wrap;font-size:.92rem;line-height:1.6;color:#1e293b;margin-bottom:14px;';
+      msg.textContent = message;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+      buttons.forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = 'btn ' + (b.primary ? 'btn-primary' : 'btn-light');
+        btn.id = 'choice-' + b.value;
+        btn.textContent = b.label;
+        btn.onclick = () => { wrap.remove(); resolve(b.value); };
+        row.appendChild(btn);
+      });
+      box.appendChild(msg); box.appendChild(row); wrap.appendChild(box);
+      document.body.appendChild(wrap);
+    });
+  }
+
+  // 寫入前檢查。回傳 'merge'（依目前名冊寫入）、'roster'（先用資料裡的名冊更新班級設定）或 'cancel'
+  async function chooseMerge(records) {
+    const pre = mergeRecords(records, [], true);
+    const mismatch = pre.conflicts.length > 0 || pre.outside > pre.updated;
+    // 名冊由外層程式固定（例如 408 版）時，不提供用匯入資料改名冊
+    const fileRoster = (HOST && HOST.ctuRosterReadOnly) ? null : rosterFromRecords(records);
+    const rosterEmpty = !students.some(s => s.full);
+    const fileDiffers = fileRoster && (pre.conflicts.length > 0 || pre.outside > 0 || rosterEmpty);
+    if (!mismatch && !fileDiffers) return 'merge';
+
+    const lines = [];
+    if (rosterEmpty && fileRoster) lines.push('「🏫 班級設定」還沒有學生姓名，這份資料有座號和姓名。', '');
+    else lines.push('⚠️ 這份資料和「🏫 班級設定」的名冊對不上。', '');
+    if (pre.conflicts.length) {
+      lines.push('座號相同但姓名不同 ' + pre.conflicts.length + ' 筆：');
+      lines.push(...pre.conflicts.slice(0, 6));
+      if (pre.conflicts.length > 6) lines.push('…還有 ' + (pre.conflicts.length - 6) + ' 筆');
+      lines.push('');
+    }
+    if (pre.outside) lines.push('座號不在名冊 ' + pre.outside + ' 筆（名冊目前 ' + students.length + ' 人）', '');
+
+    if (fileRoster) {
+      const gaps = [];
+      fileRoster.forEach((n, i) => { if (!n) gaps.push(String(i + 1).padStart(2, '0')); });
+      lines.push('這份資料的名冊：共 ' + fileRoster.length + ' 號' + (gaps.length ? '，' + gaps.join('、') + ' 號是空號' : '') + '。');
+      lines.push('選「更新班級名冊」會先下載一份完整備份，再把班級設定的姓名換成這份名冊（SH150、含氟等分頁也會一起換）。');
+      return chooseDialog(lines.join('\n'), [
+        { value: 'roster', label: '用這份資料更新班級名冊，再寫入成績', primary: true },
+        { value: 'merge', label: '不改名冊，依目前名冊的座號寫入 ' + pre.updated + ' 位' },
+        { value: 'cancel', label: '取消，不寫入任何資料' }
+      ]);
+    }
+    lines.push('如果名冊還沒換成這個班，請按「取消」，先到「🏫 班級設定」貼上正確名冊再匯入。');
+    lines.push('按「確定」會依座號寫入 ' + pre.updated + ' 位；按「取消」不寫入任何資料。');
+    return confirm(lines.join('\n')) ? 'merge' : 'cancel';
+  }
+
+  // 用匯入資料的名冊更新外層班級設定（班級、導師等其他欄位保留）
+  function applyRoster(names) {
+    if (HOST.ctuFullBackup) HOST.ctuFullBackup('_更新名冊前');
+    const c = getClass();
+    HOST.ctuStore.setItem('class', JSON.stringify({
+      className: c.className, teacherName: c.teacherName, leaderName: c.leaderName,
+      studentCount: names.length, studentNames: names
+    }));
+    buildStudents();
+  }
+
+  // 名冊換過時整頁重新載入，讓其他分頁也用新名冊，並回到本分頁
+  function reloadToSr() {
+    HOST.ctuStore.setItem('reopenTab', 'sr');
+    HOST.location.reload();
+  }
+
+  // 依使用者選擇寫入；回傳 null 表示取消
+  async function mergeWithChoice(records, errors) {
+    const choice = await chooseMerge(records);
+    if (choice === 'cancel') return null;
+    if (choice === 'roster') applyRoster(rosterFromRecords(records));
+    const result = mergeRecords(records, errors);
+    result.rosterUpdated = choice === 'roster';
+    saveRecords();
+    return result;
+  }
+
+  function reportMerge(title, result, errors) {
+    const lines = [title + '：寫入 ' + result.updated + ' 位學生' +
+      (result.blank ? '；' + result.blank + ' 位沒有填 SR，保留原狀' : '') + '。'];
+    if (result.rosterUpdated) lines.push('', '✓ 班級名冊已更新為這份資料的座號與姓名。按「確定」後整頁會重新載入。');
+    if (result.conflicts.length) {
+      lines.push('', '⚠️ 座號相同但姓名不同（' + result.conflicts.length + ' 筆），請確認：');
+      lines.push(...result.conflicts.slice(0, 10));
+      if (result.conflicts.length > 10) lines.push('…還有 ' + (result.conflicts.length - 10) + ' 筆');
+    }
+    if (errors.length) {
+      lines.push('', '略過 ' + errors.length + ' 筆：');
+      lines.push(...errors.slice(0, 10));
+      if (errors.length > 10) lines.push('…還有 ' + (errors.length - 10) + ' 筆');
+    }
+    alert(lines.join('\n'));
+  }
+
+  function togglePasteBox() {
+    const box = document.getElementById('paste-box');
+    box.style.display = box.style.display === 'block' ? 'none' : 'block';
+  }
+
+  async function parsePastedText() {
+    const text = document.getElementById('paste-textarea').value.trim();
+    if (!text) return;
+    const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+    let records = [];
+    const errors = [];
+    const byHeader = lines.some(l => l.includes('\t')) ? rowsWithHeaderToRecords(lines.map(l => l.split('\t')), currentTermSel) : null;
+    if (byHeader) {
+      records = byHeader.records;
+      errors.push(...byHeader.errors);
+    } else {
+      lines.forEach((line, i) => {
+        const tokens = line.includes('\t')
+          ? line.split('\t').map(s => s.trim())
+          : normalizeSR(line).replace(/(\d)\s*([-‐‑‒–—−~～至到])\s*(\d)/g, '$1$2$3').split(/[\s,，]+/);
+        const r = parseRecordTokens(tokens, currentTermSel);
+        if (r.skip) return;
+        if (r.error) { errors.push('第 ' + (i + 1) + ' 行：' + r.error); return; }
+        records.push(r);
+      });
+    }
+    if (!records.length) { alert('沒有解析到任何學生資料。' + (errors.length ? '\n\n' + errors.slice(0, 10).join('\n') : '')); return; }
+    const result = await mergeWithChoice(records, errors);
+    if (!result) return;
+    document.getElementById('paste-textarea').value = '';
+    document.getElementById('paste-box').style.display = 'none';
+    renderAll();
+    reportMerge('已寫入「' + termName(currentTermSel) + '」', result, errors);
+    if (result.rosterUpdated) reloadToSr();
+  }
+
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (typeof XLSX === 'undefined') {
+      alert('Excel 解析元件沒有載入（可能沒有網路），請改用「批次貼上」。');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        let parsed = null, used = '';
+        for (const name of wb.SheetNames) {
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' });
+          const r = rowsWithHeaderToRecords(rows, currentTermSel);
+          if (r && r.records.length) { parsed = r; used = name; break; }
+        }
+        if (!parsed) {
+          used = wb.SheetNames[0];
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[used], { header: 1, raw: false, defval: '' });
+          const records = [], errors = [];
+          rows.forEach((row, i) => {
+            if (!row || row.every(c => String(c).trim() === '')) return;
+            const r = parseRecordTokens(row.map(c => String(c)), currentTermSel);
+            if (r.skip) return;
+            if (r.error) { errors.push('第 ' + (i + 1) + ' 列：' + r.error); return; }
+            records.push(r);
+          });
+          parsed = { records, errors };
+        }
+        if (!parsed.records.length) { alert('檔案裡沒有找到學生資料。' + (parsed.errors.length ? '\n\n' + parsed.errors.slice(0, 10).join('\n') : '')); return; }
+        const errors = parsed.errors.slice();
+        const result = await mergeWithChoice(parsed.records, errors);
+        if (!result) return;
+        renderAll();
+        reportMerge('已從「' + file.name + '」的工作表「' + used + '」寫入', result, errors);
+        if (result.rosterUpdated) reloadToSr();
+      } catch (err) {
+        alert('Excel 解析失敗，建議改用「批次貼上」。\n（' + err.message + '）');
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // 空白範本：帶入目前名冊與目前選的學期，老師填 SR 後直接匯入
+  function downloadTemplate() {
+    if (typeof XLSX === 'undefined') { alert('Excel 元件沒有載入（可能沒有網路）。'); return; }
+    if (!students.length) { alert('還沒有班級名冊，請先按「⚙️ 修改班級名冊」設定。'); return; }
+    const c = getClass();
+    const t = currentTermSel;
+    const rows = [
+      [SCHOOL_NAME + ' ' + c.className + ' 班 SR 登記表（' + termName(t) + '）'],
+      ['填好「SR(' + t + ')」欄後，到「📚 SR 閱讀小卡 → 📁 匯入 Excel」選這個檔案。表頭請不要修改。'],
+      [],
+      ['座號', '學生姓名', '測驗時間', '就讀年級', 'SR(' + t + ')']
+    ];
+    students.forEach(st => {
+      const e = entry(st.seatNum, t);
+      rows.push([st.seat, st.full, e.date || '', e.gradeLevel || defaultGradeLevel(t), e.sr || '']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+    // 座號、SR 存成文字，避免 Excel 把 01 變成 1、把 411-417 當成日期或算式
+    Object.keys(ws).forEach(k => { if (k[0] !== '!' && ws[k].t === 's') ws[k].z = '@'; });
+    const guide = XLSX.utils.aoa_to_sheet([
+      ['怎麼填'], [],
+      ['1. 第 4 列是表頭，請不要修改（座號、學生姓名、測驗時間、就讀年級、SR(' + t + ')）。'],
+      ['2. SR 填單一數值（394）或範圍（411-417）；還沒測的留空白，匯入時不會蓋掉原有成績。'],
+      ['3. 匯入時依「座號」寫入；座號不在班級名冊的會略過並列出。'],
+      ['4. 「SR(' + t + ')」代表 ' + termName(t) + '；要登記別的學期，先在工具上切換學期再下載範本。'],
+      ['5. 測驗時間、就讀年級可以空白。']
+    ]);
+    guide['!cols'] = [{ wch: 90 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SR登記');
+    XLSX.utils.book_append_sheet(wb, guide, '填寫說明');
+    const safe = String(c.className || '班級').replace(/[\\/:*?"<>|]/g, '_');
+    XLSX.writeFile(wb, 'SR登記範本_' + safe + '_' + t + '.xlsx');
+  }
+
+  // 匯出：每個有成績的學期一組欄位，表頭格式可直接再匯入
+  function exportExcel() {
+    if (typeof XLSX === 'undefined') { alert('Excel 元件沒有載入（可能沒有網路）。'); return; }
+    const c = getClass();
+    const terms = compareTerms();
+    const head = ['座號', '學生姓名'];
+    terms.forEach(t => head.push('測驗時間', '就讀年級', 'SR(' + t + ')', '適讀年級（' + termShort(t) + '）'));
+    head.push('最近兩次差異（教師參考）', '備註');
+    const rows = [
+      [SCHOOL_NAME + ' ' + c.className + ' 班 SR 閱讀能力紀錄'],
+      ['匯出日期：' + new Date().toLocaleDateString('zh-TW') + '　｜　表頭「SR(學年-學期)」請勿修改，可直接匯入班級工具箱'],
+      [],
+      head
+    ];
+    students.forEach(st => {
+      const row = [st.seat, st.full];
+      terms.forEach(t => {
+        const e = entry(st.seatNum, t);
+        const conv = convertSRToGrades(e.sr, 'full');
+        row.push(e.date || '', e.sr ? (e.gradeLevel || defaultGradeLevel(t)) : '', e.sr || '', conv.isTested ? conv.text : '');
+      });
+      const two = latestTwo(st.seatNum);
+      row.push(two ? diffText(entry(st.seatNum, two[0]).sr, entry(st.seatNum, two[1]).sr).text : '', '');
+      rows.push(row);
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'SR閱讀紀錄');
+    const norm = [['DACC 年級常模'], [], ['建議適讀年級', 'SR 下限', 'SR 上限', '區間']];
+    NORM_TABLE.forEach(it => norm.push([it.grade, it.min, it.max, it.label]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(norm), 'DACC常模對照表');
+    const safe = String(c.className || '班級').replace(/[\\/:*?"<>|]/g, '_');
+    XLSX.writeFile(wb, 'SR閱讀紀錄_' + safe + '.xlsx');
+  }
+
+  // ============================================================
+  // 6. 快速試算
+  // ============================================================
+  function doQuickCalc() {
+    const val = document.getElementById('quick-sr').value.trim();
+    const r = convertSRToGrades(val, 'full');
+    const t = document.getElementById('quick-result-text');
+    const d = document.getElementById('quick-result-desc');
+    if (!val) { t.textContent = '請輸入 SR 數值'; d.textContent = '依 DACC 常模換算建議適讀年級'; return; }
+    if (r.isTested) { t.textContent = '建議適讀年級：' + r.text; d.textContent = 'SR「' + val + '」對應 DACC 常模區間。'; }
+    else { t.textContent = '未判定：' + r.text; d.textContent = '請輸入如 411-417 或 394 的數值。'; }
+  }
+
+  // ============================================================
+  // 7. A4 八格小卡
+  // ============================================================
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+  }
+  function previousTested(seatNum, term) {
+    const ts = Object.keys((seatRec(seatNum, false) || { terms: {} }).terms)
+      .filter(t => parseTerm(t) && termKey(t) < termKey(term) && convertSRToGrades(entry(seatNum, t).sr).isTested)
+      .sort((a, b) => termKey(b) - termKey(a));
+    return ts[0] || null;
+  }
+  function cardHeaderHtml(examTitle) {
+    return `<div class="sr-card-header">
+        <div class="sr-card-title">${esc(examTitle)}</div>
+        <div class="sr-card-funcs"><div>1.快速地瞭解自己的中文閱讀程度</div><div>2.提供整體閱讀程度的評估</div><div>3.診斷出各種閱讀技能的表現</div></div>
+      </div>`;
+  }
+
+  // ── 說明 QR Code：預設連到公開的家長說明頁（不含學生資料），老師可在列印設定改 ──
+  function qrUrl() {
+    const s = rec.settings || {};
+    return typeof s.qrUrl === 'string' ? s.qrUrl.trim() : DEFAULT_QR_URL;
+  }
+  function updateQrUrl(v) {
+    rec.settings = Object.assign({}, rec.settings, { qrUrl: String(v) });
+    saveRecords();
+    renderPrintCards();
+  }
+  function resetQrUrl() {
+    document.getElementById('cfg-qr-url').value = DEFAULT_QR_URL;
+    updateQrUrl(DEFAULT_QR_URL);
+  }
+  function openQrUrl() {
+    const u = qrUrl();
+    if (u) window.open(u, '_blank', 'noopener');
+  }
+  let qrCache = { url: null, svg: '' };
+  function qrSvg(url) {
+    if (qrCache.url === url) return qrCache.svg;
+    let svg = '';
+    if (typeof qrcode !== 'undefined') {
+      try {
+        const q = qrcode(0, 'M');
+        q.addData(/[^\x00-\x7f]/.test(url) ? encodeURI(url) : url);   // 中文網址先轉成 %XX，避免掃出亂碼
+        q.make();
+        const n = q.getModuleCount(), m = 2;
+        let d = '';
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + m) + ',' + (r + m) + 'h1v1h-1z';
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+      } catch (e) { svg = ''; }
+    }
+    qrCache = { url, svg };
+    return svg;
+  }
+  function qrHtml() {
+    const u = qrUrl();
+    if (!u) return '';
+    const svg = qrSvg(u);
+    return `<div class="sr-card-qr">${svg || '<div class="sr-card-qr-missing">QR 需網路</div>'}<div class="sr-card-qr-cap">掃描看<br>家長說明</div></div>`;
+  }
+  function renderPrintCards() {
+    const section = document.getElementById('print-section');
+    const examTitle = document.getElementById('cfg-exam-title').value;
+    const noticeTitle = document.getElementById('cfg-notice-title').value;
+    const examDate = document.getElementById('cfg-date').value;
+    const withSeat = document.getElementById('cfg-seat-toggle').value === 'with-seat';
+    const history = document.getElementById('cfg-history-toggle').value === 'history';
+    const fmt = document.getElementById('format-select').value;
+    const list = students.filter(st => isChecked(st.seatNum));
+    const pages = Math.ceil(list.length / 8) || 1;
+    const noScore = list.filter(st => !convertSRToGrades(entry(st.seatNum, currentTermSel).sr).isTested).length;
+    document.getElementById('print-summary-text').textContent =
+      '預計列印：' + termName(currentTermSel) + ' ' + list.length + ' 位 ‧ ' + pages + ' 張 A4' +
+      (noScore ? '　⚠️ 其中 ' + noScore + ' 位本學期沒有 SR，小卡會顯示「-」' : '');
+
+    const qr = qrHtml();
+    section.innerHTML = '';
+    for (let p = 0; p < pages; p++) {
+      const page = document.createElement('div');
+      page.className = 'a4-sheet';
+      const chunk = list.slice(p * 8, p * 8 + 8);
+      for (let i = 0; i < 8; i++) {
+        const st = chunk[i];
+        const card = document.createElement('div');
+        card.className = 'sr-card';
+        if (st) {
+          const e = entry(st.seatNum, currentTermSel);
+          const conv = convertSRToGrades(e.sr, fmt);
+          const name = st.full || (st.seatNum + ' 號');
+          const display = withSeat && st.full ? st.seat + ' ' + name : name;
+          let hist = '';
+          if (history) {
+            const pt = previousTested(st.seatNum, currentTermSel);
+            // 只列數值，不印「進步／退步」判斷
+            if (pt) hist = `<li class="sr-card-info-item"><span class="sr-card-info-label">● 前次SR：</span><span class="sr-card-info-value">${esc(entry(st.seatNum, pt).sr)}（${esc(termShort(pt))}）</span></li>`;
+          }
+          const gradeText = conv.isTested ? conv.text : '-';
+          if (hist || gradeText.length > 14) card.classList.add('dense');
+          card.innerHTML = cardHeaderHtml(examTitle) + `
+            <div class="sr-card-body">
+              <div class="sr-card-main">
+                <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
+                <ul class="sr-card-info-list">
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(e.date || examDate)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">${esc(display)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">${esc(e.sr || '-')}</span></li>
+                  <li class="sr-card-info-item${gradeText.length > 14 ? ' wrap' : ''}"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value sr-card-grade-highlight${gradeText.length > 8 ? ' long' : ''}">${esc(gradeText)}</span></li>
+                  ${hist}
+                </ul>
+              </div>
+              ${qr}
+            </div>`;
+        } else {
+          card.innerHTML = cardHeaderHtml(examTitle) + `
+            <div class="sr-card-body">
+              <div class="sr-card-main">
+                <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
+                <ul class="sr-card-info-list">
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(examDate)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">__________</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">__________</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value">__________</span></li>
+                </ul>
+              </div>
+              ${qr}
+            </div>`;
+        }
+        page.appendChild(card);
+      }
+      const ind = document.createElement('div');
+      ind.className = 'page-indicator';
+      ind.textContent = '第 ' + (p + 1) + ' 頁 / 共 ' + pages + ' 頁';
+      page.appendChild(ind);
+      section.appendChild(page);
+    }
+  }
+  function updateCardBorderStyle() {
+    document.getElementById('print-section').className = 'print-view-wrapper card-border-' + document.getElementById('cfg-border').value;
+  }
+  function prepareAndPrint() {
+    const list = students.filter(st => isChecked(st.seatNum));
+    if (!list.length) { alert('目前沒有勾選任何學生。'); return; }
+    const noScore = list.filter(st => !convertSRToGrades(entry(st.seatNum, currentTermSel).sr).isTested);
+    if (noScore.length) {
+      const seats = noScore.slice(0, 10).map(st => st.seat).join('、');
+      if (!confirm('勾選的學生中有 ' + noScore.length + ' 位在「' + termName(currentTermSel) + '」沒有 SR（座號 ' + seats + (noScore.length > 10 ? '…' : '') + '），小卡會顯示「-」。\n\n要繼續列印嗎？（可按「只勾選本學期已施測」排除）')) return;
+    }
+    showTab('print-tab');
+    renderPrintCards();
+    setTimeout(() => window.print(), 250);
+  }
+
+  // ============================================================
+  // 8. 頁籤、家長說明、常模表
+  // ============================================================
+  function showTab(id) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.id === id));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.toggle('active', el.getAttribute('data-tab') === id));
+    if (id === 'print-tab') renderPrintCards();
+  }
+
+  function defaultParentText() {
+    const c = getClass();
+    return '各位 ' + c.className + ' 爸爸媽媽好：\n\n' +
+      '今天孩子帶回了一張「中文閱讀能力適性診斷評量（DACC）結果通知小卡」。\n\n' +
+      '小卡上的「SR 值（SmartReading）」是國立臺灣師範大學團隊發展的閱讀能力與書籍難度指標（0-1000）：\n' +
+      '● SR 值不是考試成績，而是代表孩子目前獨立閱讀最自在、最能吸收的書籍難度區間。\n' +
+      '● 「適合年級的書籍」若涵蓋好幾個年級，代表孩子在這個範圍內都能兼顧閱讀流暢度與詞彙成長。\n' +
+      '● 出版社標示年齡與 SR 適讀年級可能不同：字詞較深的書適合親子共讀；文字簡單但寓意深遠的書適合孩子靜心品讀。\n\n' +
+      '帶孩子到圖書館借書或挑選課外讀物時，歡迎參考小卡上的適讀年級，讓孩子在沒有挫折的閱讀中建立自主閱讀的好習慣！\n' +
+      '有任何選書或閱讀陪伴的問題，也歡迎隨時與老師討論。\n\n' +
+      c.className + ' 導師 ' + c.teacherName + ' 敬上';
+  }
+  function resetParentText() { document.getElementById('parent-line-text').value = defaultParentText(); }
+  function copyParentLineText() {
+    const text = document.getElementById('parent-line-text').value;
+    const fallback = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      alert('已複製，可直接到 LINE 貼上。');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => alert('已複製，可直接到 LINE 貼上。')).catch(fallback);
+    } else fallback();
+  }
+  function printParentLetter() {
+    const c = getClass();
+    const w = window.open('', '_blank');
+    if (!w) { alert('請允許開啟快顯視窗以進行列印'); return; }
+    const SC = '<' + '/script>';
+    const html = '<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>SmartReading 適性閱讀家長說明</title><style>' +
+      '@page { size: A4 portrait; margin: 15mm; }' +
+      'body { font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; line-height: 1.6; color: #1e293b; margin: 0; }' +
+      '.header { text-align: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px; margin-bottom: 18px; }' +
+      '.header h1 { font-size: 18pt; margin: 0 0 6px 0; color: #075985; } .header p { font-size: 10pt; color: #64748b; margin: 0; }' +
+      '.section { margin-bottom: 14px; } .section-title { font-size: 11.5pt; font-weight: bold; color: #075985; border-left: 4px solid #0284c7; padding-left: 8px; margin-bottom: 6px; }' +
+      '.section p, .section li { font-size: 9.5pt; color: #334155; margin: 4px 0; } ul { padding-left: 20px; }' +
+      '.tip-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; font-size: 9pt; }' +
+      'table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 8.5pt; } th, td { border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; } th { background: #f1f5f9; }' +
+      '.footer { margin-top: 18px; text-align: right; font-size: 10pt; font-weight: bold; color: #075985; }' +
+      '</style></head><body>' +
+      '<div class="header"><h1>SmartReading 適性閱讀家長說明與選書指南</h1><p>' + esc(SCHOOL_NAME + ' ' + c.className + ' 班') + '</p></div>' +
+      '<div class="section"><div class="section-title">一、什麼是 SR 值？</div><p>SR 值是國立臺灣師範大學團隊發展的書籍難度指標（0-1000），同時也代表孩子的閱讀理解能力，讓閱讀能力與書籍難度可以對照。</p></div>' +
+      '<div class="section"><div class="section-title">二、為什麼需要適性閱讀？</div><ul>' +
+      '<li><strong>減少閱讀挫折</strong>：書太難容易放棄，太簡單則難以擴充思考。</li>' +
+      '<li><strong>提升自主動機</strong>：從適讀範圍內依興趣選書。</li>' +
+      '<li><strong>養成閱讀習慣</strong>：在能讀懂的書中累積成就感。</li></ul></div>' +
+      '<div class="section"><div class="section-title">三、SR 適讀年級 vs 出版社標示年齡</div><div class="tip-box">' +
+      '<strong>● 出版社標示年齡 ＜ SR 適讀年級</strong>：字詞或概念較深，建議親子共讀。<br>' +
+      '<strong>● 出版社標示年齡 ＞ SR 適讀年級</strong>：文字淺白但寓意深刻，適合孩子獨立品讀。</div></div>' +
+      '<div class="section"><div class="section-title">四、DACC 年級常模參考</div><table>' +
+      '<tr><th>年級</th>' + NORM_TABLE.slice(0, 7).map(it => '<td>' + it.grade + '</td>').join('') + '</tr>' +
+      '<tr><th>SR 區間</th>' + NORM_TABLE.slice(0, 7).map(it => '<td>' + it.label + '</td>').join('') + '</tr></table></div>' +
+      '<div class="footer">' + esc(c.className + ' 導師 ' + c.teacherName) + ' 敬上</div>' +
+      '<script>window.onload = function () { window.print(); };' + SC +
+      '</body></html>';
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function renderNormGrid() {
+    document.getElementById('norm-grid').innerHTML = NORM_TABLE.map(it =>
+      `<div class="norm-item"><span class="norm-grade">${it.grade}</span><span class="norm-range">${it.label}</span></div>`).join('');
+  }
+
+  function openClassSettings() {
+    if (HOST && HOST.ctuOpenClassModal) HOST.ctuOpenClassModal();
+  }
+
+  // 表格內按 Enter：跳到下一位學生的同一欄（Shift+Enter 往上）
+  function setupEnterNavigation() {
+    document.getElementById('roster-tbody').addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const t = e.target;
+      if (!t.dataset || t.dataset.col === undefined) return;
+      e.preventDefault();
+      const row = parseInt(t.dataset.row, 10) + (e.shiftKey ? -1 : 1);
+      const next = document.querySelector(`#roster-tbody input[data-row="${row}"][data-col="${t.dataset.col}"]`);
+      if (next) { next.focus(); next.select(); } else t.blur();
+    });
+  }
+
+  function renderAll() {
+    renderTermSelect();
+    const c = getClass();
+    document.getElementById('stats-title').textContent = '📊 ' + c.className + ' 班 SR 施測統計';
+    renderRosterTable();
+  }
+
+  // ============================================================
+  // 9. 初始化
+  // ============================================================
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!HOST) {
+      document.getElementById('app').innerHTML = '<div class="standalone-warning"><strong>這個頁面要從「班級工具箱」開啟。</strong><br>請開啟班級工具箱，切到「📚 SR 閱讀小卡」分頁使用。</div>';
+      return;
+    }
+    if (HOST.ctuRosterReadOnly) document.getElementById('btn-edit-roster').style.display = 'none';
+    renderNormGrid();
+    setupEnterNavigation();
+    loadRecords();
+    buildStudents();
+    const opts = termOptions();
+    currentTermSel = opts.indexOf(rec.current) > -1 ? rec.current : curTerm();
+    document.getElementById('cfg-date').value = todayStr();
+    document.getElementById('cfg-qr-url').value = qrUrl();
+    resetParentText();
+    renderAll();
+    doQuickCalc();
+  });
+<\/script>
+</body>
+</html>
+</script><!-- end #sr-source -->
+
+<script>
+// ── SR 閱讀小卡：給框架內 SR 工具用的介面（名冊、儲存、學期），並把資料同步到 GAS 文件屬性 ──
+// SR 工具與全校版共用同一份原始檔；全校版的介面在 universal.html，這裡是 408 版。
+(function () {
+    var PREFIX = 'c408_';                 // 與全校版（ctu_）分開，GitHub Pages 同網域不互相覆蓋
+    var SR_KEY = 'sr_records';
+    var META_KEY = PREFIX + 'sr_sync_meta';   // { savedAt, dirty }：本機最後修改時間、是否還沒同步
+    var SR_SYNC = (typeof google !== 'undefined' && google.script && google.script.run) ? true : false;
+
+    // 【可自行修改】學期（與全校版 CTU_SEMESTER 相同格式）
+    window.CTU_SEMESTER = { label: '115-1' };
+    window.ctuRosterReadOnly = true;      // 408 名冊寫在程式裡（seatRoster），SR 分頁不提供改名冊
+
+    function rawGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function rawSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+    function getMeta() { try { return JSON.parse(rawGet(META_KEY) || '{}') || {}; } catch (e) { return {}; } }
+    function setMeta(m) { rawSet(META_KEY, JSON.stringify(m)); }
+
+    window.ctuGetClass = function () {
+        var roster = window.c408SeatRoster || {};
+        var seats = Object.keys(roster).map(Number);
+        var max = seats.length ? Math.max.apply(null, seats) : 0;
+        var names = [];
+        for (var i = 1; i <= max; i++) names.push(roster[i] ? roster[i][0] : '');
+        return { className: '408', teacherName: '國榮老師', leaderName: '', studentCount: max, studentNames: names };
+    };
+    window.ctuMaskName = function (name) {
+        if (!name) return '';
+        if (name.length <= 1) return name;
+        if (name.length === 2) return name[0] + '○';
+        return name[0] + '○'.repeat(name.length - 2) + name[name.length - 1];
+    };
+    window.ctuStore = {
+        setItem: function (k, v) {
+            var ok = rawSet(PREFIX + k, String(v));
+            if (k === SR_KEY) onSrChanged();
+            return ok;
+        },
+        getItem: function (k) { return rawGet(PREFIX + k); },
+        removeItem: function (k) { try { localStorage.removeItem(PREFIX + k); } catch (e) {} }
+    };
+    // SR 工具在清除前會呼叫：下載目前 SR 資料的備份檔
+    window.ctuFullBackup = function (suffix) {
+        var d = new Date();
+        var ymd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+        var blob = new Blob([JSON.stringify({ app: 'c408-sr', exportedAt: d.toISOString(), data: rawGet(PREFIX + SR_KEY) }, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = '408_SR備份_' + ymd + (suffix || '') + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+    };
+
+    // ── 同步狀態 ──
+    var busy = 0, lastError = '', pushTimer = null, retryTimer = null, flushing = false;
+    function renderStatus() {
+        var el = document.getElementById('sr-sync-status');
+        if (!el) return;
+        if (!SR_SYNC) { el.textContent = '○ 本機模式（資料只存在這台電腦）'; el.style.color = '#64748b'; return; }
+        var m = getMeta();
+        if (busy) { el.textContent = '⏳ 同步中…'; el.style.color = '#0369a1'; }
+        else if (lastError) { el.textContent = '⚠ 待同步：' + lastError + '（15 秒後自動重試）'; el.style.color = '#b45309'; }
+        else if (m.dirty) { el.textContent = '⚠ 待同步'; el.style.color = '#b45309'; }
+        else { el.textContent = '☁ 已同步至雲端（筆電與教室電腦共用）'; el.style.color = '#15803d'; }
+    }
+
+    // 本機一有修改：記下時間，稍等一下再整份送出（送整份＋時間，重送結果相同）
+    function onSrChanged() {
+        setMeta({ savedAt: Date.now(), dirty: true });
+        renderStatus();
+        if (!SR_SYNC) return;
+        clearTimeout(pushTimer);
+        pushTimer = setTimeout(flush, 1200);
+    }
+
+    function flush() {
+        if (!SR_SYNC || flushing) return;
+        var m = getMeta();
+        if (!m.dirty) { renderStatus(); return; }
+        var json = rawGet(PREFIX + SR_KEY);
+        if (json === null) { renderStatus(); return; }
+        flushing = true; busy++; renderStatus();
+        var sentAt = m.savedAt;
+        google.script.run
+            .withSuccessHandler(function () {
+                flushing = false; busy--; lastError = '';
+                var cur = getMeta();
+                if (cur.savedAt === sentAt) setMeta({ savedAt: sentAt, dirty: false });
+                else flush();   // 送出期間又有修改，再送一次最新的
+                renderStatus();
+            })
+            .withFailureHandler(function (err) {
+                flushing = false; busy--;
+                lastError = (err && err.message) ? err.message : '寫入失敗';
+                renderStatus();
+                if (!retryTimer) retryTimer = setTimeout(function () { retryTimer = null; flush(); }, 15000);
+            })
+            .saveSrRecords(json, sentAt);
+    }
+
+    function loadFrame() {
+        var f = document.getElementById('sr-frame');
+        if (!f || f.getAttribute('data-loaded')) return;
+        var LT = '<';
+        var src = document.getElementById('sr-source').textContent
+            .split(LT + '\\!--').join(LT + '!--')
+            .split(LT + '\\/script').join(LT + '/script')
+            .split(LT + '\\/SCRIPT').join(LT + '/SCRIPT');
+        f.setAttribute('data-loaded', '1');
+        f.srcdoc = src;
+    }
+
+    // 第一次切到分頁：先從雲端拿最新資料再載入；本機有還沒送出、且比雲端新的修改時保留本機並補送
+    var pulled = false;
+    window.c408LoadSr = function () {
+        renderStatus();
+        if (pulled || !SR_SYNC) { pulled = true; loadFrame(); if (SR_SYNC) flush(); return; }
+        pulled = true;
+        busy++; renderStatus();
+        google.script.run
+            .withSuccessHandler(function (remote) {
+                busy--; lastError = '';
+                var m = getMeta();
+                var remoteAt = (remote && remote.savedAt) || 0;
+                if (m.dirty && (m.savedAt || 0) > remoteAt) {
+                    flush();
+                } else if (remote && remote.json) {
+                    rawSet(PREFIX + SR_KEY, remote.json);
+                    setMeta({ savedAt: remoteAt, dirty: false });
+                }
+                renderStatus();
+                loadFrame();
+            })
+            .withFailureHandler(function (err) {
+                busy--;
+                lastError = (err && err.message) ? err.message : '讀取雲端失敗，先用這台電腦的資料';
+                renderStatus();
+                loadFrame();
+            })
+            .getSrRecords();
+    };
+})();
 </script>
 </body>
 </html>
