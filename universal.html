@@ -1313,10 +1313,11 @@
             <input id="cfg-count" type="number" min="1" max="60" value="30"
                 class="mt-1 w-28 px-3 py-2 rounded-lg bg-sky-50 text-slate-700 border border-sky-200 focus:outline-none focus:ring-2 focus:ring-sky-400">
         </label>
-        <label class="block text-slate-500 text-sm font-medium">學生姓名（一行一位，第 1 行是 1 號；空號請留空行；可直接貼「1. 王小明」）
+        <label class="block text-slate-500 text-sm font-medium">學生姓名（一行一位，第 1 行是 1 號；空號請留空行。也可以直接貼「座號＋姓名」，例如「08 王小明」，會依座號排、跳號自動空號）
             <textarea id="cfg-names" rows="8" placeholder="王小明&#10;李小美&#10;"
                 class="mt-1 w-full p-3 text-base bg-white text-slate-700 border border-sky-200 rounded-lg resize-y focus:outline-none focus:ring-2 focus:ring-sky-400"></textarea>
         </label>
+        <p id="cfg-names-hint" class="text-green-700 text-xs mt-1 font-semibold"></p>
         <p class="text-slate-400 text-xs mt-1">投影畫面上的姓名會自動遮罩（王○明），列印時才顯示全名。不貼姓名也可以，只用座號。</p>
 
         <details class="mt-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
@@ -8628,10 +8629,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 班級設定 ──
+    // 每一行都帶座號（如「08 楊晨熙」）且座號由小到大時，依座號排：跳號自動變空號，不會讓後面的人往前移。
+    // 沒帶座號就照行數（第 n 行＝n 號）。
+    function parseNumberedNames(raw) {
+        var lines = String(raw || '').split(/\r?\n/).filter(function (l) { return l.trim() !== ''; });
+        if (!lines.length) return null;
+        var out = [], last = 0;
+        for (var i = 0; i < lines.length; i++) {
+            var m = /^\s*(\d{1,2})[\s.、\t]+(\S.*)$/.exec(lines[i]);
+            if (!m) return null;
+            var seat = parseInt(m[1], 10);
+            if (seat <= last || seat > 60) return null;
+            while (out.length < seat - 1) out.push('');
+            out.push(m[2].trim());
+            last = seat;
+        }
+        return out;
+    }
     function parseNames(raw) {
-        var arr = String(raw || '').split('\n').map(function (n) { return n.replace(/^\d+[\s.、\t]+/, '').trim(); });
+        var numbered = parseNumberedNames(raw);
+        if (numbered) return numbered;
+        var arr = String(raw || '').split(/\r?\n/).map(function (n) { return n.replace(/^\d+[\s.、\t]+/, '').trim(); });
         while (arr.length && arr[arr.length - 1] === '') arr.pop();
         return arr;
+    }
+    function updateNamesHint() {
+        var hint = $('cfg-names-hint');
+        if (!hint) return;
+        var numbered = parseNumberedNames($('cfg-names').value);
+        if (!numbered) { hint.textContent = ''; return; }
+        var gaps = [];
+        numbered.forEach(function (n, i) { if (!n) gaps.push(String(i + 1).padStart(2, '0')); });
+        hint.textContent = '✓ 已依座號排列，共 ' + numbered.length + ' 號' + (gaps.length ? '；' + gaps.join('、') + ' 號是空號' : '') + '。';
     }
 
     window.ctuOpenClassModal = function () {
@@ -8643,6 +8672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('cfg-leader').value = has ? c.leaderName : '';
         $('cfg-count').value = c.studentCount;
         $('cfg-names').value = c.studentNames.join('\n');
+        updateNamesHint();
         $('cfg-sem-start').value = o.startMonday || '';
         $('cfg-sem-weeks').value = o.weeks || '';
         $('cfg-sem-default').textContent = CTU_SEMESTER.startMonday + '，SH150 共 ' + CTU_SEMESTER.weeks + ' 週';
@@ -8797,6 +8827,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('cfg-names').addEventListener('input', function () {
             var n = parseNames(this.value).length;
             if (n) $('cfg-count').value = n;
+            updateNamesHint();
         });
 
         $('ctu-backup-btn').addEventListener('click', function () { updateBackupReminder(); $('backup-modal').classList.add('show'); });

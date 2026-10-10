@@ -373,6 +373,33 @@ class SrTab(unittest.TestCase):
         self.assertFalse(page.evaluate("document.documentElement.scrollWidth > window.innerWidth"), '手機寬度不可左右捲動')
         self.assertIn('SR', page.inner_text('h1'))
 
+    def test_T21_class_names_with_seat_numbers_keep_gaps(self):
+        # 從聯絡簿複製「座號＋姓名」，07 號轉出沒有那一行：要留成空號，後面的人不可往前移
+        p = self.open()
+        p.evaluate("ctuOpenClassModal()")
+        lines = ['%02d\t學生%02d' % (i, i) for i in range(1, 11) if i != 7]
+        p.fill('#cfg-names', '\n'.join(lines))
+        p.dispatch_event('#cfg-names', 'input')
+        self.assertIn('07 號是空號', p.inner_text('#cfg-names-hint'))
+        self.assertEqual(p.input_value('#cfg-count'), '10')
+        p.click('#cfg-save')
+        p.wait_for_timeout(800)
+        names = json.loads(self.storage(p)['ctu_class'])['studentNames']
+        self.assertEqual(len(names), 10)
+        self.assertEqual(names[6], '')
+        self.assertEqual(names[7], '學生08')
+        self.assertEqual(names[9], '學生10')
+        fr = self.sr(p)
+        seats = fr.evaluate("[...document.querySelectorAll('#roster-tbody tr')].map(r => r.children[1].innerText.trim())")
+        self.assertNotIn('07', seats)
+        self.assertIn('08', seats)
+        # 沒帶座號的舊貼法照行數，不受影響
+        p.evaluate("ctuOpenClassModal()")
+        p.fill('#cfg-names', '甲\n乙\n\n丁')
+        p.dispatch_event('#cfg-names', 'input')
+        self.assertEqual(p.inner_text('#cfg-names-hint'), '')
+        self.assertEqual(p.evaluate("ctuGetClass().studentNames.length"), 10)
+
     def test_T15_no_js_errors_across_tabs(self):
         p = self.open()
         fr = self.sr(p)
