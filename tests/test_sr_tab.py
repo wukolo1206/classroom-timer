@@ -31,6 +31,8 @@ class SrTab(unittest.TestCase):
         cls.tmp = tempfile.mkdtemp(prefix='ctu_sr_')
         os.makedirs(os.path.join(cls.tmp, 'classroom-timer'))
         shutil.copy(SRC, os.path.join(cls.tmp, 'classroom-timer', 'universal.html'))
+        os.makedirs(os.path.join(cls.tmp, 'classroom-timer', 'sr-reading'))
+        shutil.copy(os.path.join(ROOT, 'sr-reading', 'parent.html'), os.path.join(cls.tmp, 'classroom-timer', 'sr-reading', 'parent.html'))
 
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *a): pass
@@ -320,6 +322,56 @@ class SrTab(unittest.TestCase):
         self.assertEqual(rec['1']['terms']['115-1']['sr'], '411-417')
         self.assertEqual(rec['2']['terms']['115-1']['sr'], '450-514')
         self.assertNotIn('姓名不同', p._dialogs[-1])
+
+    def test_T18_wrong_roster_asks_before_writing(self):
+        # 名冊還是 3 人測試名冊，卻匯入別班 5 人的檔案：先問，按取消就不寫
+        roster = {'className': '408', 'teacherName': '示範老師', 'studentCount': 3, 'studentNames': ['王', '無', '李']}
+        p = self.open(cls_cfg=roster)
+        fr = self.sr(p)
+        data = xlsx_bytes([['座號', '學生姓名', 'SR(115-1)'],
+                           ['01', '甲同學', '400'], ['02', '乙同學', '410'], ['03', '丙同學', '420'],
+                           ['04', '丁同學', '430'], ['05', '戊同學', '440']])
+        fr.evaluate("() => { window.confirm = m => { window.__asked = m; return false; }; }")
+        fr.set_input_files('#excel-file-input', files=[{'name': 'other.xlsx', 'mimeType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'buffer': data}])
+        p.wait_for_timeout(800)
+        asked = fr.evaluate("window.__asked || ''")
+        self.assertIn('對不上', asked)
+        self.assertIn('不寫入任何資料', asked)
+        self.assertIsNone(self.records(p), '按取消不可寫入任何資料')
+        # 名冊正確時不多問
+        p2 = self.open()
+        fr2 = self.sr(p2)
+        fr2.evaluate("() => { window.__asked = ''; window.confirm = m => { window.__asked = m; return true; }; }")
+        self.paste(fr2, '1 王小明 411-417\n2 李小華 450-514')
+        self.assertEqual(fr2.evaluate("window.__asked"), '')
+        self.assertEqual(self.records(p2)['bySeat']['2']['terms']['115-1']['sr'], '450-514')
+
+    def test_T19_card_qr_default_change_and_clear(self):
+        p = self.open()
+        fr = self.sr(p)
+        self.paste(fr, '1 王小明 411-417')
+        fr.evaluate("showTab('print-tab')")
+        self.assertTrue(fr.evaluate("!!document.querySelector('.sr-card .sr-card-qr svg')"), '預設要有 QR Code')
+        self.assertTrue(fr.evaluate("document.getElementById('cfg-qr-url').value").endswith('/sr-reading/parent.html'))
+        # 改網址會保存；重新整理後還在
+        fr.fill('#cfg-qr-url', 'https://example.org/說明')
+        p.reload(); p.wait_for_timeout(600)
+        fr = self.sr(p)
+        self.assertEqual(fr.evaluate("document.getElementById('cfg-qr-url').value"), 'https://example.org/說明')
+        # 清空就不印 QR
+        fr.evaluate("showTab('print-tab')")
+        fr.fill('#cfg-qr-url', '')
+        self.assertFalse(fr.evaluate("!!document.querySelector('.sr-card .sr-card-qr')"))
+        fr.evaluate("resetQrUrl()")
+        self.assertTrue(fr.evaluate("document.getElementById('cfg-qr-url').value").endswith('/sr-reading/parent.html'))
+
+    def test_T20_parent_page_has_no_student_data_and_fits_phone(self):
+        ctx = self.browser.new_context(viewport={'width': 375, 'height': 800})
+        self.addCleanup(ctx.close)
+        page = ctx.new_page()
+        page.goto(self.url.replace('universal.html', 'sr-reading/parent.html'))
+        self.assertFalse(page.evaluate("document.documentElement.scrollWidth > window.innerWidth"), '手機寬度不可左右捲動')
+        self.assertIn('SR', page.inner_text('h1'))
 
     def test_T15_no_js_errors_across_tabs(self):
         p = self.open()

@@ -2771,6 +2771,7 @@
     名冊一律讀外層「班級設定」；資料只寫 ctu_sr_records（經外層 ctuStore）。
   -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
   <style>
     :root {
       --primary: #0284c7;
@@ -2906,23 +2907,35 @@
       justify-content: space-between; align-content: space-between; page-break-after: always; break-after: page;
     }
     .page-indicator { position: absolute; bottom: 2mm; right: 10mm; font-size: 8pt; color: #94a3b8; }
+    /* 小卡 92×66mm：上方標題與功能說明，下方左邊結果、右邊說明 QR Code；內容自然往下排，不再上下撐開留白 */
     .sr-card {
-      width: 92mm; height: 66mm; border: 1.5px solid #000; padding: 3mm 4mm; display: flex; flex-direction: column;
-      justify-content: space-between; background: white; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+      width: 92mm; height: 66mm; border: 1.5px solid #000; padding: 3.5mm 4mm; display: flex; flex-direction: column;
+      gap: 2mm; background: white; font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; color: #000;
       overflow: hidden; position: relative;
     }
     .card-border-dashed .sr-card { border: 1.2px dashed #4b5563; }
     .card-border-light .sr-card { border: 1px solid #94a3b8; }
-    .sr-card-header { border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5mm; }
-    .sr-card-title { font-size: 8.5pt; font-weight: 700; color: #000; line-height: 1.25; margin-bottom: 1mm; }
-    .sr-card-funcs { font-size: 7.2pt; color: #1f2937; line-height: 1.25; padding-left: 0.5mm; }
-    .sr-card-body { padding-top: 1.5mm; }
-    .sr-card-notice-title { font-size: 8.5pt; font-weight: 800; color: #000; margin-bottom: 1.5mm; }
-    .sr-card-info-list { list-style: none; display: flex; flex-direction: column; gap: 1.4mm; }
-    .sr-card-info-item { font-size: 8.5pt; color: #000; line-height: 1.3; display: flex; align-items: flex-start; }
+    .sr-card-header { border-bottom: 0.3mm solid #94a3b8; padding-bottom: 1.6mm; }
+    .sr-card-title { font-size: 10.5pt; font-weight: 800; line-height: 1.3; margin-bottom: 0.6mm; }
+    .sr-card-funcs { font-size: 9pt; line-height: 1.4; color: #111; }
+    .sr-card-body { flex: 1; min-height: 0; display: flex; gap: 3mm; align-items: center; }
+    .sr-card-main { flex: 1; min-width: 0; }
+    .sr-card-notice-title { font-size: 10pt; font-weight: 800; margin-bottom: 1.8mm; }
+    .sr-card-info-list { list-style: none; display: flex; flex-direction: column; gap: 1.8mm; }
+    .sr-card-info-item { font-size: 10.5pt; line-height: 1.3; display: flex; align-items: baseline; }
     .sr-card-info-label { font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-    .sr-card-info-value { font-weight: 600; color: #000; word-break: break-all; }
-    .sr-card-grade-highlight { font-weight: 800; }
+    .sr-card-info-value { font-weight: 600; word-break: break-all; }
+    .sr-card-grade-highlight { font-size: 12pt; font-weight: 900; }
+    .sr-card-grade-highlight.long { font-size: 9.5pt; }
+    /* 內容多（完整列出很多年級、或加印前一次 SR）時自動排緊一點，避免被裁掉 */
+    .sr-card.dense { gap: 1.4mm; }
+    .sr-card.dense .sr-card-info-list { gap: 0.9mm; }
+    .sr-card.dense .sr-card-notice-title { margin-bottom: 1mm; }
+    .sr-card.dense .sr-card-grade-highlight.long { font-size: 9pt; line-height: 1.2; }
+    .sr-card-qr { width: 25mm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .sr-card-qr svg { width: 24mm; height: 24mm; display: block; }
+    .sr-card-qr-cap { font-size: 8pt; line-height: 1.25; margin-top: 0.8mm; font-weight: 600; }
+    .sr-card-qr-missing { width: 24mm; height: 24mm; border: 0.3mm dashed #94a3b8; font-size: 7pt; color: #64748b; display: flex; align-items: center; justify-content: center; }
 
     .standalone-warning { margin: 2rem auto; max-width: 560px; padding: 1.25rem; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; color: #92400e; }
 
@@ -3089,6 +3102,14 @@
           <option value="history">本學期結果＋前一次 SR</option>
         </select>
       </div>
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label for="cfg-qr-url">小卡右邊的說明 QR Code 連結（清空＝不印 QR Code）</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="cfg-qr-url" class="input-text" oninput="updateQrUrl(this.value)">
+          <button class="btn btn-light btn-sm" onclick="resetQrUrl()" title="改回預設的家長說明頁">預設</button>
+          <button class="btn btn-light btn-sm" onclick="openQrUrl()">開啟看看</button>
+        </div>
+      </div>
     </div>
     <div class="print-toolbar">
       <span style="font-weight: 700;" id="print-summary-text"></span>
@@ -3154,6 +3175,8 @@
   // 【可自行修改】學校名稱（家長說明信、LINE 訊息使用）
   var SCHOOL_NAME = '碧華國小';
   var STORE_KEY = 'sr_records';   // 實際存成 ctu_sr_records
+  // 【可自行修改】小卡 QR Code 預設連結：公開的家長說明頁（不含任何學生資料）
+  var DEFAULT_QR_URL = 'https:/' + '/wukolo1206.github.io/classroom-timer/sr-reading/parent.html';
 
   // ============================================================
   // 1. DACC 常模與換算
@@ -3300,6 +3323,7 @@
     try { obj = raw ? JSON.parse(raw) : null; } catch (e) { obj = null; }
     if (obj && typeof obj === 'object' && obj.bySeat && typeof obj.bySeat === 'object' && !Array.isArray(obj.bySeat)) {
       rec = { schema: 1, current: typeof obj.current === 'string' ? obj.current : '', bySeat: obj.bySeat };
+      if (obj.settings && typeof obj.settings === 'object' && !Array.isArray(obj.settings)) rec.settings = obj.settings;
     } else {
       if (raw) {
         // 壞掉的資料另存，不直接丟掉
@@ -3669,8 +3693,9 @@
     return { records, errors };
   }
 
-  function mergeRecords(records, errors) {
-    let updated = 0, blank = 0;
+  // dry=true 只試算結果、不寫入（給 confirmMerge 預先檢查用）
+  function mergeRecords(records, errors, dry) {
+    let updated = 0, blank = 0, outside = 0;
     const conflicts = [];
     records.forEach(r => {
       // 這一列沒有任何 SR、日期、年級：不寫入，只計數
@@ -3678,14 +3703,15 @@
       let st = null;
       if (r.seat) {
         st = students.find(s => String(s.seatNum) === r.seat);
-        if (!st) { errors.push('座號 ' + r.seat + (r.name ? '（' + maskName(r.name) + '）' : '') + ' 不在班級名冊，已略過'); return; }
+        if (!st) { outside++; errors.push('座號 ' + r.seat + (r.name ? '（' + maskName(r.name) + '）' : '') + ' 不在班級名冊，已略過'); return; }
       } else {
         st = students.find(s => s.full && s.full === r.name);
-        if (!st) { errors.push('姓名「' + maskName(r.name) + '」不在班級名冊，已略過'); return; }
+        if (!st) { outside++; errors.push('姓名「' + maskName(r.name) + '」不在班級名冊，已略過'); return; }
       }
       if (r.name && st.full && r.name !== st.full) {
-        conflicts.push(st.seat + ' 號名冊是「' + st.masked + '」，匯入的是「' + maskName(r.name) + '」（已依座號寫入）');
+        conflicts.push(st.seat + ' 號名冊是「' + st.masked + '」，匯入的是「' + maskName(r.name) + '」' + (dry ? '' : '（已依座號寫入）'));
       }
+      if (dry) { updated++; return; }
       Object.keys(r.terms).forEach(t => {
         const src = r.terms[t];
         // 只寫入有值的欄位：空白不覆蓋原有成績
@@ -3694,7 +3720,24 @@
       });
       updated++;
     });
-    return { updated, blank, conflicts };
+    return { updated, blank, outside, conflicts };
+  }
+
+  // 寫入前檢查：姓名對不上、或不在名冊的比寫得進去的還多，通常是「班級設定」的名冊還不是這個班
+  function confirmMerge(records) {
+    const pre = mergeRecords(records, [], true);
+    if (!pre.conflicts.length && pre.outside <= pre.updated) return true;
+    const lines = ['⚠️ 寫入前請確認：這份資料和「🏫 班級設定」的名冊好像對不上。', ''];
+    if (pre.conflicts.length) {
+      lines.push('座號相同但姓名不同 ' + pre.conflicts.length + ' 筆：');
+      lines.push(...pre.conflicts.slice(0, 6));
+      if (pre.conflicts.length > 6) lines.push('…還有 ' + (pre.conflicts.length - 6) + ' 筆');
+      lines.push('');
+    }
+    if (pre.outside) lines.push('座號不在名冊 ' + pre.outside + ' 筆（名冊目前 ' + students.length + ' 人）', '');
+    lines.push('如果名冊還沒換成這個班，請按「取消」，先到「🏫 班級設定」貼上正確名冊再匯入。');
+    lines.push('按「確定」會依座號寫入 ' + pre.updated + ' 位；按「取消」不寫入任何資料。');
+    return confirm(lines.join('\n'));
   }
 
   function reportMerge(title, result, errors) {
@@ -3740,6 +3783,7 @@
       });
     }
     if (!records.length) { alert('沒有解析到任何學生資料。' + (errors.length ? '\n\n' + errors.slice(0, 10).join('\n') : '')); return; }
+    if (!confirmMerge(records)) return;
     const result = mergeRecords(records, errors);
     saveRecords();
     document.getElementById('paste-textarea').value = '';
@@ -3780,6 +3824,7 @@
           parsed = { records, errors };
         }
         if (!parsed.records.length) { alert('檔案裡沒有找到學生資料。' + (parsed.errors.length ? '\n\n' + parsed.errors.slice(0, 10).join('\n') : '')); return; }
+        if (!confirmMerge(parsed.records)) return;
         const errors = parsed.errors.slice();
         const result = mergeRecords(parsed.records, errors);
         saveRecords();
@@ -3896,6 +3941,49 @@
         <div class="sr-card-funcs"><div>1.快速地瞭解自己的中文閱讀程度</div><div>2.提供整體閱讀程度的評估</div><div>3.診斷出各種閱讀技能的表現</div></div>
       </div>`;
   }
+
+  // ── 說明 QR Code：預設連到公開的家長說明頁（不含學生資料），老師可在列印設定改 ──
+  function qrUrl() {
+    const s = rec.settings || {};
+    return typeof s.qrUrl === 'string' ? s.qrUrl.trim() : DEFAULT_QR_URL;
+  }
+  function updateQrUrl(v) {
+    rec.settings = Object.assign({}, rec.settings, { qrUrl: String(v) });
+    saveRecords();
+    renderPrintCards();
+  }
+  function resetQrUrl() {
+    document.getElementById('cfg-qr-url').value = DEFAULT_QR_URL;
+    updateQrUrl(DEFAULT_QR_URL);
+  }
+  function openQrUrl() {
+    const u = qrUrl();
+    if (u) window.open(u, '_blank', 'noopener');
+  }
+  let qrCache = { url: null, svg: '' };
+  function qrSvg(url) {
+    if (qrCache.url === url) return qrCache.svg;
+    let svg = '';
+    if (typeof qrcode !== 'undefined') {
+      try {
+        const q = qrcode(0, 'M');
+        q.addData(/[^\x00-\x7f]/.test(url) ? encodeURI(url) : url);   // 中文網址先轉成 %XX，避免掃出亂碼
+        q.make();
+        const n = q.getModuleCount(), m = 2;
+        let d = '';
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M' + (c + m) + ',' + (r + m) + 'h1v1h-1z';
+        svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 2 * m} ${n + 2 * m}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+      } catch (e) { svg = ''; }
+    }
+    qrCache = { url, svg };
+    return svg;
+  }
+  function qrHtml() {
+    const u = qrUrl();
+    if (!u) return '';
+    const svg = qrSvg(u);
+    return `<div class="sr-card-qr">${svg || '<div class="sr-card-qr-missing">QR 需網路</div>'}<div class="sr-card-qr-cap">掃描看<br>家長說明</div></div>`;
+  }
   function renderPrintCards() {
     const section = document.getElementById('print-section');
     const examTitle = document.getElementById('cfg-exam-title').value;
@@ -3911,6 +3999,7 @@
       '預計列印：' + termName(currentTermSel) + ' ' + list.length + ' 位 ‧ ' + pages + ' 張 A4' +
       (noScore ? '　⚠️ 其中 ' + noScore + ' 位本學期沒有 SR，小卡會顯示「-」' : '');
 
+    const qr = qrHtml();
     section.innerHTML = '';
     for (let p = 0; p < pages; p++) {
       const page = document.createElement('div');
@@ -3931,27 +4020,35 @@
             // 只列數值，不印「進步／退步」判斷
             if (pt) hist = `<li class="sr-card-info-item"><span class="sr-card-info-label">● 前次SR：</span><span class="sr-card-info-value">${esc(entry(st.seatNum, pt).sr)}（${esc(termShort(pt))}）</span></li>`;
           }
+          const gradeText = conv.isTested ? conv.text : '-';
+          if (hist || gradeText.length > 14) card.classList.add('dense');
           card.innerHTML = cardHeaderHtml(examTitle) + `
             <div class="sr-card-body">
-              <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
-              <ul class="sr-card-info-list">
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(e.date || examDate)}</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">${esc(display)}</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">${esc(e.sr || '-')}</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value sr-card-grade-highlight">${esc(conv.isTested ? conv.text : '-')}</span></li>
-                ${hist}
-              </ul>
+              <div class="sr-card-main">
+                <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
+                <ul class="sr-card-info-list">
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(e.date || examDate)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">${esc(display)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">${esc(e.sr || '-')}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value sr-card-grade-highlight${gradeText.length > 8 ? ' long' : ''}">${esc(gradeText)}</span></li>
+                  ${hist}
+                </ul>
+              </div>
+              ${qr}
             </div>`;
         } else {
           card.innerHTML = cardHeaderHtml(examTitle) + `
             <div class="sr-card-body">
-              <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
-              <ul class="sr-card-info-list">
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(examDate)}</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">__________</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">__________</span></li>
-                <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value">__________</span></li>
-              </ul>
+              <div class="sr-card-main">
+                <div class="sr-card-notice-title">${esc(noticeTitle)}</div>
+                <ul class="sr-card-info-list">
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(examDate)}</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">__________</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">__________</span></li>
+                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value">__________</span></li>
+                </ul>
+              </div>
+              ${qr}
             </div>`;
         }
         page.appendChild(card);
@@ -4092,6 +4189,7 @@
     const opts = termOptions();
     currentTermSel = opts.indexOf(rec.current) > -1 ? rec.current : curTerm();
     document.getElementById('cfg-date').value = todayStr();
+    document.getElementById('cfg-qr-url').value = qrUrl();
     resetParentText();
     renderAll();
     doQuickCalc();
