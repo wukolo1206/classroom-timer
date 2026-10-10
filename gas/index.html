@@ -1428,7 +1428,7 @@
 <div id="tab-order-modal" class="modal">
     <div class="modal-content">
         <h3 class="text-slate-800 text-xl font-bold mb-1">分頁順序</h3>
-        <p class="text-slate-400 text-sm mb-4">用 ▲▼ 調整分頁在上方的先後順序；排在第一個的分頁會成為打開網頁時的預設畫面。</p>
+        <p class="text-slate-400 text-sm mb-4">用 ▲▼ 調整分頁在上方的先後順序；取消「顯示」可隱藏不用的分頁（只影響這台電腦）。第一個顯示的分頁會成為打開網頁時的預設畫面。</p>
         <div id="tab-order-list" class="flex flex-col gap-2"></div>
         <div class="flex gap-3 justify-end mt-5">
             <button id="tab-order-reset" class="mr-auto px-4 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm hover:bg-slate-200 transition-all">還原預設</button>
@@ -1857,8 +1857,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 分頁順序 ──
     var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'weekly', 'sr', 'noise'];
+    var defaultTabHidden = [];   // 408 預設全部顯示
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
+    // 隱藏分頁只存這台電腦（timerTabHidden），不同步到雲端：大屏與筆電可以各自隱藏
+    var tabHidden = loadTabHidden();
+    var tabHiddenDraft = [];
+
+    function loadTabHidden() {
+        var raw = null, saved;
+        try { raw = localStorage.getItem('timerTabHidden'); } catch (e) {}
+        if (raw === null) return defaultTabHidden.slice();
+        try { saved = JSON.parse(raw); } catch (e) { saved = []; }
+        if (!Array.isArray(saved)) return [];
+        var out = saved.filter(function (k) { return defaultTabOrder.indexOf(k) > -1; });
+        return out.length >= defaultTabOrder.length ? [] : out;
+    }
+    function visibleTabs() {
+        return tabOrder.filter(function (k) { return tabHidden.indexOf(k) === -1; });
+    }
 
     function loadTabOrder() {
         var saved;
@@ -1875,6 +1892,10 @@ document.addEventListener('DOMContentLoaded', () => {
         tabOrder.forEach(function (k) {
             var btn = document.getElementById('tab-' + k + '-btn');
             if (btn) bar.appendChild(btn);
+        });
+        defaultTabOrder.forEach(function (k) {
+            var btn = document.getElementById('tab-' + k + '-btn');
+            if (btn) btn.style.display = tabHidden.indexOf(k) > -1 ? 'none' : '';
         });
         var sh150Link = bar.querySelector('a[href*="sh150"]');
         if (sh150Link) bar.appendChild(sh150Link);
@@ -1913,14 +1934,32 @@ document.addEventListener('DOMContentLoaded', () => {
             name.className = 'font-semibold text-slate-700';
             name.textContent = tabLabel(key);
 
+            var shown = tabHiddenDraft.indexOf(key) === -1;
+            if (!shown) row.className = 'flex items-center gap-2 px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg opacity-60';
             row.appendChild(moveWrap);
             row.appendChild(name);
-            if (idx === 0) {
+            var firstShown = tabOrderDraft.filter(function (k) { return tabHiddenDraft.indexOf(k) === -1; })[0];
+            if (key === firstShown) {
                 var badge = document.createElement('span');
-                badge.className = 'ml-auto text-sky-600 text-xs font-semibold bg-sky-100 px-2 py-1 rounded';
+                badge.className = 'text-sky-600 text-xs font-semibold bg-sky-100 px-2 py-1 rounded';
                 badge.textContent = '預設畫面';
                 row.appendChild(badge);
             }
+            var vis = document.createElement('label');
+            vis.className = 'ml-auto flex items-center gap-1 text-sm text-slate-500 cursor-pointer select-none';
+            var cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.checked = shown;
+            cb.addEventListener('change', function () {
+                if (cb.checked) {
+                    tabHiddenDraft = tabHiddenDraft.filter(function (k) { return k !== key; });
+                } else {
+                    if (tabOrderDraft.length - tabHiddenDraft.length <= 1) { cb.checked = true; alert('至少要保留一個分頁'); return; }
+                    tabHiddenDraft.push(key);
+                }
+                renderTabOrderEditor();
+            });
+            vis.appendChild(cb); vis.appendChild(document.createTextNode('顯示'));
+            row.appendChild(vis);
             list.appendChild(row);
         });
     }
@@ -1928,6 +1967,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var tabOrderModal = document.getElementById('tab-order-modal');
     document.getElementById('tab-order-btn').addEventListener('click', function () {
         tabOrderDraft = tabOrder.slice();
+        tabHiddenDraft = tabHidden.slice();
         renderTabOrderEditor();
         tabOrderModal.classList.add('show');
     });
@@ -1935,12 +1975,16 @@ document.addEventListener('DOMContentLoaded', () => {
     tabOrderModal.addEventListener('click', function (e) { if (e.target === tabOrderModal) tabOrderModal.classList.remove('show'); });
     document.getElementById('tab-order-reset').addEventListener('click', function () {
         tabOrderDraft = defaultTabOrder.slice();
+        tabHiddenDraft = defaultTabHidden.slice();
         renderTabOrderEditor();
     });
     document.getElementById('tab-order-save').addEventListener('click', function () {
         tabOrder = tabOrderDraft.slice();
+        tabHidden = tabHiddenDraft.slice();
         localStorage.setItem('timerTabOrder', JSON.stringify(tabOrder));
+        try { localStorage.setItem('timerTabHidden', JSON.stringify(tabHidden)); } catch (e) {}
         applyTabOrder();
+        if (tabHidden.indexOf(window.c408CurrentTab || 'timer') > -1) switchTab(visibleTabs()[0]);
         if (typeof seatSyncSettings === 'function') seatSyncSettings();
         tabOrderModal.classList.remove('show');
     });
@@ -1949,6 +1993,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function switchTab(tab) {
         if (tab !== 'noise' && window.ctuNoiseStop) window.ctuNoiseStop();
+        window.c408CurrentTab = tab;
         updateGroupProjection(tab === 'group');
         const tabs = defaultTabOrder;
         tabs.forEach(t => {
@@ -2368,6 +2413,7 @@ document.addEventListener('DOMContentLoaded', () => {
             seatCheckRecords: ctuParse('seatCheckRecords', '{}'),
             seatCheckItems: ctuParse('seatCheckItems', 'null'),
             tabOrder: ctuParse('timerTabOrder', 'null'),
+            tabHidden: ctuParse('timerTabHidden', 'null'),
             weeklySettings: typeof getWeeklySettings === 'function' ? getWeeklySettings() : null,
             weeklyRecords: typeof getWeeklyRecords === 'function' ? getWeeklyRecords() : {}
         };
@@ -2425,9 +2471,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('seatCheckItems', JSON.stringify(data.seatCheckItems));
                 seatItems = loadSeatItems();
             }
-            if (data.tabOrder) {
-                localStorage.setItem('timerTabOrder', JSON.stringify(data.tabOrder));
+            if (data.tabOrder || Array.isArray(data.tabHidden)) {
+                if (data.tabOrder) localStorage.setItem('timerTabOrder', JSON.stringify(data.tabOrder));
+                if (Array.isArray(data.tabHidden)) localStorage.setItem('timerTabHidden', JSON.stringify(data.tabHidden));
                 tabOrder = loadTabOrder();
+                tabHidden = loadTabHidden();
                 applyTabOrder();
             }
             if (data.weeklySettings) {
@@ -6599,8 +6647,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initSeatPanel();
     initGroupPanel();
 
-    // 分頁模組都就緒後，再切到使用者排的第一個分頁
-    if (tabOrder[0] !== 'timer' && !localStorage.getItem('timerActiveState')) switchTab(tabOrder[0]);
+    // 分頁模組都就緒後，再切到使用者排的第一個（沒隱藏的）分頁；倒數計時被隱藏時也要切走
+    var firstTab = visibleTabs()[0];
+    if (firstTab !== 'timer' && (!localStorage.getItem('timerActiveState') || tabHidden.indexOf('timer') > -1)) switchTab(firstTab);
     // GAS 版「在新視窗開啟音量計」連到 ?tab=noise
     if (/[?&]tab=noise(&|$)/.test(location.search)) switchTab('noise');
 });

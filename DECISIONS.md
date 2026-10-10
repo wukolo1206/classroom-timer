@@ -1,5 +1,11 @@
 # DECISIONS — 班級計時器
 
+## 408 版隱藏分頁只存本機，不同步雲端（2026-10-10）
+
+**選擇：** 408 版的分頁隱藏存 `timerTabHidden`（localStorage），不送到 GAS；分頁順序仍經 `saveSeatSettings` 同步。
+**原因：** 同步隱藏要改 `gas/Code.gs` 的 `saveSeatSettings`／`getSeatSettings` 與後端測試，風險高於效益；而大屏與筆電用途不同（例如大屏不需要監考、筆電不需要音量計），各自設定反而合理。
+**生效版本：** GAS @37（2026-10-10）
+
 ## 408 版也加音量計：GAS 網址改給 GitHub Pages 連結（2026-10-10）
 
 **選擇：** 408 版（index.html／GAS 鏡像）加入同一份音量計程式，分頁一律顯示。GAS 網址偵測到 `google.script.run` 時隱藏「開始偵測」，改顯示「在新視窗開啟音量計」連到 `https://wukolo1206.github.io/classroom-timer/?tab=noise`（408 本機版，直接開到音量計）。設定讀寫一律經 `ctuStore`，408 存 `c408_noiseSettings`、全校版 `ctu_noiseSettings`。
