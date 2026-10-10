@@ -36,6 +36,11 @@ class GroupChecks:
         p.wait_for_timeout(300)
         p.click('#tab-group-btn')
 
+    def set_group_count(self, p, count):
+        p.click('#group-settings-btn')
+        p.click('.group-count-btn[data-count="%s"]' % count)
+        p.click('#group-settings-close-btn')
+
     def test_card_body_requires_selected_bonus(self):
         p = self.open_group()
         p.locator('#group-cards-grid .group-card').first.click(position={'x': 65, 'y': 65})
@@ -50,7 +55,9 @@ class GroupChecks:
         p.click('#group-undo-score-btn')
         self.assertEqual(self.stored(p, 'groupScores')['1'], 2)
         self.assertIn('加分 +2', p.locator('#group-cards-grid .group-card').first.inner_text())
+        p.click('#group-settings-btn')
         p.click('#group-reset-scores-btn')
+        p.click('#group-settings-close-btn')
         self.assertTrue(p.is_disabled('#group-undo-score-btn'))
         self.assertEqual(self.stored(p, 'groupScores')['1'], 0)
 
@@ -61,6 +68,7 @@ class GroupChecks:
             p.click('#do-draw-' + button + '-btn')
             p.wait_for_timeout(1300)
             self.assertIn('已抽 1 /', p.inner_text('#draw-' + tag + '-history-tag'))
+            p.click('#group-draw-result-close-btn')
         self.reload_group(p)
         for mode in ['number', 'group', 'both']:
             p.click('#draw-mode-btn-' + mode)
@@ -75,6 +83,7 @@ class GroupChecks:
             p.click('#do-draw-group-btn')
             p.wait_for_timeout(1300)
             results.append(p.inner_text('#draw-result-display'))
+            p.click('#group-draw-result-close-btn')
         self.assertEqual(len(set(results)), 6)
         p.click('#do-draw-group-btn')
         p.wait_for_timeout(1300)
@@ -89,7 +98,7 @@ class GroupChecks:
     def test_projection_fits_default_task_and_eight_groups_and_exits(self):
         p = self.open_group()
         p.set_viewport_size({'width': 1366, 'height': 768})
-        p.click('.group-count-btn[data-count="8"]')
+        self.set_group_count(p, 8)
         p.click('#group-projection-btn')
         p.evaluate('window.scrollTo(0, 0)')
         metrics = p.evaluate("""() => ({
@@ -154,12 +163,59 @@ class GroupChecks:
         for _ in range(6):
             p.click('#do-draw-group-btn')
             p.wait_for_timeout(1300)
-        p.click('.group-count-btn[data-count="4"]')
+            p.click('#group-draw-result-close-btn')
+        self.set_group_count(p, 4)
         self.assertIn('已抽 4 / 4', p.inner_text('#draw-group-history-tag'))
         self.reload_group(p)
-        p.click('.group-count-btn[data-count="6"]')
+        self.set_group_count(p, 6)
         p.click('#draw-mode-btn-group')
         self.assertIn('已抽 6 / 6', p.inner_text('#draw-group-history-tag'))
+
+    def test_shared_presentation_editing_and_focus_preserve_state(self):
+        p = self.open_group()
+        self.assertTrue(p.evaluate("document.body.classList.contains('group-view')"))
+        self.assertTrue(p.is_visible('#tab-bar'))
+        self.assertEqual(p.inner_text('#group-projection-btn'), '專注顯示')
+        measure = """() => ({font:getComputedStyle(document.querySelector('#group-tasks-list-display')).fontSize,
+            taskWidth:document.querySelector('#group-topic-panel').getBoundingClientRect().width,
+            scoreWidth:document.querySelector('#group-cards-grid').getBoundingClientRect().width})"""
+        before = p.evaluate(measure)
+        title = p.inner_text('#group-topic-title-display')
+        p.click('#group-topic-edit-btn')
+        p.fill('#group-topic-input', '測試任務：合作說明')
+        self.assertEqual(p.inner_text('#group-topic-title-display'), title)
+        p.click('#group-topic-cancel-btn')
+        self.assertEqual(p.inner_text('#group-topic-title-display'), title)
+        p.click('#group-topic-edit-btn')
+        p.fill('#group-topic-input', '測試任務：合作說明')
+        p.click('#group-topic-save-btn')
+        self.assertEqual(p.inner_text('#group-topic-title-display'), '測試任務：合作說明')
+        p.locator('#group-cards-grid .group-card').first.get_by_role('button', name='+2', exact=True).click()
+        p.click('#do-draw-number-btn')
+        p.wait_for_timeout(1300)
+        p.click('#group-draw-result-close-btn')
+        self.assertFalse(p.is_visible('#group-draw-result-backdrop'))
+        scores, draws = self.stored(p, 'groupScores'), self.stored(p, 'groupDrawProgress')
+        p.click('#group-timer-toggle-btn')
+        p.wait_for_timeout(1100)
+        p.click('#group-projection-btn')
+        self.assertFalse(p.is_visible('#tab-bar'))
+        self.assertFalse(p.is_visible('#group-topic-edit-btn'))
+        self.assertEqual(p.inner_text('#group-projection-btn'), '顯示導覽')
+        self.assertEqual(p.evaluate(measure), before)
+        p.wait_for_timeout(1100)
+        self.assertNotEqual(p.inner_text('#group-timer-clock'), '05:00')
+        p.click('#group-projection-btn')
+        self.assertTrue(p.is_visible('#group-topic-edit-btn'))
+        self.assertEqual(p.evaluate(measure), before)
+        self.assertEqual(self.stored(p, 'groupScores'), scores)
+        self.assertEqual(self.stored(p, 'groupDrawProgress'), draws)
+        p.click('#group-settings-btn')
+        p.locator('#group-bonus-edit-btn').wait_for(state='visible')
+        self.assertTrue(p.is_visible('#group-bonus-edit-btn'))
+        p.click('#group-settings-close-btn')
+        p.click('#tab-timer-btn')
+        self.assertFalse(p.evaluate("document.body.classList.contains('group-view')"))
 
 
 class Group408(GroupChecks, unittest.TestCase):
