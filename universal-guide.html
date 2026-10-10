@@ -66,7 +66,7 @@
 
 <header>
     <h1>🏫 班級工具箱 使用說明</h1>
-    <p>適用版本：v1.10（2026-10-07）｜工具網址：<a href="https://wukolo1206.github.io/classroom-timer/universal.html">wukolo1206.github.io/classroom-timer/universal.html</a></p>
+    <p>適用版本：v1.11（2026-10-10）｜工具網址：<a href="https://wukolo1206.github.io/classroom-timer/universal.html">wukolo1206.github.io/classroom-timer/universal.html</a></p>
 </header>
 
 <nav aria-label="目錄">
@@ -77,6 +77,7 @@
         <li><a href="#sh150">SH150 運動登記</a></li>
         <li><a href="#report">填報學校本週資料</a></li>
         <li><a href="#weekly">含氟每週紀錄</a></li>
+        <li><a href="#sr">SR 閱讀小卡</a></li>
         <li><a href="#backup">備份與還原（重要）</a></li>
         <li><a href="#source">進階：自己修改工具</a></li>
         <li><a href="#faq">常見問題</a></li>
@@ -87,9 +88,9 @@
     <h2>1. 這是什麼</h2>
     <p>班級工具箱是一個打開網頁就能用的班級小工具，適合放在<b>教室大屏</b>上使用，不用安裝、不用登入。</p>
     <ul>
-        <li>包含：SH150 運動登記（含每週填報學校表單）、含氟每週紀錄。</li>
+        <li>包含：SH150 運動登記（含每週填報學校表單）、含氟每週紀錄、SR 閱讀小卡（DACC 閱讀測驗結果換算與列印）。</li>
         <li><b>資料只存在這台電腦的瀏覽器裡</b>，不會上傳到任何地方，其他人看不到。</li>
-        <li>也因為這樣，換一台電腦或換一個瀏覽器，資料不會跟過去，要靠「備份與還原」搬（見第 6 節）。</li>
+        <li>也因為這樣，換一台電腦或換一個瀏覽器，資料不會跟過去，要靠「備份與還原」搬（見第 7 節）。</li>
         <li>投影畫面上的學生姓名會自動遮住中間的字（例如「王○明」），列印與複製報告時才顯示全名。</li>
     </ul>
     <div class="tip">建議固定用<b>同一台教室電腦、同一個瀏覽器</b>（例如 Chrome）開啟，並把網址加入書籤。</div>
@@ -100,7 +101,7 @@
     <p>第一次打開時會自動跳出「🏫 班級設定」。之後要修改，按畫面右上角的 <span class="btn">🏫 班級設定</span>。</p>
     <figure>
         <a href="guide-images/01-class-settings.png" target="_blank" title="點擊檢視大圖">
-            <img src="guide-images/01-class-settings.png" alt="班級設定視窗示意圖" style="max-width: 520px;" loading="lazy">
+            <img src="guide-images/01-class-settings.png" alt="班級設定視窗示意圖" style="max-width: min(520px, 100%);" loading="lazy">
         </a>
         <figcaption>▲「🏫 班級設定」視窗：班級請填純數字（例如 408）、名冊可直接貼上，支援自動遮罩</figcaption>
     </figure>
@@ -136,7 +137,7 @@
         <li>點學生卡片，輸入<b>跑步圈數</b>和<b>跳繩下數</b>（可用 +1圈、+200下 等快速按鈕），按儲存。
             <figure style="margin: 10px 0;">
                 <a href="guide-images/03-sh150-input-modal.png" target="_blank" title="點擊檢視大圖">
-                    <img src="guide-images/03-sh150-input-modal.png" alt="學生登記輸入視窗" style="max-width: 440px;" loading="lazy">
+                    <img src="guide-images/03-sh150-input-modal.png" alt="學生登記輸入視窗" style="max-width: min(440px, 100%);" loading="lazy">
                 </a>
                 <figcaption>▲ 學生卡片登記彈窗：點選快速增減按鈕輸入圈數與跳繩，按「確定儲存」</figcaption>
             </figure>
@@ -146,7 +147,7 @@
     <ul>
         <li><b>計算規則</b>：跳繩依每天全班加總，每 200 下換算 1 圈；導師圈數乘 2 計入班級總圈數。</li>
         <li><span class="btn">🖨️ A4 直接列印</span>：印出體育組格式的 A4 紙本（列印時顯示全名）。</li>
-        <li><span class="btn">💾 備份</span>／<span class="btn">📥 載入</span>：只備份或載入 SH150 這一個分頁（也能載入舊 SH150 網址的備份檔）。要備份全部分頁請用第 6 節的「完整備份」。</li>
+        <li><span class="btn">💾 備份</span>／<span class="btn">📥 載入</span>：只備份或載入 SH150 這一個分頁（也能載入舊 SH150 網址的備份檔）。要備份全部分頁請用第 7 節的「完整備份」。</li>
         <li><span class="btn">🗑️ 清空本週</span>：清除這一週的登記，其他週不受影響。</li>
     </ul>
 </section>
@@ -169,7 +170,7 @@
     </ol>
     <figure>
         <a href="guide-images/04-school-report-modal.png" target="_blank" title="點擊檢視大圖">
-            <img src="guide-images/04-school-report-modal.png" alt="填報學校本週資料核對視窗" style="max-width: 600px;" loading="lazy">
+            <img src="guide-images/04-school-report-modal.png" alt="填報學校本週資料核對視窗" style="max-width: min(600px, 100%);" loading="lazy">
         </a>
         <figcaption>▲「📤 填報學校本週資料」核對視窗：核對學生與導師圈數無誤後，勾選「我已核對」即可按「🚀 開啟預填表單」</figcaption>
     </figure>
@@ -203,15 +204,65 @@
     </ul>
 </section>
 
-
-
+<section id="sr">
+    <h2>6. 📚 SR 閱讀小卡</h2>
+    <p>學生做完「中文閱讀能力適性診斷評量（DACC）」後，把 SR 值登記進來，工具會換算<b>建議適讀書籍年級</b>，並印成 A4 一頁 8 張的結果通知小卡，讓學生帶回家。</p>
+    <figure>
+        <a href="guide-images/08-sr-roster.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/08-sr-roster.png" alt="SR 閱讀小卡登記畫面" loading="lazy">
+        </a>
+        <figcaption>▲ SR 閱讀小卡：上方是快速試算與施測統計，下方表格依座號登記，輸入 SR 後自動換算適讀年級</figcaption>
+    </figure>
+    <h3>登記 SR</h3>
+    <ul>
+        <li>名冊直接用「🏫 班級設定」的學生，不用另外輸入。要改名冊按 <span class="btn">⚙️ 修改班級名冊</span>。</li>
+        <li>「學期」選要登記的學期，例如「115上（四上）」。括號裡的年級是依班級號碼推算的，所以<b>班級請填 408 這種數字</b>。</li>
+        <li>在 <b>SR 數值／範圍</b>欄輸入單一數值（如 <code>394</code>）或範圍（如 <code>411-417</code>），按 <b>Enter</b> 會跳到下一位同學，可以連續輸入全班。</li>
+        <li>「年級顯示」可選<b>區間簡記</b>（四～八年級，建議印小卡用）或<b>完整列出</b>。</li>
+        <li>「檢視」切到<b>跨學期比較</b>，可以並排看各學期的 SR。「最近兩次差異」只是兩次數值中點相減，<b>只供老師參考</b>，不會印在小卡上。</li>
+    </ul>
+    <h3>從試算表一次貼上</h3>
+    <p>按 <span class="btn">📋 批次貼上（Excel／試算表）</span>，一行一位貼上「座號 姓名 SR」，也可以多帶測驗時間與就讀年級，按 <span class="btn">寫入目前學期</span>。</p>
+    <figure>
+        <a href="guide-images/09-sr-paste.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/09-sr-paste.png" alt="批次貼上 SR" loading="lazy">
+        </a>
+        <figcaption>▲ 批次貼上：欄位順序不拘，工具會自動判斷哪個是座號、日期、年級和 SR</figcaption>
+    </figure>
+    <ul>
+        <li>依<b>座號</b>寫入，只寫入目前選的學期，<b>其他學期的成績不會被清掉</b>；空白或「-」不會蓋掉已有的成績。</li>
+        <li>座號不在班級名冊、或座號相同但姓名不一樣時，會跳出清單提醒你檢查。</li>
+        <li><span class="btn">📥 匯出試算表（.xlsx）</span> 會匯出全班各學期的 SR（含全名），之後可用 <span class="btn">📁 匯入 Excel</span> 匯回來。</li>
+    </ul>
+    <h3>列印小卡</h3>
+    <ol>
+        <li>按 <span class="btn">只勾選本學期已施測</span>，排除還沒測的同學。</li>
+        <li>按 <span class="btn">🖨️ 列印已勾選的小卡</span>，列印時選 A4 直式、邊界「無」。也可以另存成 PDF。</li>
+    </ol>
+    <figure>
+        <a href="guide-images/10-sr-cards.png" target="_blank" title="點擊檢視大圖">
+            <img src="guide-images/10-sr-cards.png" alt="SR 結果通知小卡" style="max-width: min(600px, 100%);" loading="lazy">
+        </a>
+        <figcaption>▲ 結果通知小卡（A4 一頁 8 張）：列印時顯示全名，沿框線剪開發給學生</figcaption>
+    </figure>
+    <ul>
+        <li>「小卡列印」頁可以改標題、施測日期、框線樣式，或選「本學期結果＋前一次 SR」。</li>
+        <li>最後一頁沒排滿的格子會印成空白小卡，可以手寫補測的同學。</li>
+    </ul>
+    <h3>給家長</h3>
+    <ul>
+        <li>「給家長的說明」頁有 LINE 班群訊息範本，會自動帶入班級與導師姓名，<b>可以先修改再按「📋 複製文字」</b>。</li>
+        <li><span class="btn">🖨️ 列印家長說明信（A4）</span>：一頁說明什麼是 SR 值、怎麼依適讀年級選書。</li>
+    </ul>
+    <div class="tip">SR 值是閱讀能力的參考區間，不是考試成績。小卡上只列數值和適讀年級，不寫「進步」「退步」這類判斷。</div>
+</section>
 
 <section id="backup">
-    <h2>6. 💾 備份與還原（重要）</h2>
+    <h2>7. 💾 備份與還原（重要）</h2>
     <div class="warn">資料只存在這台電腦的瀏覽器裡。<b>清除瀏覽紀錄、重灌電腦、換電腦，資料都會不見</b>。請養成定期備份的習慣。</div>
     <figure>
         <a href="guide-images/06-backup-modal.png" target="_blank" title="點擊檢視大圖">
-            <img src="guide-images/06-backup-modal.png" alt="備份與還原視窗" style="max-width: 460px;" loading="lazy">
+            <img src="guide-images/06-backup-modal.png" alt="備份與還原視窗" style="max-width: min(460px, 100%);" loading="lazy">
         </a>
         <figcaption>▲「💾 備份與還原」視窗：定期按「⬇️ 下載完整備份」保存 json 備份檔；換電腦時按「⬆️ 從備份檔還原」</figcaption>
     </figure>
@@ -225,11 +276,11 @@
 </section>
 
 <section id="source">
-    <h2>7. 進階：自己修改工具</h2>
+    <h2>8. 進階：自己修改工具</h2>
     <p>「💾 備份與還原」最下方的 <span class="btn">🛠 下載原始碼，自己修改這個工具</span>，可以下載整個工具（一個 HTML 檔），用記事本、VS Code 或請 AI 幫忙修改。</p>
     <figure>
         <a href="guide-images/07-source-modal.png" target="_blank" title="點擊檢視大圖">
-            <img src="guide-images/07-source-modal.png" alt="下載原始碼自己修改視窗" style="max-width: 540px;" loading="lazy">
+            <img src="guide-images/07-source-modal.png" alt="下載原始碼自己修改視窗" style="max-width: min(540px, 100%);" loading="lazy">
         </a>
         <figcaption>▲「🛠 下載原始碼自己修改」視窗：從備份視窗最下方進入，點擊「⬇️ 下載原始碼」即可取得單檔原始碼</figcaption>
     </figure>
@@ -241,14 +292,14 @@
 </section>
 
 <section id="faq">
-    <h2>8. 常見問題</h2>
+    <h2>9. 常見問題</h2>
     <dl class="faq">
         <dt>資料不見了？</dt>
         <dd>先確認是不是同一台電腦、同一個瀏覽器、同一個網址。換了任何一個，資料都不會出現。如果有備份檔，用「從備份檔還原」救回。</dd>
         <dt>網站更新後，我的資料還在嗎？</dt>
         <dd>在。更新只換掉網頁程式，資料存在你的瀏覽器裡，不受影響。</dd>
         <dt>看不到新功能？</dt>
-        <dd>重新整理頁面（Ctrl＋F5）。頁面最下方會顯示目前版本，例如「班級工具箱 v1.10」。</dd>
+        <dd>重新整理頁面（Ctrl＋F5）。頁面最下方會顯示目前版本，例如「班級工具箱 v1.11」。</dd>
         <dt>其他老師看得到我的資料嗎？</dt>
         <dd>看不到。資料只在你的瀏覽器裡，不會上傳。</dd>
         <dt>學生姓名為什麼是「王○明」？</dt>
@@ -260,7 +311,7 @@
     </dl>
 </section>
 
-<footer>班級工具箱 使用說明 ・ v1.10 ・ 2026-10-07<br>工具右上角的「❓ 使用說明」也能打開這一頁</footer>
+<footer>班級工具箱 使用說明 ・ v1.11 ・ 2026-10-10<br>工具右上角的「❓ 使用說明」也能打開這一頁</footer>
 </div>
 </body>
 </html>

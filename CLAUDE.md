@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @25
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: universal v1.11（SR 閱讀小卡分頁）本機完成待 push；補使用說明與 Word 版的 SR 章節；2027-02 換學期前處理舊紀錄套新日期
+next_action: universal v1.11（SR 閱讀小卡）與說明網頁已上線；Word 版說明待補 SR 章節；2027-02 換學期前處理舊紀錄套新日期
 updated: 2026-10-10
 ---
 
