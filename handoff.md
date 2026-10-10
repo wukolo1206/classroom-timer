@@ -6,6 +6,8 @@
 
 408／全校版已有「進入投影／返回備課」、放大任務與揭曉、輪抽進度提示、明確加分與上一筆復原。root 已同步 gas/index.html。使用者已授權發布；GAS 已更新為 @32 且網址不變，全校版 v1.13 隨本次提交發布。
 
+程式發布提交 b9056e3 已 push，GitHub Pages 建置成功。兩個公開 HTML 的 SHA-256 與 Git 提交原文相符（Windows 工作檔的 CRLF 可能與 Git 的 LF 不同）。全校版線上隔離互動驗證通過；GAS 靜態 HTML 確認新版標記，沒有執行正式 Google RPC。
+
 ### 本次驗證
 
 - `python -B -m unittest discover -s tests -p "test_group_discussion.py" -v`：17 項通過。
@@ -13,6 +15,7 @@
 - `python -B -m unittest discover -s tests -p "test_seat_*.py" -v`：43 項通過；`node tests/seat_backend_sim.js`：20 項通過。
 - 兩版本機截圖檢視 1366×768、1024×768、390×844；預設任務與 8 組分數在大屏同屏，手機保留捲動且無水平溢出。JS 語法及 root／gas 一致性通過，內嵌工具原文未改。
 - 使用暫存檔與獨立瀏覽器，GAS 使用既有 mock；未連線正式試算表。
+- 發布前再次跑完整小組 17 項通過；發布後全校版獨立瀏覽器完成分頁、投影、復原、揭曉與重新整理保存驗證。GAS HTTP 抓取只走不讀試算表的 doGet HTML；正式秩序與雲端寫入未重測。
 
 ### 下次接續
 
