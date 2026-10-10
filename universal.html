@@ -2917,7 +2917,7 @@
     .card-border-light .sr-card { border: 1px solid #94a3b8; }
     .sr-card-header { border-bottom: 0.3mm solid #94a3b8; padding-bottom: 1.6mm; }
     .sr-card-title { font-size: 10.5pt; font-weight: 800; line-height: 1.3; margin-bottom: 0.6mm; }
-    .sr-card-funcs { font-size: 9pt; line-height: 1.4; color: #111; }
+    .sr-card-funcs { font-size: 12pt; line-height: 1.3; color: #111; }
     .sr-card-body { flex: 1; min-height: 0; display: flex; gap: 3mm; align-items: center; }
     .sr-card-main { flex: 1; min-width: 0; }
     .sr-card-notice-title { font-size: 10pt; font-weight: 800; margin-bottom: 1.8mm; }
@@ -2932,9 +2932,12 @@
     .sr-card.dense .sr-card-info-list { gap: 0.9mm; }
     .sr-card.dense .sr-card-notice-title { margin-bottom: 1mm; }
     .sr-card.dense .sr-card-grade-highlight.long { font-size: 9pt; line-height: 1.2; }
+    /* 年級清單很長時換到標籤下一行，用整行寬度排 */
+    .sr-card-info-item.wrap { flex-wrap: wrap; }
+    .sr-card-info-item.wrap .sr-card-info-value { flex-basis: 100%; padding-left: 1em; }
     .sr-card-qr { width: 25mm; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
     .sr-card-qr svg { width: 24mm; height: 24mm; display: block; }
-    .sr-card-qr-cap { font-size: 8pt; line-height: 1.25; margin-top: 0.8mm; font-weight: 600; }
+    .sr-card-qr-cap { font-size: 12pt; line-height: 1.25; margin-top: 0.8mm; font-weight: 600; }
     .sr-card-qr-missing { width: 24mm; height: 24mm; border: 0.3mm dashed #94a3b8; font-size: 7pt; color: #64748b; display: flex; align-items: center; justify-content: center; }
 
     .standalone-warning { margin: 2rem auto; max-width: 560px; padding: 1.25rem; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; color: #92400e; }
@@ -4030,7 +4033,7 @@
                   <li class="sr-card-info-item"><span class="sr-card-info-label">● 施測日期：</span><span class="sr-card-info-value">${esc(e.date || examDate)}</span></li>
                   <li class="sr-card-info-item"><span class="sr-card-info-label">● 學生姓名：</span><span class="sr-card-info-value">${esc(display)}</span></li>
                   <li class="sr-card-info-item"><span class="sr-card-info-label">● SR數值：</span><span class="sr-card-info-value">${esc(e.sr || '-')}</span></li>
-                  <li class="sr-card-info-item"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value sr-card-grade-highlight${gradeText.length > 8 ? ' long' : ''}">${esc(gradeText)}</span></li>
+                  <li class="sr-card-info-item${gradeText.length > 14 ? ' wrap' : ''}"><span class="sr-card-info-label">● 適合年級的書籍：</span><span class="sr-card-info-value sr-card-grade-highlight${gradeText.length > 8 ? ' long' : ''}">${esc(gradeText)}</span></li>
                   ${hist}
                 </ul>
               </div>
