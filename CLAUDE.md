@@ -2,7 +2,7 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @32／全校版 v1.13
+version: GAS @33／全校版 v1.14
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
 next_action: 教室實機試用小組討論投影、復原與輪抽保存；另待試用秩序分節與 SR，Word 說明待補 SR 章節
 updated: 2026-10-10

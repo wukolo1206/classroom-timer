@@ -94,6 +94,7 @@
         .fullscreen-mode .progress-bg { stroke: rgba(255,255,255,0.2) !important; }
 
         /* Tab underline */
+        #tab-bar > .tab-btn { white-space: nowrap; }
         .tab-active { border-bottom: 3px solid #0284c7; color: #0284c7; background: #f0f9ff; }
         .tab-inactive { border-bottom: 3px solid transparent; color: #64748b; }
         .tab-inactive:hover { color: #0284c7; background: #f8fafc; }
@@ -4431,7 +4432,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.13（2026-10-10）';
+    window.CTU_VERSION = 'v1.14（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {

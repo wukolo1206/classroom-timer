@@ -216,3 +216,12 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **原因**：子卡片仍有 lg:col-span-7／5，會在新的兩欄網格產生隱含欄。
 **解法**：投影樣式覆蓋子卡片 grid-column:auto，再用 1366×768 截圖及底部位置測試確認；保留小螢幕與長內容捲動。
 **未來避免**：換網格欄數時，同時檢查子項目的 span，不能只改 grid-template-columns。
+
+---
+
+## 切換分頁清掉不換行設定（2026-10-10，GAS @33／全校版 v1.14）
+
+**現象**：初始分頁名稱單行，切換後「含氟每週紀錄」「SR 閱讀小卡」換行，分頁列變高。
+**原因**：switchTab 重設按鈕 className，清掉原 HTML 的 whitespace-nowrap。
+**解法**：以限定分頁列的固定 CSS 統一 white-space:nowrap，不依賴會被重寫的 class；窄畫面沿用 overflow-x:auto。
+**未來避免**：固定版面規則不要只掛在會被整段重寫的 className 上。
