@@ -1,0 +1,385 @@
+# -*- coding: utf-8 -*-
+"""408 版（index.html）秩序登記「每節課分開記錄」：前端＋真正的 gas/Code.gs（記憶體假試算表）一起驗。
+
+執行：python -m unittest discover -s tests -p test_seat_period_408.py -v
+google.script.run 由瀏覽器內的模擬器代替，背後執行 gas/Code.gs 本身；假試算表存在 sessionStorage，
+重新整理仍保留。不連正式試算表。測試資料只用座號，不寫學生姓名。
+"""
+import datetime, functools, http.server, json, os, shutil, socketserver, tempfile, threading, unittest
+
+from playwright.sync_api import sync_playwright
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HEAD = ['日期', '座號', '姓名', '項目', '次數', '最後更新', '項目代碼']
+DAY = '2026-10-12'          # 星期一
+
+MOCK = r"""
+(() => {
+  if (window !== window.top) return;
+  const CODE = __CODE__;
+  const HEAD = __HEAD__;
+  const ss = window.sessionStorage;
+  let rows = JSON.parse(ss.getItem('__sheet') || 'null') || [HEAD.slice()];
+  const props = JSON.parse(ss.getItem('__props') || '{}');
+  const persist = () => { ss.setItem('__sheet', JSON.stringify(rows)); ss.setItem('__props', JSON.stringify(props)); };
+  const sheet = {
+    getLastRow: () => rows.length,
+    getRange(r, c, nr = 1, nc = 1) {
+      return {
+        getValues() { const o = []; for (let i = 0; i < nr; i++) { const row = rows[r - 1 + i] || []; const x = []; for (let j = 0; j < nc; j++) x.push(row[c - 1 + j] === undefined ? '' : row[c - 1 + j]); o.push(x); } return o; },
+        getValue() { return this.getValues()[0][0]; },
+        setValues(v) { for (let i = 0; i < nr; i++) { if (!rows[r - 1 + i]) rows[r - 1 + i] = []; for (let j = 0; j < nc; j++) rows[r - 1 + i][c - 1 + j] = v[i][j]; } return this; },
+        setValue(v) { return this.setValues([[v]]); },
+        setFontWeight() { return this; },
+      };
+    },
+    deleteRow(n) { rows.splice(n - 1, 1); },
+    deleteRows(n, k) { rows.splice(n - 1, k); },
+    appendRow(a) { rows.push(a.slice()); },
+    setFrozenRows() {},
+  };
+  const svc = {
+    SpreadsheetApp: { getActiveSpreadsheet: () => ({ getSheetByName: () => sheet, insertSheet: () => sheet }) },
+    Session: { getScriptTimeZone: () => 'Asia/Taipei' },
+    Utilities: { formatDate: (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') },
+    PropertiesService: { getDocumentProperties: () => ({
+      getProperty: (k) => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); },
+      setProperties: (o) => { for (const k in o) props[k] = String(o[k]); }, deleteProperty: (k) => { delete props[k]; } }) },
+    LockService: { getDocumentLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    HtmlService: {}, ContentService: {},
+  };
+  const names = ['getSeatBundle', 'setSeatCount', 'clearSeatSlot', 'clearSeatDay', 'clearSeatAllV2', 'importSeatRecordsV2', 'getSeatRowsRaw',
+                 'clearSeatRecords', 'clearSeatAll', 'importSeatRecords', 'saveSeatSettings', 'getSrRecords', 'saveSrRecords'];
+  const api = new Function(...Object.keys(svc), CODE + '\nreturn {' + names.join(',') + '};')(...Object.values(svc));
+  window.__calls = [];
+  window.__sheetRows = () => rows;
+  function runner(succ, fail) {
+    return new Proxy({}, { get(_, name) {
+      if (name === 'withSuccessHandler') return f => runner(f, fail);
+      if (name === 'withFailureHandler') return f => runner(succ, f);
+      return (...args) => {
+        window.__calls.push(name);
+        const delay = (JSON.parse(ss.getItem('__delay') || '{}'))[name] || 30;
+        setTimeout(() => {
+          if (!api[name]) { if (fail) fail(new Error('mock 沒有 ' + name)); return; }
+          const failMap = JSON.parse(ss.getItem('__fail') || '{}');
+          if (failMap[name] > 0) { failMap[name]--; ss.setItem('__fail', JSON.stringify(failMap)); if (fail) fail(new Error('模擬網路錯誤')); return; }
+          let r;
+          try { r = api[name](...JSON.parse(JSON.stringify(args))); } catch (e) { persist(); if (fail) fail(e); return; }
+          persist();
+          if (succ) succ(r);
+        }, delay);
+      };
+    } });
+  }
+  window.google = { script: { get run() { return runner(null, null); } } };
+})()
+"""
+
+
+class SeatPeriod408(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix='seat408_')
+        src = open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+        open(os.path.join(cls.tmp, 'index.html'), 'w', encoding='utf-8').write(src)
+        # 回復模式（SEAT_PERIOD_UI=false）的版本
+        assert src.count('var SEAT_PERIOD_UI = true;') == 1
+        open(os.path.join(cls.tmp, 'rollback.html'), 'w', encoding='utf-8').write(src.replace('var SEAT_PERIOD_UI = true;', 'var SEAT_PERIOD_UI = false;'))
+        code = open(os.path.join(ROOT, 'gas', 'Code.gs'), encoding='utf-8').read()
+        cls.mock = MOCK.replace('__CODE__', json.dumps(code)).replace('__HEAD__', json.dumps(HEAD, ensure_ascii=False))
+
+        class Quiet(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *a): pass
+        cls.srv = socketserver.TCPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=cls.tmp))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = 'http://127.0.0.1:%d/' % cls.srv.server_address[1]
+        cls.pw = sync_playwright().start()
+        cls.browser = cls.pw.chromium.launch()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.browser.close(); cls.pw.stop(); cls.srv.shutdown()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    # ── 工具 ──
+    def open(self, at='10:35', sheet=None, local=None, session=None, page_name='index.html', gas=True):
+        ctx = self.browser.new_context(accept_downloads=True, viewport={'width': 1400, 'height': 1000})
+        self.addCleanup(ctx.close)
+        seed_s = dict(session or {})
+        if sheet is not None:
+            seed_s['__sheet'] = json.dumps([HEAD + ['節次']] + sheet, ensure_ascii=False)
+        seed_l = {'timerTabOrder': json.dumps(['seat', 'timer', 'group', 'exam', 'weekly', 'sr'])}
+        seed_l.update(local or {})
+        ctx.add_init_script('(() => { if (window !== window.top || sessionStorage.getItem("__seeded")) return; sessionStorage.setItem("__seeded","1");'
+                            ' const s = %s, l = %s; for (const k in s) sessionStorage.setItem(k, s[k]); for (const k in l) localStorage.setItem(k, l[k]); })()'
+                            % (json.dumps(seed_s, ensure_ascii=False), json.dumps(seed_l, ensure_ascii=False)))
+        if gas:
+            ctx.add_init_script(self.mock)
+        page = ctx.new_page()
+        h, m = map(int, at.split(':'))
+        page.clock.install(time=datetime.datetime(2026, 10, 12, h, m))
+        page._errs, page._dialogs = [], []
+        page.on('pageerror', lambda e: page._errs.append(str(e)))
+        page.on('dialog', lambda d: (page._dialogs.append(d.message), d.accept()))
+        page.goto(self.base + page_name)
+        page.wait_for_timeout(300)
+        page.click('#tab-seat-btn')
+        self.settle(page)
+        return page
+
+    def settle(self, page, ms=2500):
+        """等同步佇列送完（假 GAS 每次回應約 30ms）。"""
+        page.wait_for_timeout(200)
+        for _ in range(ms // 100):
+            if page.evaluate("JSON.parse(localStorage.getItem('seatSyncQueue') || '[]').length") == 0:
+                break
+            page.wait_for_timeout(100)
+        page.wait_for_timeout(150)
+
+    def local(self, page):
+        return json.loads(page.evaluate("localStorage.getItem('seatCheckRecords') || '{}'"))
+
+    def sheet(self, page):
+        rows = page.evaluate("window.__sheetRows ? window.__sheetRows() : JSON.parse(sessionStorage.getItem('__sheet') || '[]')")
+        return [r for r in rows[1:]]
+
+    def sheet_counts(self, page):
+        out = {}
+        for r in self.sheet(page):
+            key = (r[0], str(r[1]), r[6], r[7] if len(r) > 7 else '')
+            out[key] = r[4]
+        return out
+
+    def mode(self, page, label):
+        page.click('#seat-modes button:has-text("%s")' % label)
+
+    def tap(self, page, seat):
+        page.click('#seat-chart button[data-seat="%s"]' % seat)
+
+    def period(self, page, code):
+        page.click('#seat-period-bar button[data-period="%s"]' % code)
+
+    def selected_period(self, page):
+        return page.evaluate("(() => { const b = [...document.querySelectorAll('#seat-period-bar button')].find(x => x.className.includes('bg-sky-600')); return b ? b.getAttribute('data-period') : null; })()")
+
+    # ── 測試 ──
+    def test_P01_auto_period_and_per_period_counts(self):
+        p = self.open(at='10:35', sheet=[])
+        self.assertEqual(self.selected_period(p), '3', '10:35 自動在第 3 節')
+        self.assertIn('自動', p.inner_text('#seat-period-status'))
+        self.mode(p, '座位歪了')
+        self.tap(p, 5); self.tap(p, 5)
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2})
+        self.period(p, '4')
+        self.assertEqual(p.inner_text('#seat-count-total'), '0', '第 4 節從 0 開始')
+        self.assertIn('手動', p.inner_text('#seat-period-status'))
+        self.period(p, '3')
+        self.assertEqual(p.inner_text('#seat-count-total'), '2')
+        self.period(p, 'all')
+        self.assertEqual(p.inner_text('#seat-count-total'), '2', '全天加總')
+        self.tap(p, 5)
+        self.assertIn('全天', p._dialogs[-1])
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2, '全天模式點座位不寫入')
+        self.assertEqual(p._errs, [])
+
+    def test_P02_auto_follows_time_and_back_to_auto(self):
+        p = self.open(at='09:25', sheet=[])
+        self.assertEqual(self.selected_period(p), '1', '下課 9:25 仍算第 1 節')
+        p.clock.fast_forward('10:00')      # → 09:35
+        p.wait_for_timeout(300)
+        self.assertEqual(self.selected_period(p), '2')
+        self.period(p, '5')                # 手動
+        p.clock.fast_forward('01:00:00')
+        p.wait_for_timeout(300)
+        self.assertEqual(self.selected_period(p), '5', '手動後不再自動跳')
+        p.click('#seat-period-status [data-period-action="auto"]')
+        self.assertEqual(self.selected_period(p), '3', '回到自動 → 10:35 第 3 節')
+
+    def test_P03_undo_goes_back_to_original_period(self):
+        p = self.open(at='10:35', sheet=[])
+        self.mode(p, '座位歪了')
+        self.tap(p, 6)
+        self.period(p, '4')
+        self.tap(p, 6)
+        self.period(p, '2')
+        p.click('#seat-undo-btn')
+        self.settle(p)
+        loc = self.local(p)
+        self.assertNotIn(DAY + '#4', loc, '復原扣回第 4 節')
+        self.assertEqual(loc[DAY + '#3']['6']['tilt'], 1, '第 3 節不受影響')
+        self.assertIn('已復原', p._dialogs[-1])
+
+    def test_P04_modal_keeps_its_period_across_boundary(self):
+        p = self.open(at='11:15', sheet=[])
+        self.assertEqual(self.selected_period(p), '3')
+        self.tap(p, 8)                     # 逐項登記 → 開彈窗
+        p.wait_for_timeout(300)            # 等彈窗淡入
+        self.assertIn('第3節', p.inner_text('#seat-modal-duty'))
+        p.clock.fast_forward('10:00')      # → 11:25（第 4 節），彈窗開著
+        p.wait_for_timeout(300)
+        p.click('#seat-modal-list button:has-text("地上有垃圾")')
+        self.assertEqual(self.local(p)[DAY + '#3']['8']['trash'], 1, '彈窗內仍記到第 3 節')
+        p.click('#seat-modal-done')
+        p.wait_for_timeout(200)
+        self.assertEqual(self.selected_period(p), '4', '關掉彈窗才換節')
+
+    def test_P05_clear_slot_vs_clear_day(self):
+        t = '2026-10-12T00:00:00.000Z'
+        sheet = [[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節'], [DAY, 6, '', '座位歪了', 1, t, 'tilt', '第3節'],
+                 [DAY, 5, '', '座位歪了', 1, t, 'tilt', '第4節'], [DAY, 5, '', '座位歪了', 4, t, 'tilt', ''],
+                 ['2026-10-13', 5, '', '座位歪了', 1, t, 'tilt', '第3節']]
+        p = self.open(at='10:35', sheet=sheet)
+        self.assertEqual(self.local(p)[DAY]['5']['tilt'], 4, '舊紀錄拉下來是未分節')
+        p.click('#seat-clear-btn')
+        self.settle(p)
+        self.assertNotIn(DAY + '#3', self.local(p))
+        self.assertEqual(sorted(k[3] for k in self.sheet_counts(p) if k[0] == DAY), ['', '第4節'])
+        p.click('#seat-clear-day-btn')
+        self.settle(p)
+        self.assertEqual([k for k in self.local(p) if k.startswith(DAY)], [])
+        self.assertEqual(list(self.sheet_counts(p)), [('2026-10-13', '5', 'tilt', '第3節')], '別天不動')
+
+    def test_P06_unassigned_period_visible_and_editable(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 9, '', '座位歪了', 3, t, 'tilt', '']])
+        self.assertTrue(p.is_visible('#seat-period-bar button[data-period=""]'), '有舊紀錄時出現「未分節」')
+        self.period(p, '')
+        self.assertEqual(p.inner_text('#seat-count-total'), '3')
+        self.tap(p, 9)
+        p.click('#seat-modal-list button:has-text("減 1")')
+        p.click('#seat-modal-done')
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '9', 'tilt', ''): 2})
+
+    def test_P07_reload_with_pending_clear_does_not_revive_old_value(self):
+        t = '2026-10-12T00:00:00.000Z'
+        queue = [{'id': 'jclr', 'type': 'clearDay', 'date': DAY, 'seat': ''},
+                 {'id': 'jcnt', 'type': 'count', 'date': DAY + '#3', 'seat': '5', 'name': '', 'key': 'tilt', 'label': '座位歪了', 'count': 1}]
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']],
+                      local={'seatCheckRecords': json.dumps({DAY + '#3': {'5': {'tilt': 1}}}), 'seatSyncQueue': json.dumps(queue)})
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 1, '本機不被雲端舊值 2 蓋掉')
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 1}, '雲端也是 1')
+
+    def test_P08_pull_response_older_than_clear_is_dropped(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        p.evaluate("sessionStorage.setItem('__delay', JSON.stringify({ getSeatBundle: 800 }))")
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn')    # 發出一次慢的拉取
+        p.wait_for_timeout(100)
+        p.click('#seat-clear-btn')                            # 拉取回來前清除本節
+        p.wait_for_timeout(1500)
+        self.settle(p)
+        self.assertNotIn(DAY + '#3', self.local(p), '慢的拉取回應不能把清掉的資料帶回來')
+        self.assertEqual(self.sheet_counts(p), {})
+
+    def test_P09_stats_period_filter_and_day_dedupe(self):
+        recs = {DAY + '#3': {'5': {'tilt': 2}}, DAY + '#4': {'5': {'tilt': 1}}, '2026-10-13#3': {'6': {'trash': 1}}}
+        p = self.open(at='10:35', sheet=[], local={'seatCheckRecords': json.dumps(recs)})
+        self.settle(p)
+        p.click('#seat-stats-btn')
+        p.click('.seat-range-btn[data-range="all"]')
+        self.assertIn('共 2 天', p.inner_text('#seat-stats-meta'), '同一天兩節算 1 天')
+        p.click('.seat-pf-btn[data-pfilter="custom"]')
+        for code in ['m', '1', '2', '4', 'n', '5', '6', '7', '']:
+            p.click('#seat-pf-chips [data-chip="%s"]' % code)
+        meta = p.inner_text('#seat-stats-meta')
+        self.assertIn('第3節', meta)
+        table = p.inner_text('#seat-stats-table')
+        self.assertIn('2', table)
+        rows = p.evaluate("[...document.querySelectorAll('#seat-stats-table tbody tr')].map(r => [r.children[0].innerText.trim(), r.children[r.children.length - 2].innerText.trim()])")
+        self.assertEqual(dict(rows), {'5': '2', '6': '1'}, '只算第 3 節')
+        p.click('.seat-range-btn[data-range="weekly"]')
+        self.assertIn('共 1 週', p.inner_text('#seat-stats-meta'))
+        with p.expect_download() as d:
+            p.click('#seat-csv-detail-btn')
+        path = os.path.join(self.tmp, 'detail.csv')
+        d.value.save_as(path)
+        text = open(path, encoding='utf-8-sig').read()
+        self.assertIn('日期,節次,座號,姓名,項目,次數', text)
+        self.assertIn(DAY + ',第3節,5,', text)
+        self.assertNotIn(',第4節,', text)
+
+    def test_P10_merge_import_keeps_cloud_only_rows(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[['2026-10-09', 7, '', '座位歪了', 1, t, 'tilt', '第1節']],
+                      local={'seatCheckRecords': '{}'})
+        p.evaluate("localStorage.setItem('seatCheckRecords', '{}')")   # 模擬這台電腦沒有那筆雲端資料
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#3': {'5': {'tilt': 3}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.click('#seat-import-merge')
+        self.settle(p)
+        sc = self.sheet_counts(p)
+        self.assertEqual(sc.get(('2026-10-09', '7', 'tilt', '第1節')), 1, '雲端獨有的紀錄保留')
+        self.assertEqual(sc.get((DAY, '5', 'tilt', '第3節')), 3)
+        self.assertNotIn('importSeatRecordsV2', p.evaluate('window.__calls'))
+
+    def test_P11_replace_import_downloads_snapshot_and_replaces(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[['2026-10-09', 7, '', '座位歪了', 1, t, 'tilt', '第1節'],
+                                         ['2026-10-09', 8, '', '座位歪了', 1, t, 'tilt', '補課']])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#3': {'5': {'tilt': 3}}, '2026-10-09#?補課': {'8': {'tilt': 2}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        names = []
+        p.on('download', lambda d: names.append(d.suggested_filename))
+        p.click('#seat-import-replace')
+        p.wait_for_timeout(600)
+        self.settle(p)
+        self.assertTrue(any('匯入前雲端' in n for n in names), names)
+        self.assertTrue(any(n.startswith('秩序登記備份_') for n in names), names)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 3, ('2026-10-09', '8', 'tilt', '補課'): 2})
+
+    def test_P12_permanent_error_pauses_and_can_skip(self):
+        queue = [{'id': 'jbad', 'type': 'count', 'date': '10/12', 'seat': '5', 'name': '', 'key': 'tilt', 'label': 'x', 'count': 1},
+                 {'id': 'jok', 'type': 'count', 'date': DAY + '#3', 'seat': '6', 'name': '', 'key': 'tilt', 'label': 'x', 'count': 1}]
+        p = self.open(at='10:35', sheet=[], local={'seatSyncQueue': json.dumps(queue)})
+        p.wait_for_timeout(500)
+        self.assertIn('同步暫停', p.inner_text('#seat-sync-status'))
+        self.assertEqual(len(json.loads(p.evaluate("localStorage.getItem('seatSyncQueue')"))), 2, '暫停時不丟資料')
+        p.click('#seat-sync-status [data-sync-action="resolve"]')
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '6', 'tilt', '第3節'): 1})
+        self.assertIn('已同步', p.inner_text('#seat-sync-status'))
+
+    def test_P13_old_queue_jobs_without_type_are_sent_to_unassigned(self):
+        queue = [{'date': DAY, 'seat': '5', 'name': '', 'key': 'tilt', 'label': '座位歪了', 'count': 3}]
+        p = self.open(at='10:35', sheet=[], local={'seatSyncQueue': json.dumps(queue), 'seatCheckRecords': json.dumps({DAY: {'5': {'tilt': 3}}})})
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', ''): 3})
+
+    def test_P14_transient_error_retries(self):
+        p = self.open(at='10:35', sheet=[], session={'__fail': json.dumps({'setSeatCount': 1})})
+        self.mode(p, '座位歪了')
+        self.tap(p, 5)
+        p.wait_for_timeout(400)
+        self.assertIn('待同步', p.inner_text('#seat-sync-status'))
+        p.clock.fast_forward('00:16')
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 1})
+
+    def test_P15_rollback_mode_reads_writes_unassigned_only(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']], page_name='rollback.html')
+        self.assertFalse(p.is_visible('#seat-period-bar'))
+        self.mode(p, '座位歪了')
+        self.tap(p, 6)
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2, (DAY, '6', 'tilt', ''): 1}, '分節資料不被改動')
+        self.assertEqual(p._errs, [])
+
+    def test_P16_local_mode_without_gas(self):
+        p = self.open(at='10:35', gas=False)
+        self.mode(p, '座位歪了')
+        self.tap(p, 5)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 1)
+        self.assertIn('本機模式', p.inner_text('#seat-sync-status'))
+        p.click('#seat-clear-day-btn')
+        self.assertEqual(self.local(p), {})
+        self.assertEqual(p._errs, [])
+
+
+if __name__ == '__main__':
+    unittest.main()

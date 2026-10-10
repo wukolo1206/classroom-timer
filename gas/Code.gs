@@ -169,6 +169,13 @@ function handleSh150Post_(body) {
   }
 }
 
+var SEAT_COLS = 8;            // A～G 原有欄位＋H 節次（只在最後面新增，A～G 順序不動）
+var SEAT_PERIOD_HEADER = '節次';
+// 節次代碼 ↔ H 欄文字（前端 SEAT_PERIODS 用同一組代碼）；H 空白＝未分節
+var SEAT_PERIOD_TEXT = { m: '早自習', '1': '第1節', '2': '第2節', '3': '第3節', '4': '第4節', n: '午休', '5': '第5節', '6': '第6節', '7': '第7節' };
+var SEAT_OP_LOG_PROPERTY = 'seatOpLog';   // 最近處理過的清除／匯入 opId，避免重新整理後重送又執行一次
+var SEAT_OP_LOG_MAX = 200;
+
 function getSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(SHEET_NAME);
@@ -177,13 +184,17 @@ function getSheet_() {
     sh.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
     sh.setFrozenRows(1);
   }
+  // 只補 H1 這一格表頭，其他表頭不動
+  if (String(sh.getRange(1, SEAT_COLS).getValue()).trim() === '') {
+    sh.getRange(1, SEAT_COLS).setValue(SEAT_PERIOD_HEADER).setFontWeight('bold');
+  }
   return sh;
 }
 
 function readAll_(sh) {
   var last = sh.getLastRow();
   if (last < 2) return [];
-  return sh.getRange(2, 1, last - 1, HEADERS.length).getValues();
+  return sh.getRange(2, 1, last - 1, SEAT_COLS).getValues();
 }
 
 function dateKey_(v) {
@@ -193,7 +204,41 @@ function dateKey_(v) {
   return String(v).trim();
 }
 
-/** 讀回所有登記紀錄：{ '2026-08-30': { '4': { tilt: 2 } } } */
+function permanentError_(msg) { return new Error('永久：' + msg); }
+
+/** 時段鍵 → { date, h }：'2026-10-10'＝未分節（h 空白）、'2026-10-10#3'、'2026-10-10#?原文'（對照表以外的 H 文字） */
+function parseSlot_(key) {
+  var m = /^(\d{4}-\d{2}-\d{2})(?:#(.+))?$/.exec(String(key || '').trim());
+  if (!m) throw permanentError_('時段格式不正確：' + key);
+  if (!validDate_(m[1])) throw permanentError_('日期不存在：' + m[1]);
+  var code = m[2];
+  if (code === undefined) return { date: m[1], h: '' };
+  if (code.charAt(0) === '?') {
+    var raw = code.slice(1).trim();
+    if (!raw) throw permanentError_('節次文字是空的：' + key);
+    return { date: m[1], h: raw };
+  }
+  if (!SEAT_PERIOD_TEXT.hasOwnProperty(code)) throw permanentError_('節次代碼不正確：' + key);
+  return { date: m[1], h: SEAT_PERIOD_TEXT[code] };
+}
+
+/** 試算表一列的日期＋H 欄 → 時段鍵 */
+function slotOfRow_(dateCell, hCell) {
+  var date = dateKey_(dateCell);
+  var h = String(hCell == null ? '' : hCell).trim();
+  if (!h) return date;
+  for (var code in SEAT_PERIOD_TEXT) if (SEAT_PERIOD_TEXT[code] === h) return date + '#' + code;
+  return date + '#?' + h;
+}
+
+function validDate_(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+}
+
+/** 讀回所有登記紀錄：{ '2026-10-10#3': { '4': { tilt: 2 } }, '2026-08-30': {…未分節…} } */
 function getSeatRecords() {
   var sh = getSheet_();
   var rows = readAll_(sh);
@@ -204,11 +249,56 @@ function getSeatRecords() {
     var count = parseInt(rows[i][4], 10);
     var key = String(rows[i][6] || '').trim();
     if (!date || !seat || !key || !(count > 0)) continue;
-    if (!out[date]) out[date] = {};
-    if (!out[date][seat]) out[date][seat] = {};
-    out[date][seat][key] = (out[date][seat][key] || 0) + count;
+    var slot = slotOfRow_(rows[i][0], rows[i][7]);
+    if (!out[slot]) out[slot] = {};
+    if (!out[slot][seat]) out[slot][seat] = {};
+    out[slot][seat][key] = (out[slot][seat][key] || 0) + count;
   }
   return out;
+}
+
+/** 匯入前的雲端快照：A～H 原始列（日期轉成文字） */
+function getSeatRowsRaw() {
+  var sh = getSheet_();
+  return readAll_(sh).map(function (r) {
+    return [dateKey_(r[0]), String(r[1]), String(r[2]), String(r[3]), Number(r[4]) || 0,
+            r[5] instanceof Date ? r[5].toISOString() : String(r[5]), String(r[6]), String(r[7] == null ? '' : r[7])];
+  });
+}
+
+// ── 清除／匯入去重：同一個 opId 只執行一次，重送直接回覆上次結果 ──
+function seatOpLog_() {
+  try { return JSON.parse(PropertiesService.getDocumentProperties().getProperty(SEAT_OP_LOG_PROPERTY) || '[]') || []; }
+  catch (e) { return []; }
+}
+function withSeatOp_(opId, fn) {
+  opId = String(opId || '').trim();
+  if (!opId) throw permanentError_('缺少操作編號，請重新整理頁面');
+  var lock = LockService.getDocumentLock();
+  lock.waitLock(30000);
+  try {
+    var log = seatOpLog_();
+    for (var i = 0; i < log.length; i++) if (log[i].id === opId) return log[i].result;
+    var result = fn();
+    log.push({ id: opId, result: result });
+    if (log.length > SEAT_OP_LOG_MAX) log = log.slice(log.length - SEAT_OP_LOG_MAX);
+    PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log));
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 由下往上刪除符合條件的列，回傳刪除筆數 */
+function deleteSeatRowsWhere_(sh, test) {
+  var rows = readAll_(sh);
+  var removed = 0;
+  for (var i = rows.length - 1; i >= 0; i--) {
+    if (!test(rows[i])) continue;
+    sh.deleteRow(i + 2);
+    removed++;
+  }
+  return removed;
 }
 
 /** 設定（檢查項目、座位表、小組討論設定）存在文件屬性，所有裝置共用 */
@@ -408,9 +498,7 @@ function clearWeeklyRecords() {
 }
 
 /**
- * 登記一筆（delta 可為 +1 / -1）。
- * 同一天同一人同一項目只會有一列，次數在 E 欄累加；歸零就刪列。
- * 回傳該筆最新次數。
+ * 舊版的「+1／-1」登記（前端已不呼叫，保留給舊頁面）。只作用在未分節（H 空白）的列。
  */
 function logSeatCheck(date, seat, name, itemKey, itemLabel, delta) {
   var lock = LockService.getDocumentLock();
@@ -421,23 +509,17 @@ function logSeatCheck(date, seat, name, itemKey, itemLabel, delta) {
     seat = String(seat).trim();
     date = String(date).trim();
     delta = parseInt(delta, 10) || 0;
-
     for (var i = 0; i < rows.length; i++) {
       if (dateKey_(rows[i][0]) === date && String(rows[i][1]).trim() === seat &&
-          String(rows[i][6] || '').trim() === itemKey) {
-        var rowNo = i + 2;
+          String(rows[i][6] || '').trim() === itemKey && String(rows[i][7] == null ? '' : rows[i][7]).trim() === '') {
         var next = (parseInt(rows[i][4], 10) || 0) + delta;
-        if (next <= 0) {
-          sh.deleteRow(rowNo);
-          return 0;
-        }
-        sh.getRange(rowNo, 4, 1, 3).setValues([[itemLabel, next, new Date()]]);
+        if (next <= 0) { sh.deleteRow(i + 2); return 0; }
+        sh.getRange(i + 2, 3, 1, 4).setValues([[name, itemLabel, next, new Date()]]);
         return next;
       }
     }
-
     if (delta <= 0) return 0;
-    sh.appendRow([date, Number(seat), name, itemLabel, delta, new Date(), itemKey]);
+    sh.appendRow([date, Number(seat), name, itemLabel, delta, new Date(), itemKey, '']);
     return delta;
   } finally {
     lock.releaseLock();
@@ -445,22 +527,24 @@ function logSeatCheck(date, seat, name, itemKey, itemLabel, delta) {
 }
 
 /**
- * 直接設定某一格的次數（絕對值，重複呼叫結果一致）。
- * 前端以本機數字為準，網路重傳也不會多算或少算。
+ * 直接把某時段某人某項設成 count（絕對值，重送結果相同）。
+ * slot：時段鍵（'2026-10-10#3'）；舊頁面只送日期＝未分節。count 0 就刪列。
  */
-function setSeatCount(date, seat, name, itemKey, itemLabel, count) {
+function setSeatCount(slot, seat, name, itemKey, itemLabel, count) {
+  var p = parseSlot_(slot);
   var lock = LockService.getDocumentLock();
   lock.waitLock(20000);
   try {
     var sh = getSheet_();
     var rows = readAll_(sh);
     seat = String(seat).trim();
-    date = String(date).trim();
+    itemKey = String(itemKey || '').trim();
     count = parseInt(count, 10) || 0;
+    if (!seat || !itemKey) throw permanentError_('座號或項目代碼是空的');
 
     for (var i = 0; i < rows.length; i++) {
-      if (dateKey_(rows[i][0]) === date && String(rows[i][1]).trim() === seat &&
-          String(rows[i][6] || '').trim() === itemKey) {
+      if (dateKey_(rows[i][0]) === p.date && String(rows[i][1]).trim() === seat &&
+          String(rows[i][6] || '').trim() === itemKey && String(rows[i][7] == null ? '' : rows[i][7]).trim() === p.h) {
         var rowNo = i + 2;
         if (count <= 0) { sh.deleteRow(rowNo); return 0; }
         sh.getRange(rowNo, 3, 1, 4).setValues([[name, itemLabel, count, new Date()]]);
@@ -468,68 +552,112 @@ function setSeatCount(date, seat, name, itemKey, itemLabel, count) {
       }
     }
     if (count <= 0) return 0;
-    sh.appendRow([date, Number(seat), name, itemLabel, count, new Date(), itemKey]);
+    sh.appendRow([p.date, Number(seat), name, itemLabel, count, new Date(), itemKey, p.h]);
     return count;
   } finally {
     lock.releaseLock();
   }
 }
 
-/** 清掉某一天某個人的所有登記；seat 省略則清整天 */
+/** 舊頁面的「清除某日」：只清未分節（H 空白）的列，不會刪到分節資料 */
 function clearSeatRecords(date, seat) {
   var lock = LockService.getDocumentLock();
   lock.waitLock(20000);
   try {
-    var sh = getSheet_();
-    var rows = readAll_(sh);
     date = String(date).trim();
-    var removed = 0;
-    for (var i = rows.length - 1; i >= 0; i--) {
-      if (dateKey_(rows[i][0]) !== date) continue;
-      if (seat && String(rows[i][1]).trim() !== String(seat).trim()) continue;
-      sh.deleteRow(i + 2);
-      removed++;
-    }
-    return removed;
+    return deleteSeatRowsWhere_(getSheet_(), function (r) {
+      if (dateKey_(r[0]) !== date) return false;
+      if (String(r[7] == null ? '' : r[7]).trim() !== '') return false;
+      return !seat || String(r[1]).trim() === String(seat).trim();
+    });
   } finally {
     lock.releaseLock();
   }
 }
 
-/** 清掉全部登記紀錄（只動資料列，不動標題）*/
-function clearSeatAll() {
-  var lock = LockService.getDocumentLock();
-  lock.waitLock(20000);
-  try {
+/** 清除某時段（可限定座號） */
+function clearSeatSlot(opId, slot, seat) {
+  var p = parseSlot_(slot);
+  return withSeatOp_(opId, function () {
+    return deleteSeatRowsWhere_(getSheet_(), function (r) {
+      if (dateKey_(r[0]) !== p.date) return false;
+      if (String(r[7] == null ? '' : r[7]).trim() !== p.h) return false;
+      return !seat || String(r[1]).trim() === String(seat).trim();
+    });
+  });
+}
+
+/** 清除某日所有節次＋未分節（可限定座號） */
+function clearSeatDay(opId, date, seat) {
+  date = String(date || '').trim();
+  if (!validDate_(date)) throw permanentError_('日期不正確：' + date);
+  return withSeatOp_(opId, function () {
+    return deleteSeatRowsWhere_(getSheet_(), function (r) {
+      if (dateKey_(r[0]) !== date) return false;
+      return !seat || String(r[1]).trim() === String(seat).trim();
+    });
+  });
+}
+
+function clearSeatAllV2(opId) {
+  return withSeatOp_(opId, function () {
     var sh = getSheet_();
     var last = sh.getLastRow();
     if (last > 1) sh.deleteRows(2, last - 1);
-    return true;
-  } finally {
-    lock.releaseLock();
-  }
+    return last > 1 ? last - 1 : 0;
+  });
+}
+
+/** 舊頁面入口：會刪到分節資料，拒絕執行 */
+function clearSeatAll() {
+  throw permanentError_('頁面版本太舊，請重新整理後再清除');
+}
+function importSeatRecords(rows) {
+  throw permanentError_('頁面版本太舊，請重新整理後再匯入');
 }
 
 /**
- * 本機備份檔匯入：整份覆蓋「上課表現紀錄」的資料列。
- * rows 由前端整理好：[[日期, 座號, 姓名, 項目, 次數, 項目代碼], ...]
+ * 取代匯入：rows 每列 [時段鍵, 座號, 姓名, 項目名稱, 次數, 項目代碼]。
+ * 全部驗證通過才動試算表；先從第 2 列覆寫、再刪掉多出來的舊列（不經過整張清空），寫完讀回逐筆比對。
  */
-function importSeatRecords(rows) {
-  var lock = LockService.getDocumentLock();
-  lock.waitLock(30000);
-  try {
-    var sh = getSheet_();
-    var last = sh.getLastRow();
-    if (last > 1) sh.getRange(2, 1, last - 1, HEADERS.length).clearContent();
-    if (!rows || !rows.length) return 0;
-
-    var now = new Date();
-    var out = rows.map(function (r) {
-      return [r[0], Number(r[1]), r[2], r[3], Number(r[4]), now, r[5]];
-    });
-    sh.getRange(2, 1, out.length, HEADERS.length).setValues(out);
-    return out.length;
-  } finally {
-    lock.releaseLock();
+function importSeatRecordsV2(opId, rows) {
+  if (!Array.isArray(rows)) throw permanentError_('匯入資料格式不正確');
+  var now = new Date();
+  var out = [], expect = {}, seen = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!Array.isArray(r) || r.length < 6) throw permanentError_('第 ' + (i + 1) + ' 筆欄位不足');
+    var p = parseSlot_(r[0]);
+    var seat = String(r[1]).trim();
+    var count = Number(r[4]);
+    var key = String(r[5] || '').trim();
+    if (!/^\d{1,3}$/.test(seat) || Number(seat) < 1) throw permanentError_('第 ' + (i + 1) + ' 筆座號不正確：' + r[1]);
+    if (!(Number.isSafeInteger ? Number.isSafeInteger(count) : count % 1 === 0) || count < 1 || count > 99999) throw permanentError_('第 ' + (i + 1) + ' 筆次數不正確：' + r[4]);
+    if (!key) throw permanentError_('第 ' + (i + 1) + ' 筆缺少項目代碼');
+    var id = String(r[0]).trim() + '|' + seat + '|' + key;
+    if (seen[id]) throw permanentError_('第 ' + (i + 1) + ' 筆與前面重複：' + id);
+    seen[id] = true;
+    expect[id] = count;
+    out.push([p.date, Number(seat), String(r[2] == null ? '' : r[2]), String(r[3] == null ? '' : r[3]), count, now, key, p.h]);
   }
+  return withSeatOp_(opId, function () {
+    var sh = getSheet_();
+    var oldRows = Math.max(0, sh.getLastRow() - 1);
+    if (out.length) sh.getRange(2, 1, out.length, SEAT_COLS).setValues(out);
+    if (oldRows > out.length) sh.deleteRows(2 + out.length, oldRows - out.length);
+    // 讀回逐筆比對
+    var back = getSeatRecords(), got = 0, bad = [];
+    Object.keys(back).forEach(function (slot) {
+      Object.keys(back[slot]).forEach(function (seat) {
+        Object.keys(back[slot][seat]).forEach(function (key) {
+          var id = slot + '|' + seat + '|' + key;
+          got++;
+          if (expect[id] !== back[slot][seat][key]) bad.push(id);
+        });
+      });
+    });
+    if (got !== out.length) bad.push('筆數 ' + got + '≠' + out.length);
+    if (bad.length) throw permanentError_('匯入後核對不一致：' + bad.slice(0, 5).join('、') + '。請用匯入前下載的雲端快照與本機備份還原');
+    return { written: out.length };
+  });
 }
