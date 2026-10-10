@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @31
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 秩序登記分節 GAS @31 已部署（6 輪審查高優先全數處理）；決定是否再送審或收斂；Word 版說明待補 SR 章節
+next_action: 教室實機試用秩序分節與 408 SR 分頁（匯入四上至五下 xlsx、確認列印／匯出／跨電腦同步）；Word 版說明待補 SR 章節
 updated: 2026-10-10
 ---
 
