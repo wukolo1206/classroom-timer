@@ -1196,7 +1196,9 @@
         function clone(o) { return JSON.parse(JSON.stringify(o)); }
         function okNum(v, lo, hi) { return typeof v === 'number' && isFinite(v) && v >= lo && v <= hi; }
         function loadCfg() {
-            var c = clone(NOISE_DEFAULTS), saved = ctuParse('noiseSettings', '{}');
+            var c = clone(NOISE_DEFAULTS), saved = null;
+            try { saved = JSON.parse(readCfg() || '{}'); } catch (e) {}
+            if (!saved || typeof saved !== 'object' || Array.isArray(saved)) saved = {};
             if (saved.mode === 'study' || saved.mode === 'discuss') c.mode = saved.mode;
             ['study', 'discuss'].forEach(function (m) {
                 var t = saved.th && saved.th[m];
@@ -1206,7 +1208,9 @@
             if (saved.win === 1 || saved.win === 2 || saved.win === 3) c.win = saved.win;
             return c;
         }
-        function saveCfg() { ctuStore.setItem('noiseSettings', JSON.stringify(cfg)); }
+        // 讀寫都經 ctuStore（全校版自動加 ctu_、408 版加 c408_ 前綴）
+        function readCfg() { try { return window.ctuStore.getItem('noiseSettings'); } catch (e) { return null; } }
+        function saveCfg() { window.ctuStore.setItem('noiseSettings', JSON.stringify(cfg)); }
         function toDb(dbfs) { return Math.max(0, Math.round(dbfs + cfg.offset)); }
         function pct(v) { return Math.max(0, Math.min(100, (v - SCALE_MIN) / (SCALE_MAX - SCALE_MIN) * 100)); }
 
@@ -1332,6 +1336,13 @@
             if (ready) return;
             ready = true;
             cfg = loadCfg();
+            // 408 的 GAS 網址在 Google 內嵌框架裡，瀏覽器不給麥克風權限，改提供 GitHub Pages 版連結
+            var gasNote = $('noise-gas-note');
+            if (gasNote && typeof google !== 'undefined' && google.script && google.script.run) {
+                gasNote.classList.remove('hidden');
+                $('noise-start').classList.add('hidden');
+                $('noise-msg').textContent = '這個網址不能使用麥克風，請按上方按鈕在新視窗開啟。';
+            }
             renderMarks(); renderSettings(); renderStats();
             $('noise-start').addEventListener('click', function () { if (run) stop(); else start(); });
             $('noise-fullscreen').addEventListener('click', function () {
@@ -4779,7 +4790,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.19（2026-10-10）';
+    window.CTU_VERSION = 'v1.20（2026-10-10）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {

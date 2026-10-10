@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""全校版「🔊 音量計」分頁：本機驗收。
+"""「🔊 音量計」分頁：全校版（universal.html）與 408 版（index.html / GAS）本機驗收。
 
 執行：python -m unittest discover -s tests -p test_noise_meter.py -v
 用 Chromium 假麥克風（--use-fake-device-for-media-stream）；資料只在測試用的暫存瀏覽器 context。
@@ -225,6 +225,74 @@ class NoiseMeter(unittest.TestCase):
 
     def test_mic_busy_message(self):
         self.assertIn('其他程式', self.mic_error('NotReadableError'))
+
+
+
+class Noise408(unittest.TestCase):
+    """408 版：分頁一律顯示；GAS 網址不能用麥克風，改顯示 GitHub Pages 連結。"""
+    @classmethod
+    def setUpClass(cls):
+        from test_sr_408 import MOCK_GAS
+        cls.mock_gas = MOCK_GAS
+        cls.tmp = tempfile.mkdtemp(prefix='c408_noise_')
+        shutil.copy(os.path.join(ROOT, 'index.html'), os.path.join(cls.tmp, 'index.html'))
+
+        class Quiet(http.server.SimpleHTTPRequestHandler):
+            def log_message(self, *a): pass
+        cls.srv = socketserver.TCPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=cls.tmp))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.url = 'http://127.0.0.1:%d/index.html' % cls.srv.server_address[1]
+        cls.pw = sync_playwright().start()
+        cls.browser = cls.pw.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'])
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.browser.close(); cls.pw.stop(); cls.srv.shutdown()
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def open(self, gas=False, query=''):
+        ctx = self.browser.new_context(viewport={'width': 1366, 'height': 900})
+        self.addCleanup(ctx.close)
+        if gas:
+            ctx.add_init_script(self.mock_gas)
+        page = ctx.new_page()
+        page._errs = []
+        page.on('pageerror', lambda e: page._errs.append(str(e)))
+        page.on('dialog', lambda d: d.accept())
+        page.goto(self.url + query)
+        page.wait_for_timeout(800)
+        self.addCleanup(lambda: self.assertEqual(page._errs, []))
+        return page
+
+    def test_pages_tab_visible_measures_and_settings_persist(self):
+        page = self.open()
+        self.assertTrue(page.is_visible('#tab-noise-btn'))
+        page.click('#tab-noise-btn')
+        self.assertFalse(page.is_visible('#noise-gas-note'))
+        page.click('#noise-start')
+        page.wait_for_function('() => { const s = window.ctuNoiseState(); return s.running && s.level !== null; }', timeout=5000)
+        self.assertRegex(page.inner_text('#noise-db'), r'^\d+$')
+        page.click('[data-noise-mode="discuss"]')
+        self.assertEqual(json.loads(page.evaluate("() => localStorage.getItem('c408_noiseSettings')"))['mode'], 'discuss')
+        self.assertIsNone(page.evaluate("() => localStorage.getItem('ctu_noiseSettings')"))
+        page.reload(); page.wait_for_timeout(800)
+        page.click('#tab-noise-btn')
+        self.assertEqual(page.evaluate('() => window.ctuNoiseState().mode'), 'discuss')
+        page.click('#tab-timer-btn')
+        self.assertFalse(page.evaluate('() => window.ctuNoiseState().running'))
+
+    def test_query_opens_noise_tab(self):
+        page = self.open(query='?tab=noise')
+        self.assertTrue(page.is_visible('#panel-noise'))
+        self.assertIn('tab-active', page.get_attribute('#tab-noise-btn', 'class'))
+
+    def test_gas_shows_pages_link_instead_of_mic(self):
+        page = self.open(gas=True)
+        page.click('#tab-noise-btn')
+        self.assertTrue(page.is_visible('#noise-gas-note'))
+        self.assertFalse(page.is_visible('#noise-start'))
+        self.assertEqual(page.get_attribute('#noise-gas-note a', 'href'), 'https://wukolo1206.github.io/classroom-timer/?tab=noise')
+        self.assertIn('不能使用麥克風', page.inner_text('#noise-msg'))
 
 
 if __name__ == '__main__':
