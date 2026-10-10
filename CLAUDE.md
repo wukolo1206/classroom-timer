@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @30
+version: GAS @31
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 秩序登記分節 GAS @30 已部署；等第 4 輪程式審查（修正驗收）回饋，無高優先就收斂；Word 版說明待補 SR 章節
+next_action: 秩序登記分節 GAS @31 已部署（6 輪審查高優先全數處理）；決定是否再送審或收斂；Word 版說明待補 SR 章節
 updated: 2026-10-10
 ---
 
