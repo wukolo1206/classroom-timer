@@ -206,6 +206,13 @@ function dateKey_(v) {
 
 function permanentError_(msg) { return new Error('永久：' + msg); }
 
+/** 座號正規化：'05'、5、' 5 ' 都視為 '5' */
+function normSeat_(v) {
+  var t = String(v == null ? '' : v).trim();
+  return /^\d+$/.test(t) ? String(Number(t)) : t;
+}
+function rowH_(r) { return String(r[7] == null ? '' : r[7]).trim(); }
+
 /** 時段鍵 → { date, h }：'2026-10-10'＝未分節（h 空白）、'2026-10-10#3'、'2026-10-10#?原文'（對照表以外的 H 文字） */
 function parseSlot_(key) {
   var m = /^(\d{4}-\d{2}-\d{2})(?:#(.+))?$/.exec(String(key || '').trim());
@@ -245,7 +252,7 @@ function getSeatRecords() {
   var out = {};
   for (var i = 0; i < rows.length; i++) {
     var date = dateKey_(rows[i][0]);
-    var seat = String(rows[i][1]).trim();
+    var seat = normSeat_(rows[i][1]);
     var count = parseInt(rows[i][4], 10);
     var key = String(rows[i][6] || '').trim();
     if (!date || !seat || !key || !(count > 0)) continue;
@@ -278,19 +285,33 @@ function withSeatOp_(opId, fn) {
   lock.waitLock(30000);
   try {
     var log = seatOpLog_();
-    for (var i = 0; i < log.length; i++) if (log[i].id === opId) return log[i].result;
-    var result = fn();
-    log.push({ id: opId, result: result });
-    if (log.length > SEAT_OP_LOG_MAX) log = log.slice(log.length - SEAT_OP_LOG_MAX);
-    // 操作已經完成：記錄寫不進去（超過大小）就少留幾筆再試，不讓錯誤變成「操作失敗」而被前端重送
-    for (var keep = log.length; keep > 0; keep = Math.floor(keep / 2)) {
-      try { PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log.slice(log.length - keep))); break; }
-      catch (e) { if (keep === 1) break; }
+    for (var i = 0; i < log.length; i++) {
+      // 已完成：直接回覆上次結果。「進行中」代表上次執行到一半就中斷（逾時），這次重新執行。
+      if (log[i].id === opId && log[i].done) return log[i].result;
     }
+    log = log.filter(function (x) { return x.id !== opId; });
+    log.push({ id: opId, done: false });
+    // 先把「進行中」存起來；存不進去就不執行（否則重送時無法辨識是否已做過）
+    if (!saveSeatOpLog_(log)) throw new Error('暫時無法記錄操作，稍後自動重試');
+    var result = fn();
+    log[log.length - 1] = { id: opId, done: true, result: result };
+    saveSeatOpLog_(log);   // 若這一步失敗，紀錄停在「進行中」，重送時會重新執行一次清除（同一裝置的後續工作都排在它後面，不會被誤刪）
     return result;
   } finally {
     lock.releaseLock();
   }
+}
+
+/** 保存操作紀錄：超過大小就少留舊的幾筆再試；完全存不進去回傳 false */
+function saveSeatOpLog_(log) {
+  if (log.length > SEAT_OP_LOG_MAX) log = log.slice(log.length - SEAT_OP_LOG_MAX);
+  for (var keep = log.length; keep > 0; keep = Math.floor(keep / 2)) {
+    try {
+      PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log.slice(log.length - keep)));
+      return true;
+    } catch (e) {}
+  }
+  return false;
 }
 
 /** 由下往上刪除符合條件的列，回傳刪除筆數 */
@@ -541,21 +562,21 @@ function setSeatCount(slot, seat, name, itemKey, itemLabel, count) {
   try {
     var sh = getSheet_();
     var rows = readAll_(sh);
-    seat = String(seat).trim();
+    seat = normSeat_(seat);
     itemKey = String(itemKey || '').trim();
     count = parseInt(count, 10) || 0;
     if (!seat || !itemKey) throw permanentError_('座號或項目代碼是空的');
 
+    // 同一格可能有重複列（舊資料）：第一列設成 count，其餘刪除；count 0 就全部刪除
+    var hits = [];
     for (var i = 0; i < rows.length; i++) {
-      if (dateKey_(rows[i][0]) === p.date && String(rows[i][1]).trim() === seat &&
-          String(rows[i][6] || '').trim() === itemKey && String(rows[i][7] == null ? '' : rows[i][7]).trim() === p.h) {
-        var rowNo = i + 2;
-        if (count <= 0) { sh.deleteRow(rowNo); return 0; }
-        sh.getRange(rowNo, 3, 1, 4).setValues([[name, itemLabel, count, new Date()]]);
-        return count;
-      }
+      if (dateKey_(rows[i][0]) === p.date && normSeat_(rows[i][1]) === seat &&
+          String(rows[i][6] || '').trim() === itemKey && rowH_(rows[i]) === p.h) hits.push(i + 2);
     }
+    var keepRow = count > 0 && hits.length ? hits[0] : null;
+    for (var j = hits.length - 1; j >= 0; j--) if (hits[j] !== keepRow) sh.deleteRow(hits[j]);
     if (count <= 0) return 0;
+    if (keepRow) { sh.getRange(keepRow, 3, 1, 4).setValues([[name, itemLabel, count, new Date()]]); return count; }
     sh.appendRow([p.date, Number(seat), name, itemLabel, count, new Date(), itemKey, p.h]);
     return count;
   } finally {
@@ -571,8 +592,8 @@ function clearSeatRecords(date, seat) {
     date = String(date).trim();
     return deleteSeatRowsWhere_(getSheet_(), function (r) {
       if (dateKey_(r[0]) !== date) return false;
-      if (String(r[7] == null ? '' : r[7]).trim() !== '') return false;
-      return !seat || String(r[1]).trim() === String(seat).trim();
+      if (rowH_(r) !== '') return false;
+      return !seat || normSeat_(r[1]) === normSeat_(seat);
     });
   } finally {
     lock.releaseLock();
@@ -585,8 +606,8 @@ function clearSeatSlot(opId, slot, seat) {
   return withSeatOp_(opId, function () {
     return deleteSeatRowsWhere_(getSheet_(), function (r) {
       if (dateKey_(r[0]) !== p.date) return false;
-      if (String(r[7] == null ? '' : r[7]).trim() !== p.h) return false;
-      return !seat || String(r[1]).trim() === String(seat).trim();
+      if (rowH_(r) !== p.h) return false;
+      return !seat || normSeat_(r[1]) === normSeat_(seat);
     });
   });
 }
@@ -598,7 +619,7 @@ function clearSeatDay(opId, date, seat) {
   return withSeatOp_(opId, function () {
     return deleteSeatRowsWhere_(getSheet_(), function (r) {
       if (dateKey_(r[0]) !== date) return false;
-      return !seat || String(r[1]).trim() === String(seat).trim();
+      return !seat || normSeat_(r[1]) === normSeat_(seat);
     });
   });
 }
@@ -632,13 +653,14 @@ function importSeatRecordsV2(opId, rows) {
     var r = rows[i];
     if (!Array.isArray(r) || r.length < 6) throw permanentError_('第 ' + (i + 1) + ' 筆欄位不足');
     var p = parseSlot_(r[0]);
-    var seat = String(r[1]).trim();
+    var seat = normSeat_(r[1]);
     var count = Number(r[4]);
     var key = String(r[5] || '').trim();
     if (!/^\d{1,3}$/.test(seat) || Number(seat) < 1) throw permanentError_('第 ' + (i + 1) + ' 筆座號不正確：' + r[1]);
     if (!(Number.isSafeInteger ? Number.isSafeInteger(count) : count % 1 === 0) || count < 1 || count > 99999) throw permanentError_('第 ' + (i + 1) + ' 筆次數不正確：' + r[4]);
     if (!key) throw permanentError_('第 ' + (i + 1) + ' 筆缺少項目代碼');
-    var id = String(r[0]).trim() + '|' + seat + '|' + key;
+    // 識別鍵用正規化後的時段（'日期#?第3節' 與 '日期#3' 視為同一個）與座號（'05'＝'5'）
+    var id = slotOfRow_(p.date, p.h) + '|' + seat + '|' + key;
     if (seen[id]) throw permanentError_('第 ' + (i + 1) + ' 筆與前面重複：' + id);
     seen[id] = true;
     expect[id] = count;

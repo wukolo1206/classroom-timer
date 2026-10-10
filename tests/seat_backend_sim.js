@@ -215,5 +215,52 @@ test('操作紀錄寫不進去時，清除仍算成功、不拋錯', () => {
   assert.ok(String(props.seatOpLog).indexOf('final') >= 0, '最新一筆有留下');
 });
 
+test('同一格有重複列：設定絕對值後只剩一列、設 0 全部刪除（第 3 輪 A-高）', () => {
+  const { sheet, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'),
+    ['2026-10-10', 5, '甲', '坐姿', 1, new Date(), 'tilt', '第3節'],
+    ['2026-10-10', '05', '甲', '坐姿', 2, new Date(), 'tilt', '第3節'],
+    ['2026-10-10', 6, '乙', '坐姿', 1, new Date(), 'tilt', '第3節']];
+  assert.deepStrictEqual(api.getSeatRecords()['2026-10-10#3']['5'], { tilt: 3 }, '讀取時 05＝5 加總');
+  api.setSeatCount('2026-10-10#3', '5', '甲', 'tilt', '坐姿', 4);
+  assert.deepStrictEqual(api.getSeatRecords()['2026-10-10#3']['5'], { tilt: 4 });
+  assert.strictEqual(sheet.rows.length, 3);
+  api.setSeatCount('2026-10-10#3', '5', '甲', 'tilt', '坐姿', 0);
+  assert.strictEqual(api.getSeatRecords()['2026-10-10#3']['5'], undefined);
+  assert.strictEqual(sheet.rows.length, 2, '乙不受影響');
+});
+
+test('操作紀錄完全存不進去時不執行清除（第 3 輪 B-高）', () => {
+  const { sheet, props, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
+  props.__limit = 5;
+  assert.throws(() => api.clearSeatDay('x1', '2026-10-10'), (e) => !/^永久：/.test(e.message), '暫時錯誤，前端會重試');
+  assert.strictEqual(sheet.rows.length, 2, '沒有執行');
+  delete props.__limit;
+  assert.strictEqual(api.clearSeatDay('x1', '2026-10-10'), 1, '恢復後重試會執行');
+  api.setSeatCount('2026-10-10#3', '5', '甲', 'tilt', '坐姿', 1);
+  assert.strictEqual(api.clearSeatDay('x1', '2026-10-10'), 1, '重送回覆上次結果');
+  assert.strictEqual(sheet.rows.length, 2, '新登記不被重複刪除');
+});
+
+test('上次執行到一半（進行中）的操作，重送會重新執行', () => {
+  const { sheet, props, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
+  props.seatOpLog = JSON.stringify([{ id: 'half', done: false }]);
+  assert.strictEqual(api.clearSeatDay('half', '2026-10-10'), 1);
+  assert.strictEqual(sheet.rows.length, 1);
+});
+
+test('取代匯入：座號 05 與 5、#?第3節 與 #3 視為同一筆，寫入前就擋下（第 3 輪 A-中）', () => {
+  const { sheet, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-09', 7, '丁', '坐姿', 1, new Date(), 'tilt', '第1節']];
+  const before = JSON.stringify(sheet.rows);
+  assert.match(permanent(() => api.importSeatRecordsV2('al1', [['2026-10-10#3', '5', '甲', '坐姿', 1, 'tilt'], ['2026-10-10#3', '05', '甲', '坐姿', 2, 'tilt']])), /重複/);
+  assert.match(permanent(() => api.importSeatRecordsV2('al2', [['2026-10-10#3', '5', '甲', '坐姿', 1, 'tilt'], ['2026-10-10#?第3節', '5', '甲', '坐姿', 2, 'tilt']])), /重複/);
+  assert.strictEqual(JSON.stringify(sheet.rows), before, '試算表不動');
+  assert.deepStrictEqual(api.importSeatRecordsV2('al3', [['2026-10-10#?第3節', '05', '甲', '坐姿', 2, 'tilt']]), { written: 1 }, '單筆別名可寫入且核對通過');
+  assert.deepStrictEqual(api.getSeatRecords(), { '2026-10-10#3': { '5': { tilt: 2 } } });
+});
+
 console.log(results.join('\n'));
 if (results.some(r => r.startsWith('FAIL'))) process.exit(1);

@@ -132,5 +132,33 @@ class SeatPeriodUniversal(unittest.TestCase):
         self.assertEqual(json.loads(data['ctu_seatCheckRecords']), recs)
 
 
+    def test_U06_import_save_failure_does_not_report_success(self):
+        p = self.open(at='10:35', records={DAY + '#3': {'1': {'tilt': 1}}})
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (k === 'ctu_seatCheckRecords') throw new Error('QuotaExceeded'); return orig.call(this, k, v); }; }""")
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#4': {'2': {'bag': 2}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        p.click('#seat-import-merge')
+        p.wait_for_timeout(300)
+        self.assertFalse(any('已合併匯入' in m for m in p._dialogs), p._dialogs)
+        self.assertTrue(any('儲存失敗' in m for m in p._dialogs), p._dialogs)
+        self.assertTrue(p.evaluate("document.getElementById('seat-import-modal').classList.contains('show')"), '視窗保留')
+        self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}})
+
+    def test_U07_undo_and_invalid_backup(self):
+        p = self.open(at='10:35')
+        p.click('#seat-modes button:has-text("座位歪了")')
+        p.click('#seat-chart button[data-seat="1"]')
+        p.click('#seat-period-bar button[data-period="all"]')
+        self.assertTrue(p.evaluate("document.getElementById('seat-undo-btn').disabled"))
+        self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}})
+        data = {'type': 'seat-check', 'seatCheckRecords': {'2026-13-40': {'1': {'tilt': 1}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        self.assertIn('不合格', p._dialogs[-1])
+        self.assertEqual(self.local(p), {DAY + '#3': {'1': {'tilt': 1}}})
+
+
 if __name__ == '__main__':
     unittest.main()

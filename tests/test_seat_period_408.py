@@ -59,15 +59,21 @@ MOCK = r"""
       if (name === 'withFailureHandler') return f => runner(succ, f);
       return (...args) => {
         window.__calls.push(name);
+        // __delay：後端「執行」前等多久；__respDelay：執行完（已取快照／已寫入）後，回覆再晚多久送達；
+        // __lostReply：後端執行完但回覆遺失（前端收到網路錯誤）
         const delay = (JSON.parse(ss.getItem('__delay') || '{}'))[name] || 30;
+        const resp = (JSON.parse(ss.getItem('__respDelay') || '{}'))[name] || 0;
         setTimeout(() => {
           if (!api[name]) { if (fail) fail(new Error('mock 沒有 ' + name)); return; }
           const failMap = JSON.parse(ss.getItem('__fail') || '{}');
           if (failMap[name] > 0) { failMap[name]--; ss.setItem('__fail', JSON.stringify(failMap)); if (fail) fail(new Error('模擬網路錯誤')); return; }
-          let r;
-          try { r = api[name](...JSON.parse(JSON.stringify(args))); } catch (e) { persist(); if (fail) fail(e); return; }
+          let r, err = null;
+          try { r = api[name](...JSON.parse(JSON.stringify(args))); } catch (e) { err = e; }
           persist();
-          if (succ) succ(r);
+          window.__execLog = (window.__execLog || []).concat([name]);
+          const lost = JSON.parse(ss.getItem('__lostReply') || '{}');
+          if (!err && lost[name] > 0) { lost[name]--; ss.setItem('__lostReply', JSON.stringify(lost)); err = new Error('網路逾時（回覆遺失）'); }
+          setTimeout(() => { if (err) { if (fail) fail(err); } else if (succ) succ(r); }, resp);
         }, delay);
       };
     } });
@@ -380,6 +386,103 @@ class SeatPeriod408(unittest.TestCase):
         self.assertEqual(self.local(p), {})
         self.assertEqual(p._errs, [])
 
+
+    # ── 第 3 輪程式審查補測 ──
+    def test_R01_pull_snapshot_taken_before_clear_arrives_after_clear_done(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        p.evaluate("sessionStorage.setItem('__respDelay', JSON.stringify({ getSeatBundle: 900 }))")
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn')    # 拉取：後端立刻取快照（含次數 2），回覆 0.9 秒後才到
+        p.wait_for_timeout(120)
+        p.click('#seat-clear-btn')                            # 清除本節：很快完成
+        p.wait_for_timeout(1500)                              # 舊回覆在清除完成後才抵達
+        p.evaluate("sessionStorage.setItem('__respDelay', '{}')")
+        self.settle(p)
+        self.assertNotIn(DAY + '#3', self.local(p), '舊快照不能把清掉的次數帶回本機')
+        p.click('#tab-timer-btn'); p.click('#tab-seat-btn')    # 再拉一次，也不能補送回雲端
+        self.settle(p)
+        self.assertEqual(self.sheet_counts(p), {})
+
+    def test_R02_multi_day_clear_is_all_or_nothing_when_queue_save_fails(self):
+        t = '2026-10-12T00:00:00.000Z'
+        sheet = [[DAY, 5, '', '座位歪了', 1, t, 'tilt', '第3節'], ['2026-10-13', 5, '', '座位歪了', 1, t, 'tilt', '第3節']]
+        p = self.open(at='10:35', sheet=sheet)
+        p.evaluate("""() => { const orig = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (k, v) { if (k === 'seatSyncQueue' && String(v).indexOf('clearDay') >= 0) throw new Error('QuotaExceeded'); return orig.call(this, k, v); }; }""")
+        p.click('#seat-stats-btn')
+        p.click('.seat-range-btn[data-range="all"]')
+        p.click('#seat-purge-toggle')
+        p.click('#seat-purge-range')
+        p.wait_for_timeout(500)
+        self.assertIn('儲存空間不足', p._dialogs[-1])
+        self.assertEqual(set(self.local(p)), {DAY + '#3', '2026-10-13#3'}, '本機不動')
+        self.assertEqual(len(self.sheet_counts(p)), 2, '雲端不動')
+        self.assertNotIn('clearSeatDay', p.evaluate('window.__calls'))
+
+    def test_R03_invalid_backup_is_rejected_not_silently_emptied(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']])
+        data = {'type': 'seat-check', 'seatCheckRecords': {DAY + '#3': {'5': {'tilt': 'invalid'}}}}
+        p.set_input_files('#seat-import-input', files=[{'name': 'b.json', 'mimeType': 'application/json', 'buffer': json.dumps(data).encode('utf-8')}])
+        p.wait_for_timeout(300)
+        self.assertIn('不合格', p._dialogs[-1])
+        self.assertFalse(p.evaluate("document.getElementById('seat-import-modal').classList.contains('show')"))
+        self.settle(p)
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 2)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '5', 'tilt', '第3節'): 2})
+
+    def test_R04_undo_disabled_in_full_day_view(self):
+        p = self.open(at='10:35', sheet=[])
+        self.mode(p, '座位歪了')
+        self.tap(p, 5)
+        self.period(p, 'all')
+        self.assertTrue(p.evaluate("document.getElementById('seat-undo-btn').disabled"))
+        p.evaluate("document.getElementById('seat-undo-btn').disabled = false; document.getElementById('seat-undo-btn').click()")
+        self.assertIn('全天', p._dialogs[-1])
+        self.period(p, '3')
+        self.assertEqual(self.local(p)[DAY + '#3']['5']['tilt'], 1, '全天時復原不扣')
+        p.click('#seat-undo-btn')
+        self.assertNotIn(DAY + '#3', self.local(p), '回到節次後復原堆疊還在')
+
+    def test_R05_cross_midnight_follows_new_day(self):
+        p = self.open(at='23:59', sheet=[])
+        self.assertEqual(self.selected_period(p), '7')
+        p.clock.fast_forward('02:00')
+        p.wait_for_timeout(300)
+        self.assertEqual(self.selected_period(p), 'm')
+        self.assertIn('10/13', p.inner_text('#seat-check-date'))
+
+    def test_R06_clear_one_student_keeps_others_pending_counts(self):
+        p = self.open(at='10:35', sheet=[], session={'__delay': json.dumps({'setSeatCount': 600})})
+        self.mode(p, '座位歪了')
+        self.tap(p, 6); self.tap(p, 5); self.tap(p, 8)        # 6 在送出中，5、8 在排隊（408 沒有 7 號）
+        p.click('#seat-modes button:has-text("逐項登記")')
+        self.tap(p, 5)
+        p.wait_for_timeout(300)
+        p.click('#seat-modal-pass')                          # 清除 5 號本節
+        q = json.loads(p.evaluate("localStorage.getItem('seatSyncQueue')"))
+        pairs = [(j['type'], j.get('seat')) for j in q]
+        self.assertIn(('count', '8'), pairs, '同節其他學生的待送工作保留')
+        self.assertEqual(pairs[-1], ('clearSlot', '5'))
+        self.assertLessEqual(pairs.count(('count', '5')), 1, '5 號只剩送出中的那一筆（無法撤回，由後面的清除蓋掉）')
+        p.click('#seat-modal-done')
+        self.settle(p, ms=6000)
+        self.assertEqual(self.sheet_counts(p), {(DAY, '6', 'tilt', '第3節'): 1, (DAY, '8', 'tilt', '第3節'): 1})
+
+    def test_R07_lost_reply_of_clear_is_not_executed_twice(self):
+        t = '2026-10-12T00:00:00.000Z'
+        p = self.open(at='10:35', sheet=[[DAY, 5, '', '座位歪了', 2, t, 'tilt', '第3節']],
+                      session={'__lostReply': json.dumps({'clearSeatSlot': 1})})
+        p.click('#seat-clear-btn')
+        p.wait_for_timeout(400)
+        self.assertIn('待同步', p.inner_text('#seat-sync-status'))
+        p.clock.fast_forward('00:16')
+        self.settle(p)
+        self.assertEqual(len([c for c in p.evaluate('window.__execLog || []') if c == 'clearSeatSlot']), 2, '前端重送了一次')
+        log = json.loads(json.loads(p.evaluate("sessionStorage.getItem('__props') || '{}'")).get('seatOpLog', '[]'))
+        self.assertEqual(len([x for x in log if x.get('done')]), 1, '後端只真正執行一次')
+        self.assertEqual(self.sheet_counts(p), {})
+        self.assertIn('已同步', p.inner_text('#seat-sync-status'))
 
 if __name__ == '__main__':
     unittest.main()
