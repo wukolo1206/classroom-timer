@@ -910,9 +910,11 @@
   }
 
   function mergeRecords(records, errors) {
-    let updated = 0;
+    let updated = 0, blank = 0;
     const conflicts = [];
     records.forEach(r => {
+      // 這一列沒有任何 SR、日期、年級：不寫入，只計數
+      if (!Object.keys(r.terms).some(t => Object.keys(r.terms[t]).length)) { blank++; return; }
       let st = null;
       if (r.seat) {
         st = students.find(s => String(s.seatNum) === r.seat);
@@ -932,11 +934,12 @@
       });
       updated++;
     });
-    return { updated, conflicts };
+    return { updated, blank, conflicts };
   }
 
   function reportMerge(title, result, errors) {
-    const lines = [title + '：寫入 ' + result.updated + ' 位學生。'];
+    const lines = [title + '：寫入 ' + result.updated + ' 位學生' +
+      (result.blank ? '；' + result.blank + ' 位沒有填 SR，保留原狀' : '') + '。'];
     if (result.conflicts.length) {
       lines.push('', '⚠️ 座號相同但姓名不同（' + result.conflicts.length + ' 筆），請確認：');
       lines.push(...result.conflicts.slice(0, 10));
