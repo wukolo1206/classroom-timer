@@ -47,7 +47,7 @@ function makeEnv() {
     Utilities: { formatDate: (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') },
     PropertiesService: { getDocumentProperties: () => ({
       getProperty: (k) => (k in props ? props[k] : null),
-      setProperty: (k, v) => { props[k] = v; },
+      setProperty: (k, v) => { if (props.__limit && String(v).length > props.__limit) throw new Error('超過大小'); props[k] = v; },
       setProperties: (o) => Object.assign(props, o),
       deleteProperty: (k) => { delete props[k]; },
     }) },
@@ -202,6 +202,17 @@ test('時段鍵格式錯誤是永久錯誤', () => {
   const { api } = makeEnv();
   assert.match(permanent(() => api.setSeatCount('10/10', '5', '甲', 'tilt', '坐姿', 1)), /時段格式不正確/);
   assert.match(permanent(() => api.clearSeatSlot('', '2026-10-10#3')), /缺少操作編號/);
+});
+
+test('操作紀錄寫不進去時，清除仍算成功、不拋錯', () => {
+  const { sheet, props, api } = makeEnv();
+  sheet.rows = [HEAD.concat('節次'), ['2026-10-10', 5, '甲', '坐姿', 2, new Date(), 'tilt', '第3節']];
+  props.__limit = 300;   // 讓 setProperty 超過 300 字就拋錯
+  for (let i = 0; i < 20; i++) api.clearSeatDay('pre' + i, '2026-10-0' + (i % 9 + 1));
+  assert.strictEqual(api.clearSeatDay('final', '2026-10-10'), 1);
+  assert.strictEqual(sheet.rows.length, 1);
+  assert.ok(String(props.seatOpLog || '').length <= 300);
+  assert.ok(String(props.seatOpLog).indexOf('final') >= 0, '最新一筆有留下');
 });
 
 console.log(results.join('\n'));

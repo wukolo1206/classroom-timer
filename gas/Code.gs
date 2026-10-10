@@ -174,7 +174,7 @@ var SEAT_PERIOD_HEADER = '節次';
 // 節次代碼 ↔ H 欄文字（前端 SEAT_PERIODS 用同一組代碼）；H 空白＝未分節
 var SEAT_PERIOD_TEXT = { m: '早自習', '1': '第1節', '2': '第2節', '3': '第3節', '4': '第4節', n: '午休', '5': '第5節', '6': '第6節', '7': '第7節' };
 var SEAT_OP_LOG_PROPERTY = 'seatOpLog';   // 最近處理過的清除／匯入 opId，避免重新整理後重送又執行一次
-var SEAT_OP_LOG_MAX = 200;
+var SEAT_OP_LOG_MAX = 100;   // 每筆約 40 字，100 筆約 4KB，留在文件屬性單筆 9KB 上限內
 
 function getSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -282,7 +282,11 @@ function withSeatOp_(opId, fn) {
     var result = fn();
     log.push({ id: opId, result: result });
     if (log.length > SEAT_OP_LOG_MAX) log = log.slice(log.length - SEAT_OP_LOG_MAX);
-    PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log));
+    // 操作已經完成：記錄寫不進去（超過大小）就少留幾筆再試，不讓錯誤變成「操作失敗」而被前端重送
+    for (var keep = log.length; keep > 0; keep = Math.floor(keep / 2)) {
+      try { PropertiesService.getDocumentProperties().setProperty(SEAT_OP_LOG_PROPERTY, JSON.stringify(log.slice(log.length - keep))); break; }
+      catch (e) { if (keep === 1) break; }
+    }
     return result;
   } finally {
     lock.releaseLock();
