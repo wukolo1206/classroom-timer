@@ -281,6 +281,46 @@ class SrTab(unittest.TestCase):
         rows = fr.evaluate("[...document.querySelectorAll('#roster-tbody tr')].map(r => r.children[1].innerText.trim())")
         self.assertEqual(rows, ['01', '02', '03'], '沒有姓名時依人數列座號')
 
+    def test_T16_sample_files_import(self):
+        roster = {'className': '408', 'teacherName': '示範老師', 'studentCount': 3, 'studentNames': ['王', '無', '李']}
+        p = self.open(cls_cfg=roster)
+        fr = self.sr(p)
+        fr.set_input_files('#excel-file-input', os.path.join(ROOT, 'sr-reading', '範例', 'SR匯入範例_單一學期.xlsx'))
+        p.wait_for_timeout(800)
+        rec = self.records(p)['bySeat']
+        self.assertEqual(rec['1']['terms']['115-1']['sr'], '411-417')
+        self.assertEqual(rec['3']['terms']['115-1']['sr'], '394')
+        self.assertNotIn('4', rec)
+        self.assertIn('不在班級名冊', p._dialogs[-1])
+        fr.set_input_files('#excel-file-input', os.path.join(ROOT, 'sr-reading', '範例', 'SR匯入範例_跨學期.xlsx'))
+        p.wait_for_timeout(800)
+        rec = self.records(p)['bySeat']
+        self.assertEqual(rec['2']['terms']['115-2']['sr'], '470-530')
+        self.assertEqual(rec['3']['terms']['115-1']['sr'], '311-398')
+        self.assertNotIn('115-2', rec['3']['terms'])
+
+    def test_T17_template_download_fill_import(self):
+        p = self.open()
+        fr = self.sr(p)
+        with p.expect_download() as d:
+            fr.evaluate("downloadTemplate()")
+        path = os.path.join(self.tmp, 'template.xlsx')
+        d.value.save_as(path)
+        wb = openpyxl.load_workbook(path)
+        ws = wb['SR登記']
+        self.assertEqual([c.value for c in ws[4]], ['座號', '學生姓名', '測驗時間', '就讀年級', 'SR(115-1)'])
+        self.assertEqual(ws['A5'].value, '01')
+        self.assertEqual(ws['B5'].value, '王小明', '範本給老師填，帶全名')
+        ws['E5'] = '411-417'
+        ws['E6'] = '450-514'
+        wb.save(path)
+        fr.set_input_files('#excel-file-input', path)
+        p.wait_for_timeout(800)
+        rec = self.records(p)['bySeat']
+        self.assertEqual(rec['1']['terms']['115-1']['sr'], '411-417')
+        self.assertEqual(rec['2']['terms']['115-1']['sr'], '450-514')
+        self.assertNotIn('姓名不同', p._dialogs[-1])
+
     def test_T15_no_js_errors_across_tabs(self):
         p = self.open()
         fr = self.sr(p)

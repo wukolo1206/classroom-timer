@@ -240,6 +240,7 @@
           📁 匯入 Excel
           <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileUpload(event)">
         </label>
+        <button class="btn btn-light btn-sm" onclick="downloadTemplate()" title="下載已帶入班級名冊的空白試算表，填好 SR 後用「匯入 Excel」匯回">📄 下載空白範本</button>
         <button class="btn btn-light btn-sm" onclick="exportExcel()">📥 匯出試算表（.xlsx）</button>
         <button class="btn btn-light btn-sm" onclick="openClassSettings()">⚙️ 修改班級名冊</button>
       </div>
@@ -1028,6 +1029,42 @@
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  // 空白範本：帶入目前名冊與目前選的學期，老師填 SR 後直接匯入
+  function downloadTemplate() {
+    if (typeof XLSX === 'undefined') { alert('Excel 元件沒有載入（可能沒有網路）。'); return; }
+    if (!students.length) { alert('還沒有班級名冊，請先按「⚙️ 修改班級名冊」設定。'); return; }
+    const c = getClass();
+    const t = currentTermSel;
+    const rows = [
+      [SCHOOL_NAME + ' ' + c.className + ' 班 SR 登記表（' + termName(t) + '）'],
+      ['填好「SR(' + t + ')」欄後，到「📚 SR 閱讀小卡 → 📁 匯入 Excel」選這個檔案。表頭請不要修改。'],
+      [],
+      ['座號', '學生姓名', '測驗時間', '就讀年級', 'SR(' + t + ')']
+    ];
+    students.forEach(st => {
+      const e = entry(st.seatNum, t);
+      rows.push([st.seat, st.full, e.date || '', e.gradeLevel || defaultGradeLevel(t), e.sr || '']);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+    // 座號、SR 存成文字，避免 Excel 把 01 變成 1、把 411-417 當成日期或算式
+    Object.keys(ws).forEach(k => { if (k[0] !== '!' && ws[k].t === 's') ws[k].z = '@'; });
+    const guide = XLSX.utils.aoa_to_sheet([
+      ['怎麼填'], [],
+      ['1. 第 4 列是表頭，請不要修改（座號、學生姓名、測驗時間、就讀年級、SR(' + t + ')）。'],
+      ['2. SR 填單一數值（394）或範圍（411-417）；還沒測的留空白，匯入時不會蓋掉原有成績。'],
+      ['3. 匯入時依「座號」寫入；座號不在班級名冊的會略過並列出。'],
+      ['4. 「SR(' + t + ')」代表 ' + termName(t) + '；要登記別的學期，先在工具上切換學期再下載範本。'],
+      ['5. 測驗時間、就讀年級可以空白。']
+    ]);
+    guide['!cols'] = [{ wch: 90 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SR登記');
+    XLSX.utils.book_append_sheet(wb, guide, '填寫說明');
+    const safe = String(c.className || '班級').replace(/[\\/:*?"<>|]/g, '_');
+    XLSX.writeFile(wb, 'SR登記範本_' + safe + '_' + t + '.xlsx');
   }
 
   // 匯出：每個有成績的學期一組欄位，表頭格式可直接再匯入
