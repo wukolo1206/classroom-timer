@@ -1,6 +1,6 @@
 # CHANGELOG — 班級計時器
 
-## 408 GAS 版（index.html）— 新增「📚 SR 閱讀小卡」分頁，資料同步到 GAS（2026-10-10，本機完成，待部署）
+## 408 GAS @26（index.html）— 新增「📚 SR 閱讀小卡」分頁，資料同步到 GAS（2026-10-10）
 - 與全校版共用同一份 SR 原始檔（`sr-reading/sr-tool.html`），`tools/embed_sr.py` 一次嵌入 universal.html 與 index.html，並複製到 gas/index.html。
 - 名冊直接讀 408 內建 `seatRoster`（07 號空號），SR 分頁隱藏「修改班級名冊」，匯入也不提供改名冊（`ctuRosterReadOnly`）。
 - 資料：本機存 `c408_sr_records`（與全校版 `ctu_` 分開），修改後 1.2 秒整份送 GAS `saveSrRecords(json, savedAt)`；第一次開分頁先 `getSrRecords()`，本機有未同步且較新的修改就保留並補送，否則用雲端。寫入失敗 15 秒重試，分頁上方顯示 ☁ 已同步／⚠ 待同步／○ 本機模式。
