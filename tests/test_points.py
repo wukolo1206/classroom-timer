@@ -86,6 +86,7 @@ class Points(unittest.TestCase):
         p.locator('#points-history').click();self.assertGreaterEqual(p.locator('#points-history-list tr').count(),31)
         p.locator('#points-history-close').click();p.locator('#points-reset').click();p.wait_for_timeout(200)
         self.assertEqual(self.value(p),0);p.locator('#points-refresh').click();p.wait_for_timeout(150)
+        p.wait_for_function("document.getElementById('points-status').textContent.includes('已同步')")
         self.assertIn('已同步',p.locator('#points-status').inner_text())
     def test_cloud_response_lost_replay_no_duplicate(self):
         p=self.open(gas=True);p.evaluate("sessionStorage.setItem('__pointsLost','1')")
@@ -297,6 +298,7 @@ class Points(unittest.TestCase):
         p=self.open();self.batch_prepare(p)
         before=p.evaluate("localStorage.getItem('seatCheckRecords')")
         p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-modal.show').wait_for(state='visible')
         self.assertIn('2 位',p.locator('#seat-batch-points-summary').inner_text())
         p.locator('#seat-batch-points-delta').select_option('-2')
         p.locator('#seat-batch-points-confirm').click()
@@ -346,6 +348,7 @@ class Points(unittest.TestCase):
             localStorage.setItem('seatCheckRecords',JSON.stringify(records));
         }""")
         p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-modal.show').wait_for(state='visible')
         summary=p.locator('#seat-batch-points-summary').inner_text()
         self.assertIn('第1節',summary);self.assertIn('2 位',summary)
         self.assertNotIn('3 ',p.locator('#seat-batch-points-names').inner_text())

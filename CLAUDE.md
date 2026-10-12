@@ -2,10 +2,10 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @44／全校版 v1.20
+version: GAS @45／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室試用星期下拉、同列節次與批次扣點；原音量計、SR及Word待辦見handoff.md
-updated: 2026-10-12
+next_action: 教室實測放大座位格與角色點數；音量計與SR後續見handoff.md
+updated: 2026-10-13
 ---
 
 # CLAUDE.md — 班級計時器
