@@ -270,4 +270,96 @@ class Points(unittest.TestCase):
         p.locator('#points-history-close').click();p.reload();p.locator('#tab-points-btn').click()
         p.locator('#points-undo').click();self.assertEqual(self.value(p,1),0);self.assertEqual(self.value(p,2),0)
 
+    def seat_open(self,p,seat=1):
+        p.locator('#tab-seat-btn').click()
+        p.locator('#seat-modes button').first.click()
+        p.locator('#seat-chart button[data-seat="%s"]'%seat).click()
+        p.wait_for_selector('#seat-modal.show')
+
+    def test_seat_add_deduct_default_close_and_reset_draft(self):
+        p=self.open();self.seat_open(p)
+        self.assertEqual(p.locator('#seat-points-delta').input_value(),'0')
+        p.locator('#seat-points-delta').select_option('-2')
+        p.locator('#seat-modal-done').click()
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),-2)
+        self.seat_open(p,2);self.assertEqual(p.locator('#seat-points-delta').input_value(),'0')
+        p.locator('#seat-points-delta').select_option('3');p.locator('#seat-modal-done').click()
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p,2),3)
+        self.seat_open(p);p.locator('#seat-modal-done').click()
+        self.seat_open(p);p.locator('#seat-points-delta').select_option('5')
+        p.locator('#seat-modal-close').click();self.seat_open(p)
+        self.assertEqual(p.locator('#seat-points-delta').input_value(),'0')
+        p.locator('#seat-modal-close').click();p.locator('#tab-points-btn').click()
+        self.assertEqual(self.value(p),-2)
+        p.locator('#points-history').click()
+        self.assertIn('秩序登記',p.locator('#points-history-list').inner_text())
+
+    def test_seat_cold_start_and_existing_undo(self):
+        p=self.open();p.reload();self.seat_open(p)
+        p.locator('#seat-points-delta').select_option('3');p.locator('#seat-modal-done').click()
+        self.assertIn('本機',p.locator('#seat-points-feedback').inner_text())
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),3)
+        p.locator('#points-undo').click();self.assertEqual(self.value(p),0)
+
+    def test_seat_storage_failure_keeps_draft_and_retry(self):
+        p=self.open();self.seat_open(p)
+        p.evaluate("(() => {window.__originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw Error('quota');};})()")
+        p.locator('#seat-points-delta').select_option('-2');p.locator('#seat-modal-done').click()
+        self.assertTrue(p.locator('#seat-modal').is_visible())
+        self.assertIn('儲存',p.locator('#seat-points-error').inner_text())
+        self.assertEqual(p.locator('#seat-points-delta').input_value(),'-2')
+        p.evaluate('(() => {Storage.prototype.setItem=window.__originalSet;})()');p.locator('#seat-modal-done').click()
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),-2)
+
+    def test_seat_pending_reload_response_lost_and_duplicate(self):
+        p=self.open(gas=True);p.reload();self.seat_open(p)
+        p.evaluate("sessionStorage.setItem('__pointsLost','1')")
+        p.locator('#seat-points-delta').select_option('3');p.locator('#seat-modal-done').click()
+        p.wait_for_timeout(200)
+        self.assertIn('待同步',p.locator('#seat-points-feedback').inner_text())
+        batch=p.evaluate("JSON.parse(localStorage.getItem('c408_points_cloud/state')).pending[0]")
+        result=p.evaluate('b=>window.c408PointsFromSeat({seat:1,delta:3,id:b.id})',batch)
+        self.assertTrue(result['accepted']);self.assertTrue(result['duplicate'])
+        p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(300)
+        self.assertEqual(self.value(p),3)
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).events.length"),1)
+        result=p.evaluate('b=>window.c408PointsFromSeat({seat:1,delta:3,id:b.id})',batch)
+        self.assertTrue(result['duplicate']);self.assertEqual(self.value(p),3)
+
+    def test_seat_local_duplicate_validation_and_concurrent_tab_guard(self):
+        p=self.open()
+        request={'seat':1,'delta':3,'id':'seat-test-fixed'}
+        self.assertTrue(p.evaluate('b=>window.c408PointsFromSeat(b)',request)['accepted'])
+        self.assertTrue(p.evaluate('b=>window.c408PointsFromSeat(b)',request)['duplicate'])
+        self.assertEqual(self.value(p),3)
+        for seat,delta in [(7,1),(1,0),(1,6),(1,1.5)]:
+            self.assertFalse(p.evaluate('b=>window.c408PointsFromSeat(b)',dict(seat=seat,delta=delta,id='invalid'))['accepted'])
+        other=p.context.new_page();other.goto(self.url);other.locator('#tab-points-btn').click()
+        self.score(other,seat=2)
+        result=p.evaluate('b=>window.c408PointsFromSeat(b)',dict(seat=1,delta=2,id='stale-page'))
+        self.assertFalse(result['accepted']);self.assertIn('分頁',result['error'])
+        self.assertEqual(other.evaluate("JSON.parse(localStorage.getItem('c408_points_local/state')).bundle.events.length"),2)
+
+    def test_seat_original_count_immediate_and_close_never_submits(self):
+        p=self.open();self.seat_open(p)
+        p.locator('#seat-modal-list button').first.click()
+        before=p.evaluate("localStorage.getItem('seatCheckRecords')")
+        self.assertIsNotNone(before)
+        p.locator('#seat-points-delta').select_option('-2')
+        p.locator('#seat-modal').click(position={'x':5,'y':5})
+        self.assertEqual(p.evaluate("localStorage.getItem('seatCheckRecords')"),before)
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),0)
+
+    def test_seat_offline_reload_status_and_reconnect(self):
+        p=self.open(gas=True);self.seat_open(p)
+        p.evaluate("sessionStorage.setItem('__pointsFail','1')")
+        p.locator('#seat-points-delta').select_option('-2');p.locator('#seat-modal-done').click()
+        p.wait_for_timeout(200);p.reload();p.locator('#tab-seat-btn').click();p.wait_for_timeout(200)
+        self.assertIn('待同步',p.locator('#seat-points-feedback').inner_text())
+        self.assertIn('重新同步',p.locator('#seat-points-feedback').inner_text())
+        p.evaluate("sessionStorage.removeItem('__pointsFail')")
+        p.locator('#tab-points-btn').click();p.wait_for_timeout(300)
+        self.assertEqual(self.value(p),-2)
+        self.assertIn('已同步',p.locator('#seat-points-feedback').inner_text())
+
 if __name__=='__main__':unittest.main()

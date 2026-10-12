@@ -21,7 +21,7 @@
         }
         catch (_) { message('本機儲存失敗：請確認瀏覽器允許儲存並有足夠空間，再重試。這次操作尚未接受。'); return false; }
     }
-    function message(s) { el('points-message').textContent = s || ''; }
+    function message(s) { el('points-message').textContent = s || ''; if(s&&el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+s; }
     function settings() { return state.bundle.settings || state.defaults; }
     function seats() { return Object.keys(roster).map(Number).sort(function(a,b){return a-b;}); }
     function targets(list) { return list.map(function(n){return {seat:n,name:roster[n][0]};}); }
@@ -40,6 +40,7 @@
         el('points-status').textContent = cloud ? (state.pending.length ? '☁ 待同步 '+state.pending.length+' 筆'+(lastError?'（失敗）':'') : lastError ? '☁ 同步失敗' : busy ? '☁ 同步中' : '☁ 已同步'+(lastSync?' · '+lastSync:'')) : '○ 本機模式 · 僅保存在這台瀏覽器';
         el('points-undo').disabled = !state.lastUndo || !!state.pending.length;
         el('points-reset').disabled = !!state.pending.length;
+        if(el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+el('points-status').textContent+(cloud&&(state.pending.length||lastError)?' · 到「班級集點」按「重新同步」重試':'');
     }
     function allEvents() {
         var events = [], known = {};
@@ -105,4 +106,19 @@
         window.addEventListener('focus',function(){if(window.c408CurrentTab==='points'&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&window.c408CurrentTab==='points')sync(true);});setInterval(function(){if(window.c408CurrentTab==='points'&&!document.hidden&&!busy)sync(true);},15000);return true;
     }
     window.c408PointsShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsSeatShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsFromSeat=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Number.isInteger(request.seat)||!roster[request.seat]||!Number.isInteger(request.delta)||!request.delta||Math.abs(request.delta)>5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及加扣 1～5 點。'};
+        var pending=state.pending.find(function(b){return b.id===request.id;});
+        var confirmed=state.bundle.events.filter(function(e){return e.batchId===request.id;});
+        if(pending||confirmed.length){
+            var same=pending?pending.type==='score'&&pending.delta===request.delta&&pending.seats.length===1&&pending.seats[0].seat===request.seat:confirmed.length===1&&confirmed[0].type==='score'&&confirmed[0].seat===request.seat&&confirmed[0].delta===request.delta;
+            if(!same)return {accepted:false,error:'這個計分編號已用於不同操作，請關閉後重新開啟學生視窗。'};
+            status();return {accepted:true,duplicate:true};
+        }
+        var b={id:request.id,type:'score',seats:targets([request.seat]),itemId:'seat_points_'+(request.delta>0?'plus_':'minus_')+Math.abs(request.delta),label:'秩序登記：'+(request.delta>0?'加點':'扣點'),delta:request.delta,device:state.device,time:new Date().toISOString()};
+        if(!enqueue(b))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次集點尚未接受。'};
+        animate([request.seat],request.delta);status();return {accepted:true,duplicate:false};
+    };
 })();

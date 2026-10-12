@@ -1073,6 +1073,7 @@
             <span id="seat-sync-status" class="ml-auto text-slate-400 text-sm"></span>
             <span id="seat-check-date" class="text-slate-400 text-sm"></span>
         </div>
+        <div id="seat-points-feedback" class="mb-4 text-sm font-semibold text-violet-700" role="status" aria-live="polite"></div>
 
         <div class="flex flex-col lg:flex-row gap-6">
 
@@ -1502,9 +1503,19 @@
         <div id="seat-modal-duty" class="text-slate-400 text-sm mb-4"></div>
         <div class="text-slate-500 text-sm mb-2">點項目增加 1 次；按右側「減 1」可修正誤按：</div>
         <div id="seat-modal-list" class="flex flex-col gap-2"></div>
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
+            <label for="seat-points-delta" class="block text-violet-800 font-bold mb-2">學生點數（按確定才計分）</label>
+            <select id="seat-points-delta" class="w-full rounded-lg border border-violet-300 bg-white px-3 py-2 text-lg font-bold text-violet-800">
+                <option value="0">不計點</option>
+                <option value="1">加 1 點</option><option value="2">加 2 點</option><option value="3">加 3 點</option><option value="4">加 4 點</option><option value="5">加 5 點</option>
+                <option value="-1">扣 1 點</option><option value="-2">扣 2 點</option><option value="-3">扣 3 點</option><option value="-4">扣 4 點</option><option value="-5">扣 5 點</option>
+            </select>
+            <div id="seat-points-error" class="mt-2 text-sm text-red-700" role="alert"></div>
+        </div>
         <div class="flex gap-3 justify-between items-center mt-5">
             <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人本節紀錄</button>
-            <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">完成</button>
+            <button id="seat-modal-close" class="px-3 py-2 text-slate-500 rounded-lg font-semibold">關閉</button>
+            <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">確定</button>
         </div>
     </div>
 </div>
@@ -2066,6 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'seat') {
             stopCleaningCountdown(); stopExamClock();
             seatResetAuto(); renderSeatDateTabs(); updateSeatDate(); renderSeatChart(); seatSyncPull();
+            if (window.c408PointsSeatShow) window.c408PointsSeatShow();
         } else if (tab === 'points') {
             stopCleaningCountdown(); stopExamClock();
             if (window.c408PointsShow) window.c408PointsShow();
@@ -3764,6 +3776,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     var seatMode = null;   // null = 開勾選視窗；否則為快速登記的項目 key
     var seatModalNum = null;
+    var seatPointsDraftId = null;
     var seatItems = loadSeatItems();
     var seatItemsDraft = [];
     var seatLayout = parseSeatLayout(localStorage.getItem('seatLayout') || defaultSeatLayoutText);
@@ -4001,7 +4014,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 座位登記 modal
         var seatModal = document.getElementById('seat-modal');
-        document.getElementById('seat-modal-done').addEventListener('click', closeSeatModal);
+        document.getElementById('seat-modal-done').addEventListener('click', confirmSeatModal);
+        document.getElementById('seat-modal-close').addEventListener('click', closeSeatModal);
         document.getElementById('seat-modal-pass').addEventListener('click', function () {
             if (seatModalSlot === null) return;
             seatClearSlot(seatModalSlot, seatModalNum);
@@ -4502,6 +4516,9 @@ document.addEventListener('DOMContentLoaded', () => {
         var slot = seatActiveSlot();
         if (slot === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
         seatModalNum = num;
+        seatPointsDraftId = 'seat_points_' + Date.now().toString(36) + Math.random().toString(36).slice(2,11);
+        document.getElementById('seat-points-delta').value = '0';
+        document.getElementById('seat-points-error').textContent = '';
         seatModalSlot = slot;   // 彈窗開著時自動換節暫停，彈窗內的加減都記到這個時段
         var info = seatRoster[num];
         document.getElementById('seat-modal-num').textContent = num;
@@ -4510,9 +4527,23 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
+    function confirmSeatModal() {
+        if (seatModalNum === null || !seatPointsDraftId) return;
+        var delta = Number(document.getElementById('seat-points-delta').value);
+        if (delta === 0) { closeSeatModal(); return; }
+        var result;
+        try {
+            result = window.c408PointsFromSeat({seat:seatModalNum,delta:delta,id:seatPointsDraftId});
+        } catch (_) {
+            result = {accepted:false,error:'集點暫時無法接受操作，請保留視窗後重試。'};
+        }
+        if (result && result.accepted) closeSeatModal();
+        else document.getElementById('seat-points-error').textContent = result && result.error || '集點尚未接受操作，請重試。';
+    }
     function closeSeatModal() {
         document.getElementById('seat-modal').classList.remove('show');
         seatModalNum = null;
+        seatPointsDraftId = null;
         seatModalSlot = null;
         seatAutoTick();
     }
@@ -8478,7 +8509,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         catch (_) { message('本機儲存失敗：請確認瀏覽器允許儲存並有足夠空間，再重試。這次操作尚未接受。'); return false; }
     }
-    function message(s) { el('points-message').textContent = s || ''; }
+    function message(s) { el('points-message').textContent = s || ''; if(s&&el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+s; }
     function settings() { return state.bundle.settings || state.defaults; }
     function seats() { return Object.keys(roster).map(Number).sort(function(a,b){return a-b;}); }
     function targets(list) { return list.map(function(n){return {seat:n,name:roster[n][0]};}); }
@@ -8497,6 +8528,7 @@ document.addEventListener('DOMContentLoaded', () => {
         el('points-status').textContent = cloud ? (state.pending.length ? '☁ 待同步 '+state.pending.length+' 筆'+(lastError?'（失敗）':'') : lastError ? '☁ 同步失敗' : busy ? '☁ 同步中' : '☁ 已同步'+(lastSync?' · '+lastSync:'')) : '○ 本機模式 · 僅保存在這台瀏覽器';
         el('points-undo').disabled = !state.lastUndo || !!state.pending.length;
         el('points-reset').disabled = !!state.pending.length;
+        if(el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+el('points-status').textContent+(cloud&&(state.pending.length||lastError)?' · 到「班級集點」按「重新同步」重試':'');
     }
     function allEvents() {
         var events = [], known = {};
@@ -8562,6 +8594,21 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('focus',function(){if(window.c408CurrentTab==='points'&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&window.c408CurrentTab==='points')sync(true);});setInterval(function(){if(window.c408CurrentTab==='points'&&!document.hidden&&!busy)sync(true);},15000);return true;
     }
     window.c408PointsShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsSeatShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsFromSeat=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Number.isInteger(request.seat)||!roster[request.seat]||!Number.isInteger(request.delta)||!request.delta||Math.abs(request.delta)>5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及加扣 1～5 點。'};
+        var pending=state.pending.find(function(b){return b.id===request.id;});
+        var confirmed=state.bundle.events.filter(function(e){return e.batchId===request.id;});
+        if(pending||confirmed.length){
+            var same=pending?pending.type==='score'&&pending.delta===request.delta&&pending.seats.length===1&&pending.seats[0].seat===request.seat:confirmed.length===1&&confirmed[0].type==='score'&&confirmed[0].seat===request.seat&&confirmed[0].delta===request.delta;
+            if(!same)return {accepted:false,error:'這個計分編號已用於不同操作，請關閉後重新開啟學生視窗。'};
+            status();return {accepted:true,duplicate:true};
+        }
+        var b={id:request.id,type:'score',seats:targets([request.seat]),itemId:'seat_points_'+(request.delta>0?'plus_':'minus_')+Math.abs(request.delta),label:'秩序登記：'+(request.delta>0?'加點':'扣點'),delta:request.delta,device:state.device,time:new Date().toISOString()};
+        if(!enqueue(b))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次集點尚未接受。'};
+        animate([request.seat],request.delta);status();return {accepted:true,duplicate:false};
+    };
 })();
 </script>
 <!-- POINTS_SCRIPT_END -->
