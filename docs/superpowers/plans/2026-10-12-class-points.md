@@ -14,7 +14,7 @@
 
 `commitPointBatch(batch)` 其中 batch `{id,type:'score'|'undo'|'reset',seats:[{seat,name}],itemId,label,delta,originalBatchId,device}`；回傳完整 bundle。score 以 batch.id + ':' + seat 去重；undo 以 'undo:' + originalBatchId 作唯一批次並由伺服器計算；reset 重送維持原批次，按雲端現值計算。舊操作內容不符拒絕。
 
-`savePointSettings(settings, revision)` 回傳 `{settings,revision}`。設定 `{items:[{id,label,delta}],avatars:{seat:0..7},groups:[{id,name,seats:[number]}],muted:boolean}`。若修訂衝突則失敗，前端保留草稿提示重載。
+`savePointSettings(settings, revision)` 回傳 `{settings,revision}`。設定 `{items:[{id,label,delta}],avatars:{seat:0..23},groups:[{id,name,seats:[number]}],muted:boolean}`（@39 擴充角色，0～7 保留）。若修訂衝突則失敗，前端保留草稿提示重載。
 
 ## Task 1：後端與可靠記帳
 

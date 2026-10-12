@@ -112,21 +112,59 @@ class Points(unittest.TestCase):
         p=self.open();self.score(p);self.assertEqual(self.value(p),1)
         p.context.add_init_script(MOCK);p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(200)
         self.assertEqual(self.value(p),0)
-    def test_settings_groups_avatar_and_custom_delta(self):
+    def test_settings_groups_avatar_and_quick_five(self):
         p=self.open(gas=True);p.locator('#points-settings').click()
-        p.locator('#points-settings-items input[aria-label="項目分值"]').first.fill('3')
         p.locator('#points-settings-groups input[aria-label="小組成員座號"]').first.fill('1,2')
-        p.locator('#points-settings-avatars select').first.select_option('7')
+        p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="7"]').click()
         p.locator('#points-settings-save').click();p.wait_for_timeout(200)
         p.locator('#points-view-groups').click();p.locator('#points-groups button').first.click()
-        p.locator('#points-award-items button').first.click();p.wait_for_timeout(200)
-        p.locator('#points-view-students').click();self.assertEqual(self.value(p,1),3);self.assertEqual(self.value(p,2),3)
-        p.locator('#points-view-groups').click();self.assertIn('6 點',p.locator('#points-groups').inner_text())
+        p.locator('#points-award-items button').nth(4).click();p.wait_for_timeout(200)
+        p.locator('#points-view-students').click();self.assertEqual(self.value(p,1),5);self.assertEqual(self.value(p,2),5)
+        p.locator('#points-view-groups').click();self.assertIn('10 點',p.locator('#points-groups').inner_text())
         p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(150)
-        p.locator('#points-settings').click();self.assertEqual(p.locator('#points-settings-avatars select').first.input_value(),'7')
+        p.locator('#points-settings').click();self.assertEqual(p.locator('#points-settings-avatars .points-avatar-picker').first.get_attribute('data-avatar'),'7')
     def test_desktop_all_students_fit(self):
         p=self.open();p.set_viewport_size({'width':1366,'height':768})
         self.assertLessEqual(p.locator('#points-students .points-card').last.bounding_box()['y']+p.locator('#points-students .points-card').last.bounding_box()['height'],768)
+    def test_avatar_gallery_twenty_four_and_saved_selection(self):
+        p=self.open(gas=True);p.locator('#points-settings').click()
+        p.locator('#points-settings-avatars .points-avatar-picker').first.click(timeout=3000)
+        self.assertEqual(p.locator('#points-avatar-gallery .points-avatar-choice').count(),24)
+        p.locator('#points-avatar-gallery [data-avatar="23"]').click()
+        self.assertFalse(p.locator('#points-avatar-modal').is_visible())
+        p.locator('#points-settings-save').click();p.wait_for_timeout(200)
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).settings.avatars['1']"),23)
+        p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(150)
+        p.locator('#points-settings').click();p.locator('#points-settings-avatars .points-avatar-picker').first.click()
+        self.assertEqual(p.locator('#points-avatar-gallery [aria-pressed="true"]').get_attribute('data-avatar'),'23')
+    def test_award_animates_selected_character(self):
+        p=self.open();self.score(p,1,4)
+        card=p.locator('[data-point-seat="1"]')
+        self.assertTrue(card.evaluate("n=>n.classList.contains('points-celebrate')"))
+        self.assertGreater(card.locator('svg').evaluate('n=>n.getAnimations().length'),0)
+        self.assertFalse(p.locator('[data-point-seat="2"]').evaluate("n=>n.classList.contains('points-celebrate')"))
+        p.wait_for_timeout(1200)
+        self.assertFalse(card.evaluate("n=>n.classList.contains('points-celebrate')"))
+    def test_avatar_selection_preserves_muted_draft(self):
+        p=self.open();p.locator('#points-settings').click();p.locator('#points-settings-muted').check()
+        p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="23"]').click()
+        self.assertTrue(p.locator('#points-settings-muted').is_checked())
+        p.locator('#points-settings-save').click()
+        self.assertTrue(p.evaluate("JSON.parse(localStorage.getItem('c408_points_local/state')).bundle.settings.muted"))
+    def test_avatar_selection_restores_keyboard_focus(self):
+        p=self.open();p.locator('#points-settings').click()
+        p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="23"]').click()
+        self.assertTrue(p.locator('#points-settings-avatars .points-avatar-picker').first.evaluate('n=>document.activeElement===n'))
+    def test_auction_single_charge_and_undo(self):
+        for gas in [False,True]:
+            p=self.open(gas=gas);p.locator('[data-point-seat="1"]').click();p.locator('#points-award-negative').click()
+            p.locator('#points-auction-value').fill('120',timeout=3000)
+            p.locator('#points-auction-submit').click();p.wait_for_timeout(200)
+            self.assertEqual(self.value(p),-120)
+            p.locator('#points-undo').click();p.wait_for_timeout(200);self.assertEqual(self.value(p),0)
+            p.locator('[data-point-seat="1"]').click();p.locator('#points-award-negative').click()
+            p.locator('#points-auction-value').fill('0');p.locator('#points-auction-submit').click()
+            self.assertEqual(self.value(p),0);self.assertTrue(p.locator('#points-award').is_visible())
     def test_repeated_undo_survives_reload(self):
         for gas in [False,True]:
             p=self.open(gas=gas);self.score(p);self.score(p)
@@ -151,11 +189,11 @@ class Points(unittest.TestCase):
         self.assertEqual(self.value(p,1),0);self.assertEqual(self.value(p,2),0)
     def test_queued_settings_save_keeps_original_revision(self):
         p=self.open(gas=True);p.locator('#points-settings').click()
-        p.locator('#points-settings-items input[aria-label="項目名稱"]').first.fill('OLD STALE DRAFT')
+        p.locator('#points-settings-groups input[aria-label="小組名稱"]').first.fill('OLD STALE DRAFT')
         p.evaluate("""() => {
             const b=JSON.parse(sessionStorage.getItem('__points_cloud'));
             b.settings=JSON.parse(localStorage.getItem('c408_points_cloud/state')).defaults;
-            b.settings.items[0].label='REMOTE NEW';b.revision++;
+            b.settings.groups[0].name='REMOTE NEW';b.revision++;
             sessionStorage.setItem('__points_cloud',JSON.stringify(b));
             sessionStorage.setItem('__pointsDelay','600');
             document.getElementById('points-refresh').click();
@@ -164,24 +202,35 @@ class Points(unittest.TestCase):
         p.locator('[data-point-seat="1"]').click();p.locator('#points-award-items button').first.click()
         p.wait_for_timeout(700);p.locator('#points-settings').click()
         p.wait_for_timeout(2000)
-        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).settings.items[0].label"),'REMOTE NEW')
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).settings.groups[0].name"),'REMOTE NEW')
         self.assertTrue(p.locator('#points-settings-modal').is_visible())
         self.assertIn('已被其他裝置更新',p.locator('#points-settings-message').inner_text())
     def test_settings_conflict_keeps_draft(self):
         p=self.open(gas=True);p.locator('#points-settings').click()
-        p.locator('#points-settings-items input[aria-label="項目名稱"]').first.fill('新的鼓勵項目')
+        p.locator('#points-settings-groups input[aria-label="小組名稱"]').first.fill('新的鼓勵項目')
         p.evaluate("const b=JSON.parse(sessionStorage.getItem('__points_cloud')); b.revision++; sessionStorage.setItem('__points_cloud',JSON.stringify(b))")
         p.locator('#points-settings-save').click();p.wait_for_timeout(150)
         self.assertTrue(p.locator('#points-settings-modal').is_visible())
-        self.assertEqual(p.locator('#points-settings-items input[aria-label="項目名稱"]').first.input_value(),'新的鼓勵項目')
+        self.assertEqual(p.locator('#points-settings-groups input[aria-label="小組名稱"]').first.input_value(),'新的鼓勵項目')
         self.assertTrue(p.locator('#points-settings-reload').is_visible())
-    def test_local_settings_require_both_signs(self):
-        p=self.open();p.locator('#points-settings').click()
-        for i in range(p.locator('#points-settings-items input[aria-label="項目分值"]').count()):
-            p.locator('#points-settings-items input[aria-label="項目分值"]').nth(i).fill('1')
-        p.locator('#points-settings-save').click();p.wait_for_timeout(100)
-        self.assertTrue(p.locator('#points-settings-modal').is_visible())
-        self.assertIn('扣點',p.locator('#points-settings-message').inner_text())
+    def test_quick_points_one_to_five_without_reason(self):
+        for gas in [False,True]:
+            p=self.open(gas=gas);expected=0
+            for sign in [1,-1]:
+                for n in range(1,6):
+                    p.locator('[data-point-seat="1"]').click()
+                    if sign<0:p.locator('#points-award-negative').click()
+                    buttons=p.locator('#points-award-items button')
+                    self.assertEqual(buttons.all_text_contents(),[(('+' if sign>0 else '−')+str(i)) for i in range(1,6)])
+                    self.assertEqual(p.locator('#points-award input:not(#points-auction-value)').count(),0)
+                    buttons.nth(n-1).click();p.wait_for_timeout(120)
+                    expected+=sign*n;self.assertEqual(self.value(p),expected)
+            p.locator('#points-settings').click()
+            self.assertFalse(p.locator('#points-settings-items').is_visible())
+            p.locator('#points-settings-cancel').click()
+            key='c408_points_cloud/state' if gas else 'c408_points_local/state'
+            labels=p.evaluate("key=>JSON.parse(localStorage.getItem(key)).bundle.events.map(e=>e.label)",key)
+            self.assertEqual(labels,['加點']*5+['扣點']*5)
     def test_group_members_reject_duplicates(self):
         p=self.open();p.locator('#points-settings').click()
         inputs=p.locator('#points-settings-groups input[aria-label="小組成員座號"]')

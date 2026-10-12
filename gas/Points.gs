@@ -59,7 +59,11 @@ function pointBatch_(batch) {
   if (type === 'score') {
     request.itemId = pointId_(batch.itemId);
     request.label = pointText_(batch.label, 80, '項目名稱');
-    request.delta = pointDelta_(batch.delta);
+    if (request.itemId === 'auction') {
+      if (typeof batch.delta !== 'number' || !Number.isInteger(batch.delta) || batch.delta >= 0 || batch.delta < -1000000) pointError_('拍賣扣點須為 1 到 1000000 的正整數');
+      request.delta = batch.delta;
+      request.label = '拍賣扣點';
+    } else request.delta = pointDelta_(batch.delta);
   }
   return {request:request, device:device};
 }
@@ -195,7 +199,7 @@ function pointValidateSettings_(settings) {
   var avatars = {};
   Object.keys(settings.avatars).forEach(function (key) {
     var seat = pointSeat_(Number(key)).seat, avatar = settings.avatars[key];
-    if (String(seat) !== key || !Number.isInteger(avatar) || avatar < 0 || avatar > 7) pointError_('角色格式不正確');
+    if (String(seat) !== key || !Number.isInteger(avatar) || avatar < 0 || avatar > 23) pointError_('角色格式不正確');
     avatars[key] = avatar;
   });
   var grouped = {}, groupIds = {};

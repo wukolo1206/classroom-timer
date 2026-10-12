@@ -28,6 +28,23 @@ function score(id, delta=1, seats=[1,2], device='A') {return {id,type:'score',se
 function total(bundle, seat) {return bundle.events.filter(e=>e.seat===seat).reduce((n,e)=>n+e.delta,0);}
 let count=0;
 function test(name, fn) {fn(); count++; console.log('PASS '+name);}
+
+test('expanded avatar settings allow index 23 and reject 24', () => {
+  const e=env(), settings=JSON.parse(JSON.stringify(e.ctx.getPointBundle().settings));
+  settings.avatars['1']=23;
+  assert.equal(e.ctx.savePointSettings(settings,0).settings.avatars['1'],23);
+  settings.avatars['1']=24;
+  assert.throws(()=>e.ctx.savePointSettings(settings,1),/角色/);
+});
+
+test('auction charges 120 once, rejects positive or fractional amount, undo restores', () => {
+  const e=env(), b={...score('auction120',-120,[1]),itemId:'auction',label:'拍賣扣點'};
+  let out=e.ctx.commitPointBatch(b);assert.equal(total(out,1),-120);
+  out=e.ctx.commitPointBatch(b);assert.equal(total(out,1),-120);
+  assert.throws(()=>e.ctx.commitPointBatch({...b,id:'bad1',delta:120}));
+  assert.throws(()=>e.ctx.commitPointBatch({...b,id:'bad2',delta:-1.2}));
+  out=e.ctx.commitPointBatch({type:'undo',originalBatchId:b.id,device:'A'});assert.equal(total(out,1),0);
+});
 test('sheet RPCs flush while held before release, including partial exceptions', () => {
   const e=env(); e.ctx.getPointBundle();
   assert.deepEqual(e.lockTrace,['acquire','flush','release']);
@@ -129,7 +146,7 @@ test('settings default, CAS, both signs, avatars, groups and bounded size', () =
   const s={items:[{id:'plus',label:'認真',delta:1},{id:'minus',label:'秩序',delta:-1}],avatars:{1:7},groups:[{id:'g1',name:'一組',seats:[1,2]}],muted:false};
   assert.equal(e.ctx.savePointSettings(s,0).revision,1);
   assert.throws(()=>e.ctx.savePointSettings(s,0),/衝突/);
-  [{...s,items:[s.items[0]]},{...s,avatars:{1:8}},{...s,groups:[...s.groups,{id:'g2',name:'二組',seats:[1]}]},{...s,muted:'yes'}].forEach(x=>assert.throws(()=>e.ctx.savePointSettings(x,1)));
+  [{...s,items:[s.items[0]]},{...s,avatars:{1:24}},{...s,groups:[...s.groups,{id:'g2',name:'二組',seats:[1]}]},{...s,muted:'yes'}].forEach(x=>assert.throws(()=>e.ctx.savePointSettings(x,1)));
   assert.equal(e.ctx.getPointBundle().revision,1);
 });
 test('formula text is escaped in sheet and round trips', () => {
