@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @39／全校版 v1.20
+version: GAS @40／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室實機試用拍賣扣點、1～5 快捷按鈕、角色圖鑑與寬版；原音量計、秩序分節、SR 及 Word 說明待辦保留
+next_action: 教室試用音效與儲存提示；截圖點數已同步，全班1654點；原音量計、秩序分節、SR及Word說明待辦保留
 updated: 2026-10-12
 ---
 

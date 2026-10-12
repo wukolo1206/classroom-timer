@@ -10,8 +10,8 @@ var POINT_SHEET_NAME = '班級集點紀錄';
 var POINT_SPREADSHEET_ID = '19zxbbVSalkk4OzfVYDWYVwDUKJyyvCBJD_NdKGHKfJA';
 var POINT_HEADERS = ['事件編號', '批次編號', '紀錄時間', '座號', '姓名', '項目代碼', '項目名稱', '分值', '操作類型', '原批次編號', '來源裝置'];
 var POINT_SETTINGS_KEY = 'pointSettings';
-// Copied from Code.gs handleSh150Post_ students; seat 7 intentionally absent.
-var POINT_ROSTER = [[1,'游濬謙'],[2,'李晨睿'],[3,'王柏勛'],[4,'劉宸燁'],[5,'鄭又仁'],[6,'簡宇辰'],[8,'楊晨熙'],[9,'林宏哲'],[10,'李亦修'],[11,'汪昱辰'],[12,'李宸緯'],[13,'陳冠宇'],[14,'李茗堃'],[15,'林祐辰'],[16,'蔡秉浩'],[17,'蔡菲芸'],[18,'陳依婕'],[19,'陳依錡'],[20,'柯祉妤'],[21,'程旻薰'],[22,'陳玥筑'],[23,'王梓羽'],[24,'黃庭蓁'],[25,'李玉琳'],[26,'黃樂芙'],[27,'林忻'],[28,'沈盈萱'],[29,'游禧羽'],[30,'沈芷心'],[31,'吳玟熙'],[32,'吳芊妤']];
+// Copied from index.html seatRoster; seat 7 intentionally absent.
+var POINT_ROSTER = [[1,'游濬謙'],[2,'李晨睿'],[3,'王柏勛'],[4,'劉宸燁'],[5,'鄭又仁'],[6,'簡宇辰'],[8,'楊晨熙'],[9,'林宏哲'],[10,'李亦修'],[11,'汪昱辰'],[12,'李宸緯'],[13,'陳冠宇'],[14,'李茗堃'],[15,'林祐辰'],[16,'蔡秉浩'],[17,'蔡菲芸'],[18,'陳依婕'],[19,'陳依綺'],[20,'柯祉妤'],[21,'程旻薰'],[22,'陳玥筑'],[23,'王梓羽'],[24,'黃庭蓁'],[25,'李玉琳'],[26,'黃樂芙'],[27,'林忻'],[28,'沈盈萱'],[29,'游穠羽'],[30,'沈芷心'],[31,'吳苡熙'],[32,'吳芊妤']];
 
 function pointError_(message) { throw new Error('永久：' + message); }
 function pointText_(value, max, field) {
@@ -46,7 +46,7 @@ function pointTargets_(seats) {
 function pointBatch_(batch) {
   if (!batch || typeof batch !== 'object') pointError_('批次格式不正確');
   var type = batch.type;
-  if (['score','undo','reset'].indexOf(type) < 0) pointError_('操作類型不正確');
+  if (['score','undo','reset','balance'].indexOf(type) < 0) pointError_('操作類型不正確');
   var device = pointText_(batch.device, 100, '裝置');
   if (type === 'undo') {
     var original = pointId_(batch.originalBatchId);
@@ -56,6 +56,15 @@ function pointBatch_(batch) {
   var id = pointId_(batch.id);
   if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
+  if (type === 'balance') {
+    if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
+    request.totals = {};
+    request.seats.forEach(function (target) {
+      var total = batch.totals[target.seat];
+      if (!Object.prototype.hasOwnProperty.call(batch.totals, String(target.seat)) || typeof total !== 'number' || !Number.isInteger(total) || Math.abs(total) > 1000000) pointError_('總分須為 -1000000 到 1000000 的整數');
+      request.totals[target.seat] = total;
+    });
+  }
   if (type === 'score') {
     request.itemId = pointId_(batch.itemId);
     request.label = pointText_(batch.label, 80, '項目名稱');
@@ -96,7 +105,7 @@ function pointRead_(sheet) {
       if (!m || !m.request || !Array.isArray(m.events) || m.request.id !== r[1] || r[0] !== 'manifest:' + r[1]) pointError_('集點批次資料損壞');
       manifests.push(m);
     } else {
-      if (['score','undo','reset'].indexOf(r[8]) < 0 || typeof r[7] !== 'number' || !Number.isSafeInteger(r[7])) pointError_('集點紀錄格式損壞');
+      if (['score','undo','reset','balance'].indexOf(r[8]) < 0 || typeof r[7] !== 'number' || !Number.isSafeInteger(r[7])) pointError_('集點紀錄格式損壞');
       var student = pointSeat_(r[3]);
       if (student.name !== r[4] || r[0] !== r[1] + ':' + r[3]) pointError_('集點紀錄名冊或編號損壞');
       events.push({id:r[0],batchId:r[1],time:r[2] instanceof Date ? r[2].toISOString() : String(r[2]),seat:r[3],name:r[4],itemId:r[5],label:r[6],delta:r[7],type:r[8],originalBatchId:r[9],device:r[10]});
@@ -127,7 +136,7 @@ function pointComplete_(sheet, data) {
   }
 }
 function pointDefaultSettings_() {
-  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false};
+  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false,sound:'chime'};
 }
 function pointSettings_() {
   var raw = PropertiesService.getDocumentProperties().getProperty(POINT_SETTINGS_KEY);
@@ -170,9 +179,9 @@ function commitPointBatch(batch) {
     var time = new Date().toISOString();
     var events = targets.map(function (target, index) {
       var original = originals[index];
-      var delta = request.type === 'score' ? request.delta : request.type === 'undo' ? -original.delta : -(totals[target.seat] || 0);
+      var delta = request.type === 'score' ? request.delta : request.type === 'undo' ? -original.delta : request.type === 'balance' ? request.totals[target.seat] - (totals[target.seat] || 0) : -(totals[target.seat] || 0);
       if (!Number.isSafeInteger(delta)) pointError_('總分超出整數安全範圍');
-      return {id:request.id + ':' + target.seat,batchId:request.id,time:time,seat:target.seat,name:target.name,itemId:request.type === 'score' ? request.itemId : request.type === 'undo' ? original.itemId : 'reset',label:request.type === 'score' ? request.label : request.type === 'undo' ? original.label : '點數歸零',delta:delta,type:request.type,originalBatchId:request.originalBatchId || '',device:clean.device};
+      return {id:request.id + ':' + target.seat,batchId:request.id,time:time,seat:target.seat,name:target.name,itemId:request.type === 'score' ? request.itemId : request.type === 'undo' ? original.itemId : request.type === 'balance' ? 'balance' : 'reset',label:request.type === 'score' ? request.label : request.type === 'undo' ? original.label : request.type === 'balance' ? '點數設定' : '點數歸零',delta:delta,type:request.type,originalBatchId:request.originalBatchId || '',device:clean.device};
     });
     var manifest = {request:request,events:events};
     var json = JSON.stringify(manifest);
@@ -187,6 +196,8 @@ function commitPointBatch(batch) {
 }
 function pointValidateSettings_(settings) {
   if (!settings || typeof settings !== 'object' || !Array.isArray(settings.items) || !settings.items.length || settings.items.length > 40 || !Array.isArray(settings.groups) || settings.groups.length > 16 || !settings.avatars || Array.isArray(settings.avatars) || typeof settings.avatars !== 'object' || typeof settings.muted !== 'boolean') pointError_('集點設定格式不正確');
+  var sound = typeof settings.sound === 'undefined' ? 'chime' : settings.sound;
+  if (['chime','dingdong','levelup','sparkle'].indexOf(sound) < 0) pointError_('音效設定不正確');
   var ids = {}, positive = false, negative = false;
   var items = settings.items.map(function (item) {
     if (!item) pointError_('項目格式不正確');
@@ -214,7 +225,7 @@ function pointValidateSettings_(settings) {
     }).sort(function (a,b) {return a-b;});
     return {id:id,name:pointText_(group.name,40,'組名'),seats:seats};
   });
-  return {items:items,avatars:avatars,groups:groups,muted:settings.muted};
+  return {items:items,avatars:avatars,groups:groups,muted:settings.muted,sound:sound};
 }
 function savePointSettings(settings, revision) {
   var clean = pointValidateSettings_(settings);

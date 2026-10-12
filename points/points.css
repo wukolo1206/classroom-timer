@@ -13,3 +13,5 @@
 @media(hover:hover){#panel-points .points-card:hover{transform:translateY(-3px);border-color:#7666df!important;box-shadow:0 10px 24px #6556dc30}}
 #panel-points .points-card:focus-visible{outline:3px solid #6556dc;outline-offset:3px}
 @media(prefers-reduced-motion:reduce){#panel-points .points-card{transition:none}#panel-points .points-card:hover{transform:none}}
+
+.points-class-total{font-size:16px;font-weight:700;color:#6556dc;white-space:nowrap}.points-settings-feedback{color:#536784;font-size:14px;line-height:1.6;margin:12px 0}.points-settings-feedback.points-save-error{color:#b33a29}.points-modal button:disabled{opacity:.6;cursor:wait}

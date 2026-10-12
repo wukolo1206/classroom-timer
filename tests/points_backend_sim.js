@@ -29,6 +29,68 @@ function total(bundle, seat) {return bundle.events.filter(e=>e.seat===seat).redu
 let count=0;
 function test(name, fn) {fn(); count++; console.log('PASS '+name);}
 
+function balance(id='import-dojo', totals={1:46,2:26}) {
+  return {id,type:'balance',seats:score('x').seats,totals,device:'A'};
+}
+test('balance sets absolute totals from existing awards and keeps all history', () => {
+  const e=env(); e.ctx.commitPointBatch(score('before',3));
+  const before=JSON.stringify(e.rows);
+  const out=e.ctx.commitPointBatch(balance());
+  assert.equal(total(out,1),46); assert.equal(total(out,2),26);
+  assert.equal(out.events.length,4);
+  assert.ok(out.events.slice(2).every(x=>x.type==='balance'&&x.itemId==='balance'&&x.label==='點數設定'));
+  assert.equal(JSON.stringify(e.rows.slice(0,4)),before);
+  assert.ok(e.rows.every(r=>r.length===11));
+  assert.ok(e.touched.every(x=>x==='班級集點紀錄'));
+  assert.throws(()=>e.ctx.commitPointBatch({type:'undo',originalBatchId:'import-dojo',device:'A'}),/復原/);
+});
+test('balance retry preserves subsequent scores and rejects changed targets', () => {
+  const e=env(), b=balance(); e.ctx.commitPointBatch(b);
+  e.ctx.commitPointBatch(score('after',2));
+  const out=e.ctx.commitPointBatch({...b,seats:b.seats.slice().reverse(),totals:{2:26,1:46}});
+  assert.equal(total(out,1),48); assert.equal(total(out,2),28);
+  assert.equal(out.events.length,4);
+  assert.throws(()=>e.ctx.commitPointBatch(balance('import-dojo',{1:47,2:26})),/衝突/);
+});
+test('partial balance recovers before another device awards points', () => {
+  const e=env(); e.ctx.commitPointBatch(score('before',3)); e.fail(2);
+  assert.throws(()=>e.ctx.commitPointBatch(balance()),/simulated/); e.fail(0);
+  let out=e.ctx.commitPointBatch(score('after',2,[1],'B'));
+  assert.equal(total(out,1),48); assert.equal(total(out,2),26);
+  out=e.ctx.commitPointBatch(balance());
+  assert.equal(total(out,1),48); assert.equal(out.events.filter(x=>x.type==='balance').length,2);
+});
+test('balance includes immutable zero marker and validates matching bounded integer totals', () => {
+  const e=env(); e.ctx.commitPointBatch(score('before',46,[1]));
+  const b=balance('zero-delta');
+  const out=e.ctx.commitPointBatch(b);
+  assert.equal(out.events.find(x=>x.type==='balance'&&x.seat===1).delta,0);
+  e.ctx.commitPointBatch(score('after',1,[1]));
+  assert.equal(total(e.ctx.commitPointBatch(b),1),47);
+  [null,[],{1:46},{1:46,2:26,3:0},{1:46.5,2:26},{1:'46',2:26},{1:1000001,2:26},{1:46,2:NaN}].forEach(totals=>assert.throws(()=>e.ctx.commitPointBatch(balance('bad',totals)),/總分/));
+  const negative=e.ctx.commitPointBatch(balance('negative',{1:-1000000,2:1000000}));
+  assert.equal(total(negative,1),-1000000); assert.equal(total(negative,2),1000000);
+});
+test('sound defaults for legacy saves and allows four choices with CAS', () => {
+  const e=env(); let b=e.ctx.getPointBundle(); assert.equal(b.settings.sound,'chime');
+  const settings=JSON.parse(JSON.stringify(b.settings)); delete settings.sound;
+  settings.avatars['1']=23; settings.groups=[{id:'g1',name:'一組',seats:[1,2]}];
+  let out=e.ctx.savePointSettings(settings,0); assert.equal(out.settings.sound,'chime');
+  ['chime','dingdong','levelup','sparkle'].forEach(sound=>{
+    const previous=out; out=e.ctx.savePointSettings({...out.settings,sound},out.revision);
+    assert.equal(out.settings.sound,sound); assert.deepEqual(out.settings.items,settings.items);
+    assert.equal(out.settings.avatars['1'],23); assert.deepEqual(out.settings.groups,settings.groups);
+    assert.throws(()=>e.ctx.savePointSettings({...previous.settings,sound},previous.revision),/衝突/);
+  });
+  ['unknown','',null,1].forEach(sound=>assert.throws(()=>e.ctx.savePointSettings({...out.settings,sound},out.revision),/音效/));
+});
+test('reading legacy settings does not rewrite the stored property', () => {
+  const e=env(), settings=JSON.parse(JSON.stringify(e.ctx.getPointBundle().settings)); delete settings.sound;
+  const raw=JSON.stringify({settings,revision:8}); e.props.pointSettings=raw;
+  assert.equal(e.ctx.getPointBundle().revision,8);
+  assert.equal(e.props.pointSettings,raw);
+});
+
 test('expanded avatar settings allow index 23 and reject 24', () => {
   const e=env(), settings=JSON.parse(JSON.stringify(e.ctx.getPointBundle().settings));
   settings.avatars['1']=23;
@@ -164,9 +226,11 @@ test('settings byte budget refuses oversized Chinese data without replacing conf
   const e=env(); const s={items:Array.from({length:40},(_,i)=>({id:'i'+i,label:'課'.repeat(80),delta:i%2?1:-1})),avatars:{},groups:[],muted:false};
   assert.throws(()=>e.ctx.savePointSettings(s,0),/太大/); assert.equal(e.ctx.getPointBundle().revision,0);
 });
-test('server roster exactly matches existing Code.gs source list', () => {
-  const e=env(), code=fs.readFileSync(path.join(__dirname,'../gas/Code.gs'),'utf8');
-  const list=code.match(/var students = (\[[\s\S]*?\]);/)[1];
-  assert.equal(JSON.stringify(e.ctx.POINT_ROSTER),JSON.stringify(vm.runInNewContext(list)));
+test('server roster exactly matches authoritative index.html seatRoster', () => {
+  const e=env(), code=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+  const list=code.match(/var seatRoster = (\{[\s\S]*?\});/)[1];
+  const roster=vm.runInNewContext('('+list+')');
+  const expected=Object.keys(roster).map(seat=>[Number(seat),roster[seat][0]]).sort((a,b)=>a[0]-b[0]);
+  assert.equal(JSON.stringify(e.ctx.POINT_ROSTER),JSON.stringify(expected));
 });
 console.log(count+' backend scenarios passed');

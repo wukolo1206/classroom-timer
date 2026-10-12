@@ -155,6 +155,29 @@ class Points(unittest.TestCase):
         p=self.open();p.locator('#points-settings').click()
         p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="23"]').click()
         self.assertTrue(p.locator('#points-settings-avatars .points-avatar-picker').first.evaluate('n=>document.activeElement===n'))
+    def test_save_validation_feedback_visible_next_to_button(self):
+        p=self.open();p.locator('#points-settings').click()
+        p.locator('#points-settings-groups input[aria-label="小組成員座號"]').first.fill('999')
+        p.locator('#points-settings-save').click()
+        notice=p.locator('#points-settings-feedback')
+        self.assertIn('有效座號',notice.inner_text(timeout=3000))
+        rect=notice.bounding_box();self.assertGreaterEqual(rect['y'],0);self.assertLess(rect['y']+rect['height'],900)
+        self.assertFalse(p.locator('#points-settings-save').is_disabled())
+    def test_save_progress_then_confirmed_completion(self):
+        p=self.open(gas=True);p.evaluate("sessionStorage.setItem('__pointsDelay','500')")
+        p.locator('#points-settings').click();p.locator('#points-settings-save').click()
+        self.assertIn('儲存中',p.locator('#points-settings-save').inner_text())
+        self.assertTrue(p.locator('#points-settings-save').is_disabled())
+        p.wait_for_timeout(650);self.assertFalse(p.locator('#points-settings-modal').is_visible())
+        self.assertIn('設定已儲存',p.locator('#points-message').inner_text())
+    def test_sound_choice_preview_and_reload(self):
+        p=self.open(gas=True);p.locator('#points-settings').click()
+        p.locator('#points-settings-sound').select_option('levelup',timeout=3000)
+        p.locator('#points-settings-sound-preview').click()
+        p.locator('#points-settings-save').click();p.wait_for_timeout(200)
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).settings.sound"),'levelup')
+        p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(200);p.locator('#points-settings').click()
+        self.assertEqual(p.locator('#points-settings-sound').input_value(),'levelup')
     def test_auction_single_charge_and_undo(self):
         for gas in [False,True]:
             p=self.open(gas=gas);p.locator('[data-point-seat="1"]').click();p.locator('#points-award-negative').click()
