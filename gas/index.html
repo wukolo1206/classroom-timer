@@ -1065,18 +1065,16 @@
     <div id="points-settings-modal" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-settings-title"><h3 id="points-settings-title">班級集點設定</h3><p id="points-settings-message" class="points-message" role="status"></p><button id="points-settings-reload" hidden>重新載入最新設定（捨棄草稿）</button><fieldset hidden><legend>加扣點項目</legend><p class="points-help">名稱與分值可自由調整：＋加點、−扣點，範圍 −100～100，不能填 0。</p><div id="points-settings-items"></div><button id="points-settings-add-item">新增項目</button></fieldset><fieldset><legend>小組成員</legend><p class="points-help">填入座號，以逗號分隔；每位學生最多一組。小組點數是成員合計。</p><div id="points-settings-groups"></div><button id="points-settings-add-group">新增小組</button></fieldset><fieldset><legend>學生角色</legend><button id="points-avatars-browse">查看全部 24 款角色</button><div id="points-settings-avatars"></div></fieldset><fieldset><legend>加點音效</legend><div class="points-actions"><select id="points-settings-sound" aria-label="加點音效"><option value="chime">清脆提示</option><option value="dingdong">叮咚</option><option value="levelup">遊戲升級</option><option value="sparkle">星星閃亮</option></select><button id="points-settings-sound-preview">▶ 試聽</button></div></fieldset><label><input id="points-settings-muted" type="checkbox"> 靜音（保留分值動畫）</label><p id="points-settings-feedback" class="points-settings-feedback" role="status" aria-live="polite"></p><div class="points-actions"><button id="points-settings-save" class="points-primary">儲存設定</button><button id="points-settings-cancel">取消</button></div></div></div>
     <div id="panel-seat" class="hidden px-6 py-4 md:px-8 md:py-5">
 
-        <div class="mb-3">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-slate-600 text-sm font-bold">秩序登記日期</span>
-                <span id="seat-week-label" class="text-slate-400 text-sm"></span>
+        <div id="seat-calendar-line" class="flex flex-wrap items-center gap-2 mb-1">
+            <div id="seat-date-tabs" class="shrink-0"></div>
+            <!-- 節次（每節課分開記錄） -->
+            <div id="seat-period-wrap" class="basis-full md:basis-0 md:flex-1 min-w-0">
+                <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
             </div>
-            <div id="seat-date-tabs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
         </div>
-
-        <!-- 節次（每節課分開記錄） -->
-        <div id="seat-period-wrap" class="mb-3 -mt-1">
-            <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
-            <div id="seat-period-status" class="mt-1 text-sm text-slate-500"></div>
+        <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-2 text-sm">
+            <div id="seat-period-status" class="text-slate-500"></div>
+            <span id="seat-week-label" class="text-slate-400"></span>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mb-2">
@@ -4230,28 +4228,39 @@ document.addEventListener('DOMContentLoaded', () => {
         var weekLabel = document.getElementById('seat-week-label');
         var start = seatWeekStartKey(seatActiveDate);
         if (weekLabel) weekLabel.textContent = '本週：' + seatWeekLabel(start);
-        bar.innerHTML = '';
-        for (var i = 0; i < 5; i++) {
-            var dateKey = seatDateAdd(start, i);
-            var btn = document.createElement('button');
-            var selected = dateKey === seatActiveDate;
-            btn.className = 'px-2 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ' +
-                (selected ? 'bg-sky-700 text-white border-sky-700 shadow' : 'bg-white text-slate-700 border-sky-100 hover:border-sky-300 hover:bg-sky-50');
-            btn.textContent = seatDateLabel(dateKey);
-            btn.addEventListener('click', function (key) {
-                return function () {
-                    seatActiveDate = key;
-                    if (key === getTodayKey()) seatResetAuto();          // 點回今天＝回到自動
-                    else { seatAutoPeriod = false; seatViewAll = false; } // 看別天＝手動，停在目前選的節次
-                    seatSummaryRange = SEAT_PERIOD_UI ? 'period' : 'today';
-                    localStorage.setItem('seatSummaryRange', seatSummaryRange);
-                    renderSeatDateTabs();
-                    updateSeatDate();
-                    renderSeatChart();
-                };
-            }(dateKey));
-            bar.appendChild(btn);
+        var select = document.getElementById('seat-date-select');
+        if (!select) {
+            select = document.createElement('select');
+            select.id = 'seat-date-select';
+            select.setAttribute('aria-label', '秩序登記日期：切換星期');
+            select.className = 'px-3 py-2 rounded-lg border-2 border-sky-700 bg-sky-700 text-white text-sm font-bold shadow';
+            select.addEventListener('change', function () {
+                var key = this.value;
+                if (!key) return;
+                seatActiveDate = key;
+                if (key === getTodayKey()) seatResetAuto();
+                else { seatAutoPeriod = false; seatViewAll = false; }
+                seatSummaryRange = SEAT_PERIOD_UI ? 'period' : 'today';
+                localStorage.setItem('seatSummaryRange', seatSummaryRange);
+                renderSeatDateTabs();
+                updateSeatDate();
+                renderSeatChart();
+            });
+            bar.appendChild(select);
         }
+        var days = [];
+        for (var i = 0; i < 5; i++) days.push(seatDateAdd(start, i));
+        var today = getTodayKey();
+        if (seatWeekStartKey(today) === start && days.indexOf(today) < 0) days.push(today);
+        if (days.indexOf(seatActiveDate) < 0) days.push(seatActiveDate);
+        select.textContent = '';
+        days.forEach(function (dateKey) {
+            var option = document.createElement('option');
+            option.value = dateKey;
+            option.textContent = seatDateLabel(dateKey);
+            select.appendChild(option);
+        });
+        select.value = seatActiveDate;
     }
 
     function updateSeatDate() {
