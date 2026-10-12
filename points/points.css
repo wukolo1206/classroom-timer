@@ -15,3 +15,13 @@
 @media(prefers-reduced-motion:reduce){#panel-points .points-card{transition:none}#panel-points .points-card:hover{transform:none}}
 
 .points-class-total{font-size:16px;font-weight:700;color:#6556dc;white-space:nowrap}.points-settings-feedback{color:#536784;font-size:14px;line-height:1.6;margin:12px 0}.points-settings-feedback.points-save-error{color:#b33a29}.points-modal button:disabled{opacity:.6;cursor:wait}
+
+/* Keep all class-point controls together; smaller screens wrap complete labels. */
+#panel-points .points-toolbar{gap:8px;margin-bottom:10px}
+#panel-points .points-toolbar h2{margin:0;font-size:24px;white-space:nowrap;flex-shrink:0}
+#panel-points .points-toolbar .points-view,#panel-points .points-toolbar .points-actions,#panel-points .points-toolbar .points-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0;min-width:0;max-width:100%}
+#panel-points .points-toolbar .points-tools{margin-left:auto}
+#panel-points .points-toolbar button{font-size:14px;padding:8px 10px;white-space:nowrap;flex-shrink:0}
+#points-selected-count{font-size:13px;white-space:nowrap}
+#points-selected-count:empty{display:none}
+@media(max-width:600px){#panel-points .points-toolbar h2{font-size:23px}#panel-points .points-toolbar .points-tools{margin-left:0}}

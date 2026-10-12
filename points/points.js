@@ -107,6 +107,24 @@
     }
     window.c408PointsShow=function(){if(!ready&&!init())return;render();sync(true);};
     window.c408PointsSeatShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsBatchFromSeat=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Array.isArray(request.seats)||!request.seats.length||request.seats.some(function(n){return !Number.isInteger(n)||!roster[n];})||!Number.isInteger(request.delta)||request.delta>=0||request.delta<-5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及每人扣 1～5 點。'};
+        var list=Array.from(new Set(request.seats)).sort(function(a,b){return a-b;});
+        var pending=state.pending.find(function(b){return b.id===request.id;});
+        var confirmed=state.bundle.events.filter(function(e){return e.batchId===request.id;});
+        var itemId='seat_batch_points_minus_'+Math.abs(request.delta);
+        if(pending||confirmed.length){
+            var entries=pending?pending.seats:confirmed;
+            var actual=entries.map(function(e){return e.seat;}).sort(function(a,b){return a-b;});
+            var same=JSON.stringify(actual)===JSON.stringify(list)&&(pending?pending.type==='score'&&pending.delta===request.delta&&pending.itemId===itemId:confirmed.every(function(e){return e.type==='score'&&e.delta===request.delta&&e.itemId===itemId;}));
+            if(!same)return {accepted:false,error:'這個計分編號已用於不同操作，請取消後重新開啟扣點視窗。'};
+            status();return {accepted:true,duplicate:true};
+        }
+        var b={id:request.id,type:'score',seats:targets(list),itemId:itemId,label:'秩序登記：本節批次扣點',delta:request.delta,device:state.device,time:new Date().toISOString()};
+        if(!enqueue(b))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次集點尚未接受。'};
+        animate(list,request.delta);status();return {accepted:true,duplicate:false};
+    };
     window.c408PointsFromSeat=function(request){
         if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
         if(!request||!Number.isInteger(request.seat)||!roster[request.seat]||!Number.isInteger(request.delta)||!request.delta||Math.abs(request.delta)>5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及加扣 1～5 點。'};

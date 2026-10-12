@@ -276,6 +276,114 @@ class Points(unittest.TestCase):
         p.locator('#seat-chart button[data-seat="%s"]'%seat).click()
         p.wait_for_selector('#seat-modal.show')
 
+    def batch_register(self,p,seat):
+        if not p.locator('#seat-chart').is_visible():p.locator('#tab-seat-btn').click()
+        p.locator('#seat-modes button').first.click()
+        p.locator('#seat-chart button[data-seat="%s"]'%seat).click()
+        p.wait_for_selector('#seat-modal.show')
+
+    def batch_prepare(self,p):
+        if not p.locator('#seat-chart').is_visible():p.locator('#tab-seat-btn').click()
+        p.locator('#seat-period-bar [data-period="1"]').click()
+        self.batch_register(p,1)
+        p.locator('#seat-modal-list button').first.click()
+        p.locator('#seat-modal-list button').first.click()
+        p.locator('#seat-modal-list button').nth(2).click()
+        p.locator('#seat-modal-close').click()
+        self.batch_register(p,2);p.locator('#seat-modal-list button').first.click()
+        p.locator('#seat-modal-close').click()
+
+    def test_seat_batch_ui_once_each_and_undo(self):
+        p=self.open();self.batch_prepare(p)
+        before=p.evaluate("localStorage.getItem('seatCheckRecords')")
+        p.locator('#seat-batch-points-btn').click()
+        self.assertIn('2 位',p.locator('#seat-batch-points-summary').inner_text())
+        p.locator('#seat-batch-points-delta').select_option('-2')
+        p.locator('#seat-batch-points-confirm').click()
+        self.assertEqual(p.evaluate("localStorage.getItem('seatCheckRecords')"),before)
+        p.locator('#tab-points-btn').click()
+        self.assertEqual([self.value(p,n) for n in [1,2,3]],[-2,-2,0])
+        p.locator('#points-undo').click()
+        self.assertEqual([self.value(p,n) for n in [1,2]], [0,0])
+
+    def test_seat_batch_cancel_empty_and_allday(self):
+        p=self.open();p.locator('#tab-seat-btn').click()
+        p.locator('#seat-batch-points-btn').click()
+        self.assertFalse(p.locator('#seat-batch-points-modal').is_visible())
+        self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-cancel').click()
+        p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-modal').click(position={'x':5,'y':5})
+        p.locator('#seat-batch-points-modal').wait_for(state='hidden')
+        self.assertFalse(p.locator('#seat-batch-points-modal').is_visible())
+        p.locator('#seat-period-bar [data-period="all"]').click()
+        self.assertTrue(p.locator('#seat-batch-points-btn').is_disabled())
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),0)
+
+    def test_seat_batch_storage_failure_keeps_modal(self):
+        p=self.open();self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-delta').select_option('-3')
+        p.evaluate("(() => {window.__originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw Error('quota');};})()")
+        p.locator('#seat-batch-points-confirm').click()
+        self.assertTrue(p.locator('#seat-batch-points-modal').is_visible())
+        self.assertIn('儲存',p.locator('#seat-batch-points-error').inner_text())
+        self.assertEqual(p.locator('#seat-batch-points-delta').input_value(),'-3')
+        p.evaluate('(() => {Storage.prototype.setItem=window.__originalSet;})()')
+        p.locator('#seat-batch-points-confirm').click();p.locator('#tab-points-btn').click()
+        self.assertEqual([self.value(p,n) for n in [1,2]],[-3,-3])
+
+    def test_seat_batch_only_selected_lesson_frozen_and_mobile(self):
+        p=self.open(width=390);p.locator('#tab-seat-btn').click()
+        p.locator('#seat-period-bar [data-period="2"]').click()
+        self.batch_register(p,3);p.locator('#seat-modal-list button').first.click();p.locator('#seat-modal-close').click()
+        p.locator('#seat-period-bar [data-period="1"]').click();self.batch_prepare(p)
+        p.evaluate("""() => {
+            const records=JSON.parse(localStorage.getItem('seatCheckRecords'));
+            const slot=Object.keys(records).find(k=>k.endsWith('#1'));
+            const item=Object.keys(records[slot]['1'])[0];
+            records['2026-01-01#1']={'4':{[item]:1}};
+            records[slot]['7']={[item]:1};records[slot]['5']={[item]:0};
+            localStorage.setItem('seatCheckRecords',JSON.stringify(records));
+        }""")
+        p.locator('#seat-batch-points-btn').click()
+        summary=p.locator('#seat-batch-points-summary').inner_text()
+        self.assertIn('第1節',summary);self.assertIn('2 位',summary)
+        self.assertNotIn('3 ',p.locator('#seat-batch-points-names').inner_text())
+        self.assertLessEqual(p.evaluate('document.documentElement.scrollWidth'),391)
+        p.locator('#seat-period-bar [data-period="2"]').evaluate('n=>n.click()')
+        self.assertEqual(p.locator('#seat-batch-points-summary').inner_text(),summary)
+        p.locator('#seat-batch-points-confirm').click();p.locator('#tab-points-btn').click()
+        self.assertEqual([self.value(p,n) for n in [1,2,3,4,5]],[-1,-1,0,0,0])
+
+    def test_seat_batch_keyboard_cancel_and_focus_trap(self):
+        p=self.open();self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-delta').press('Shift+Tab')
+        self.assertTrue(p.locator('#seat-batch-points-confirm').evaluate('n=>document.activeElement===n'))
+        p.locator('#seat-batch-points-confirm').press('Tab')
+        self.assertTrue(p.locator('#seat-batch-points-delta').evaluate('n=>document.activeElement===n'))
+        p.locator('#seat-batch-points-delta').press('Escape')
+        p.locator('#seat-batch-points-modal').wait_for(state='hidden')
+        self.assertTrue(p.locator('#seat-batch-points-btn').evaluate('n=>document.activeElement===n'))
+        p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),0)
+
+    def test_seat_batch_bridge_pending_confirmed_dedup_validation(self):
+        p=self.open(gas=True);p.evaluate("sessionStorage.setItem('__pointsFail','1')")
+        req={'seats':[2,1,1],'delta':-2,'id':'seat_batch_test'}
+        self.assertTrue(p.evaluate('b=>window.c408PointsBatchFromSeat(b)',req)['accepted'])
+        self.assertTrue(p.evaluate('b=>window.c408PointsBatchFromSeat(b)',req)['duplicate'])
+        for seats,delta in [([1],-2),([1,2],-3),([], -2),([7],-2),([1],2)]:
+            self.assertFalse(p.evaluate('b=>window.c408PointsBatchFromSeat(b)',dict(req,seats=seats,delta=delta))['accepted'])
+        p.wait_for_timeout(200)
+        self.assertEqual(len(p.evaluate("JSON.parse(localStorage.getItem('c408_points_cloud/state')).pending")),1)
+        p.evaluate("sessionStorage.removeItem('__pointsFail');sessionStorage.setItem('__pointsLost','1')")
+        p.locator('#points-refresh').click();p.wait_for_timeout(250)
+        p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(300)
+        self.assertTrue(p.evaluate('b=>window.c408PointsBatchFromSeat(b)',req)['duplicate'])
+        self.assertFalse(p.evaluate('b=>window.c408PointsBatchFromSeat(b)',dict(req,seats=[1]))['accepted'])
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).events.length"),2)
+        p.locator('#points-undo').click();p.wait_for_timeout(200)
+        self.assertEqual([self.value(p,n) for n in [1,2]], [0,0])
+
     def test_seat_add_deduct_default_close_and_reset_draft(self):
         p=self.open();self.seat_open(p)
         self.assertEqual(p.locator('#seat-points-delta').input_value(),'0')
