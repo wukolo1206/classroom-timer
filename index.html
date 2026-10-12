@@ -1063,9 +1063,9 @@
     <div id="points-award" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-award-title"><h3 id="points-award-title">加扣點</h3><div class="points-actions"><button id="points-award-positive">加點 ＋</button><button id="points-award-negative">扣點 −</button></div><div id="points-award-items" class="points-actions"></div><div id="points-auction" hidden><label for="points-auction-value">拍賣扣點：輸入每位學生要扣除的點數</label><div class="points-actions"><input id="points-auction-value" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="例如 120"><button id="points-auction-submit" class="points-primary">一次扣除</button></div><p id="points-auction-message" class="points-message" role="status"></p></div><button id="points-award-close">取消</button></div></div>
     <div id="points-history-modal" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-history-title"><h3 id="points-history-title">集點紀錄</h3><div class="points-actions"><select id="points-history-student" aria-label="查詢學生"></select><input id="points-history-date" type="date" aria-label="查詢日期"><button id="points-history-close">關閉</button></div><table><thead><tr><th>時間</th><th>學生</th><th>操作</th><th>分值</th></tr></thead><tbody id="points-history-list"></tbody></table></div></div>
     <div id="points-settings-modal" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-settings-title"><h3 id="points-settings-title">班級集點設定</h3><p id="points-settings-message" class="points-message" role="status"></p><button id="points-settings-reload" hidden>重新載入最新設定（捨棄草稿）</button><fieldset hidden><legend>加扣點項目</legend><p class="points-help">名稱與分值可自由調整：＋加點、−扣點，範圍 −100～100，不能填 0。</p><div id="points-settings-items"></div><button id="points-settings-add-item">新增項目</button></fieldset><fieldset><legend>小組成員</legend><p class="points-help">填入座號，以逗號分隔；每位學生最多一組。小組點數是成員合計。</p><div id="points-settings-groups"></div><button id="points-settings-add-group">新增小組</button></fieldset><fieldset><legend>學生角色</legend><button id="points-avatars-browse">查看全部 24 款角色</button><div id="points-settings-avatars"></div></fieldset><fieldset><legend>加點音效</legend><div class="points-actions"><select id="points-settings-sound" aria-label="加點音效"><option value="chime">清脆提示</option><option value="dingdong">叮咚</option><option value="levelup">遊戲升級</option><option value="sparkle">星星閃亮</option></select><button id="points-settings-sound-preview">▶ 試聽</button></div></fieldset><label><input id="points-settings-muted" type="checkbox"> 靜音（保留分值動畫）</label><p id="points-settings-feedback" class="points-settings-feedback" role="status" aria-live="polite"></p><div class="points-actions"><button id="points-settings-save" class="points-primary">儲存設定</button><button id="points-settings-cancel">取消</button></div></div></div>
-    <div id="panel-seat" class="hidden p-6 md:p-8">
+    <div id="panel-seat" class="hidden px-6 py-4 md:px-8 md:py-5">
 
-        <div class="mb-5">
+        <div class="mb-3">
             <div class="flex items-center justify-between mb-2">
                 <span class="text-slate-600 text-sm font-bold">秩序登記日期</span>
                 <span id="seat-week-label" class="text-slate-400 text-sm"></span>
@@ -1074,20 +1074,22 @@
         </div>
 
         <!-- 節次（每節課分開記錄） -->
-        <div id="seat-period-wrap" class="mb-5 -mt-2">
+        <div id="seat-period-wrap" class="mb-3 -mt-1">
             <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
-            <div id="seat-period-status" class="mt-2 text-sm text-slate-500"></div>
+            <div id="seat-period-status" class="mt-1 text-sm text-slate-500"></div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 mb-5">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
             <span class="text-slate-500 text-sm font-medium mr-1">點學生卡片：</span>
             <div id="seat-modes" class="flex flex-wrap gap-2"></div>
             <button id="seat-undo-btn" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-all" title="把最後一次登記減回一筆">↩ 按錯？減回一筆</button>
-            <span id="seat-sync-status" class="ml-auto text-slate-400 text-sm"></span>
-            <span id="seat-check-date" class="text-slate-400 text-sm"></span>
         </div>
-        <div id="seat-points-feedback" class="mb-4 text-sm font-semibold text-violet-700" role="status" aria-live="polite"></div>
-        <button id="seat-batch-points-btn" class="mb-4 px-4 py-3 rounded-xl bg-violet-700 text-white font-bold">本節已登記學生扣點</button>
+        <div id="seat-point-tools" class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+            <button id="seat-batch-points-btn" class="shrink-0 px-3 py-2 rounded-lg bg-violet-700 text-white text-sm font-bold">本節已登記學生扣點</button>
+            <span id="seat-check-date" class="text-slate-500 text-sm"></span>
+            <span id="seat-sync-status" class="text-slate-400 text-sm"></span>
+            <span id="seat-points-feedback" class="text-sm font-semibold text-violet-700" role="status" aria-live="polite"></span>
+        </div>
 
         <div class="flex flex-col lg:flex-row gap-6">
 
