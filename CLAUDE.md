@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @40／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室試用音效與儲存提示；截圖點數已同步，全班1654點；原音量計、秩序分節、SR及Word說明待辦保留
+next_action: 教室試用集點音效與儲存提示；原音量計、秩序分節、SR及Word說明待辦見handoff.md
 updated: 2026-10-12
 ---
 
