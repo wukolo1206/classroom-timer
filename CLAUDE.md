@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @45／全校版 v1.20
+version: GAS @46／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室實測放大座位格與角色點數；音量計與SR後續見handoff.md
+next_action: 教室確認六欄完整可點與兩排控制列；SR後續見handoff.md
 updated: 2026-10-13
 ---
 

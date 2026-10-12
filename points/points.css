@@ -28,3 +28,4 @@
 
 /* Shared avatars and scores in the order seating chart. */
 .seat-points-line{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px}.seat-point-avatar{display:flex;flex-shrink:0}.seat-point-avatar svg{width:48px;height:48px}.seat-point-score{border-radius:20px;background:#fff2c3;color:#775115;font-size:22px;line-height:30px;padding:0 10px;font-variant-numeric:tabular-nums}.seat-cell .points-float{left:50%;top:25%;z-index:2;text-shadow:0 2px 4px white}.seat-cell:focus-visible{outline:3px solid #0284c7;outline-offset:3px}@media(min-width:1280px){.seat-point-avatar svg{width:54px;height:54px}}
+@container seat-board (max-width:760px){.seat-point-avatar svg{width:36px;height:36px}.seat-point-score{font-size:18px;padding:0 6px}.seat-points-line{gap:3px}.seat-cell{padding-left:6px;padding-right:6px}}
