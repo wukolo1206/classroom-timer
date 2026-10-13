@@ -1123,6 +1123,7 @@
                     <div id="seat-summary" class="flex flex-col gap-3"></div>
                 </div>
                 <button id="seat-text-btn" class="w-full mt-3 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">📝 文字報告</button>
+                <button id="seat-week-print-btn" class="w-full mt-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">🖨️ 當週小卡列印</button>
                 <div id="seat-text-box" class="hidden mt-2">
                     <pre id="seat-report-text" class="whitespace-pre-wrap break-words bg-white border border-sky-100 rounded-lg p-3 text-slate-600 text-sm leading-relaxed max-h-72 overflow-y-auto" style="font-family: inherit;"></pre>
                 </div>
@@ -1524,6 +1525,29 @@
             <button id="seat-batch-points-cancel" class="px-4 py-2 rounded-lg bg-slate-100">取消</button>
             <button id="seat-batch-points-confirm" class="px-4 py-2 rounded-lg bg-violet-700 text-white font-bold">確定扣點</button>
         </div>
+    </div>
+</div>
+<div id="seat-week-print-modal" class="modal">
+    <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-5xl max-h-[94vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="seat-week-print-title">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 id="seat-week-print-title" class="text-xl font-bold text-slate-800">當週秩序小卡列印</h3>
+            <button id="seat-week-print-close" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 font-semibold">關閉</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mb-2 text-sm">
+            <label for="seat-week-print-date">週內任一天：</label>
+            <input id="seat-week-print-date" type="date" class="border border-sky-200 rounded-lg px-2 py-1.5">
+            <button id="seat-week-print-registered" class="px-3 py-2 rounded-lg bg-sky-100 text-sky-700">勾選本週有登記</button>
+            <button id="seat-week-print-all" class="px-3 py-2 rounded-lg bg-sky-100 text-sky-700">全班</button>
+            <button id="seat-week-print-none" class="px-3 py-2 rounded-lg bg-slate-100">取消全選</button>
+        </div>
+        <p class="text-sm text-slate-500 mb-2">星期一至星期日，包含全部節次與未分節紀錄；每天總次數與項目週合計，不會變更秩序或點數。</p>
+        <div id="seat-week-print-students" class="flex flex-wrap gap-x-4 gap-y-2 max-h-32 overflow-y-auto border border-sky-100 rounded-lg p-3 mb-3 text-sm"></div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span id="seat-week-print-summary" class="text-sm text-slate-700" role="status"></span>
+            <button id="seat-week-print-go" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold disabled:opacity-50">列印／另存 PDF</button>
+        </div>
+        <p id="seat-week-print-error" class="text-sm text-rose-700 mb-2" role="alert"></p>
+        <iframe id="seat-week-print-frame" title="當週秩序小卡 A4 列印預覽" class="w-full border border-slate-200 rounded-lg bg-slate-100" style="height:52vh;"></iframe>
     </div>
 </div>
 <div id="seat-modal" class="modal">
@@ -4176,6 +4200,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('seat-report-text').textContent = buildSeatReport();
             }
         });
+        document.getElementById('seat-week-print-btn').addEventListener('click', openSeatWeeklyPrint);
+        document.getElementById('seat-week-print-close').addEventListener('click', closeSeatWeeklyPrint);
+        document.getElementById('seat-week-print-date').addEventListener('change', function () { if(this.value)loadSeatPrintWeek(this.value); });
+        ['all','none','registered'].forEach(function (mode) {
+            document.getElementById('seat-week-print-' + mode).addEventListener('click', function () {
+                seatPrintSelected = seatPrintData.students.filter(function (s) { return mode === 'all' || (mode === 'registered' && s.total > 0); }).map(function (s) { return s.seat; });
+                renderSeatPrintSelection();
+            });
+        });
+        document.getElementById('seat-week-print-go').addEventListener('click', function () {
+            var frame = document.getElementById('seat-week-print-frame');
+            frame.contentWindow.focus(); frame.contentWindow.print();
+        });
+        document.getElementById('seat-week-print-modal').addEventListener('click', function (e) { if(e.target===this)closeSeatWeeklyPrint(); });
+        document.getElementById('seat-week-print-modal').addEventListener('keydown', function (e) {
+            if(e.key==='Escape'){e.preventDefault();closeSeatWeeklyPrint();}
+            if(e.key!=='Tab')return;
+            var nodes=Array.from(this.querySelectorAll('button,input,iframe')).filter(function(n){return !n.disabled&&n.getClientRects().length;});
+            var first=nodes[0],last=nodes[nodes.length-1];
+            if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+            else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+        });
 
         var savedSummaryRange = localStorage.getItem('seatSummaryRange');
         seatSummaryRange = (SEAT_PERIOD_UI ? ['period', 'today', 'week', 'all'] : ['today', 'week', 'all']).indexOf(savedSummaryRange) >= 0
@@ -4816,6 +4862,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function seatDateKeyFromDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    var seatPrintData = null, seatPrintSelected = [];
+    function seatWeeklyPrintData(dateKey) {
+        var start=seatWeekStartKey(dateKey),parts=start.split('-').map(Number),days=[];
+        for(var i=0;i<7;i++){var d=new Date(parts[0],parts[1]-1,parts[2]+i);days.push({date:seatDateKeyFromDate(d),label:['一','二','三','四','五','六','日'][i]});}
+        var items=seatItems.map(function(it){return {key:it.key,label:it.label};}),known={};
+        items.forEach(function(it){known[it.key]=true;});
+        var students=Object.keys(seatRoster).map(Number).sort(function(a,b){return a-b;}).map(function(n){return {seat:n,name:seatRoster[n][0],daily:[0,0,0,0,0,0,0],counts:{},total:0};}),bySeat={};
+        students.forEach(function(s){bySeat[s.seat]=s;});
+        var records=getSeatRecords();
+        Object.keys(records).forEach(function(slot){
+            var date=seatSlotDate(slot),day=days.findIndex(function(d){return d.date===date;});
+            if(day<0)return;
+            Object.keys(records[slot]).forEach(function(n){
+                var student=bySeat[n];if(!student)return;
+                Object.keys(records[slot][n]).forEach(function(key){
+                    var count=records[slot][n][key];
+                    student.counts[key]=(student.counts[key]||0)+count;student.daily[day]+=count;student.total+=count;
+                    if(!known[key]){known[key]=true;items.push({key:key,label:'舊項目：'+key});}
+                });
+            });
+        });
+        return {start:start,end:days[6].date,days:days,items:items,students:students,label:seatWeekLabel(start)};
+    }
+    function openSeatWeeklyPrint(){
+        loadSeatPrintWeek(seatActiveDate);
+        document.getElementById('seat-week-print-modal').classList.add('show');
+        document.getElementById('seat-week-print-date').focus();
+    }
+    function closeSeatWeeklyPrint(){document.getElementById('seat-week-print-modal').classList.remove('show');document.getElementById('seat-week-print-btn').focus();}
+    function loadSeatPrintWeek(date){
+        seatPrintData=seatWeeklyPrintData(date);
+        document.getElementById('seat-week-print-date').value=seatPrintData.start;
+        seatPrintSelected=seatPrintData.students.filter(function(s){return s.total>0;}).map(function(s){return s.seat;});
+        renderSeatPrintSelection();
+    }
+    function renderSeatPrintSelection(){
+        var box=document.getElementById('seat-week-print-students');box.textContent='';
+        seatPrintData.students.forEach(function(s){
+            var label=document.createElement('label');label.className='inline-flex items-center gap-1 cursor-pointer';
+            var input=document.createElement('input');input.type='checkbox';input.value=s.seat;input.checked=seatPrintSelected.indexOf(s.seat)>=0;
+            input.addEventListener('change',function(){seatPrintSelected=seatPrintData.students.filter(function(s){var node=box.querySelector('input[value="'+s.seat+'"]');return node&&node.checked;}).map(function(s){return s.seat;});renderSeatPrintPreview();});
+            label.appendChild(input);label.appendChild(document.createTextNode(s.seat+' '+s.name+'（'+s.total+'次）'));box.appendChild(label);
+        });
+        renderSeatPrintPreview();
+    }
+    function renderSeatPrintPreview(forceRoomy){
+        var data=seatPrintData,list=data.students.filter(function(s){return seatPrintSelected.indexOf(s.seat)>=0;}),dense=!!forceRoomy||data.items.length>10||data.items.some(function(it){return it.label.length>20;}),perPage=dense?4:8;
+        var html='',summary=document.getElementById('seat-week-print-summary'),go=document.getElementById('seat-week-print-go'),error=document.getElementById('seat-week-print-error'),frame=document.getElementById('seat-week-print-frame');
+        summary.textContent=data.start+'～'+data.end+'｜已勾選 '+list.length+' 位，'+Math.ceil(list.length/perPage)+' 張 A4（每頁 '+perPage+' 張）';error.textContent='';go.disabled=true;
+        for(var offset=0;offset<list.length;offset+=perPage){
+            html+='<section class="order-sheet'+(dense?' roomy':'')+'">';
+            list.slice(offset,offset+perPage).forEach(function(s){
+                html+='<article class="order-card" data-seat="'+s.seat+'"><header><b>秩序登記・每週紀錄</b><span>'+ctuEsc(data.label)+'</span></header><h2>'+s.seat+' 號　'+ctuEsc(s.name)+'</h2>';
+                html+='<table><thead><tr>'+data.days.map(function(d){return '<th>週'+d.label+'</th>';}).join('')+'</tr></thead><tbody><tr>'+data.days.map(function(d,i){return '<td data-day="'+d.date+'">'+s.daily[i]+'</td>';}).join('')+'</tr></tbody></table>';
+                html+='<div class="items">'+data.items.map(function(it){return '<div data-item="'+ctuEsc(it.key)+'"><span>'+ctuEsc(it.label)+'</span><strong>'+(s.counts[it.key]||0)+'</strong></div>';}).join('')+'</div>';
+                html+='<div class="total">本週登記合計：<strong data-week-total>'+s.total+'</strong> 次'+(s.total?'':'（本週未登記）')+'</div><footer>教師備註：________________________</footer></article>';
+            });
+            html+='</section>';
+        }
+        if(!list.length)html='<p class="empty">請勾選要列印的學生；本週沒有登記時，仍可選全班或個別學生。</p>';
+        var style='*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#111;font-family:"Microsoft JhengHei","PingFang TC",sans-serif}.order-sheet{width:210mm;height:297mm;padding:10mm;margin:0 auto 12mm;background:white;display:grid;grid-template-columns:repeat(2,92mm);grid-template-rows:repeat(4,66mm);justify-content:space-between;align-content:space-between;break-after:page}.order-sheet.roomy{grid-template-rows:repeat(2,136mm)}.order-card{border:1px dashed #555;padding:3mm;min-height:0;display:flex;flex-direction:column;gap:1.3mm;font-size:9pt;line-height:1.25}header{display:flex;justify-content:space-between;gap:2mm;border-bottom:1px solid #555;padding-bottom:1mm;font-size:8.5pt}h2{font-size:12pt;line-height:1.2;margin:0}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8pt}td,th{border:1px solid #888;text-align:center;padding:0.7mm 0}.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 3mm}.items>div{display:flex;justify-content:space-between;align-items:baseline;gap:1mm;min-width:0}.items span{overflow-wrap:anywhere}.items strong{flex-shrink:0}.total{border-top:1px solid #aaa;padding-top:1mm;font-size:9pt}footer{margin-top:auto;font-size:8pt;white-space:nowrap}.empty{padding:20px}@page{size:A4 portrait;margin:0}@media print{body{background:white}.order-sheet{margin:0;break-after:page;page-break-after:always}.order-sheet:last-child{break-after:auto;page-break-after:auto}}';
+        frame.onload=function(){
+            frame.contentDocument.addEventListener('keydown',function(e){
+                if(e.key==='Escape'){e.preventDefault();closeSeatWeeklyPrint();}
+                else if(e.key==='Tab'){e.preventDefault();document.getElementById(e.shiftKey?'seat-week-print-go':'seat-week-print-close').focus();}
+            });
+            if(!list.length)return;
+            var overflow=Array.from(frame.contentDocument.querySelectorAll('.order-card')).some(function(card){return card.scrollHeight>card.clientHeight+1;});
+            if(overflow&&!dense){renderSeatPrintPreview(true);return;}
+            error.textContent=overflow?'項目名稱或內容太長，超出小卡範圍；請先縮短項目名稱再列印，以免裁掉內容。':'';go.disabled=overflow;
+        };
+        frame.srcdoc='<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>當週秩序小卡 '+ctuEsc(data.label)+'</title><style>'+style+'</style></head><body>'+html+'</body></html>';
     }
 
     /** 以星期一為每週起點，將日期分到同一週。 */

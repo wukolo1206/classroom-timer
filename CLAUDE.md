@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @46／全校版 v1.20
+version: GAS @47／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 31人已依最新截圖校準至1654點；教室重新同步確認，SR後續見handoff.md
+next_action: 教室試印當週秩序小卡；SR及其他待辦見handoff.md
 updated: 2026-10-13
 ---
 
