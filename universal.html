@@ -4790,7 +4790,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.20（2026-10-10）';
+    window.CTU_VERSION = 'v1.21（2026-10-14）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -6629,6 +6629,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyWeeklyStateToCurrentWeek(state) {
         var week = weeklySelectedWeek;
         Object.keys(seatRoster).forEach(function (seat) {
+            if (weeklySettings.excludedSeats.indexOf(parseInt(seat, 10)) >= 0) return;
             setWeeklyStateLocal(seat, week, state);
             weeklySyncPush(seat, week, state);
         });
