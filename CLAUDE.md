@@ -2,10 +2,10 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @37／全校版 v1.20
+version: GAS @47／全校版 v1.20
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室實機試用音量計（大屏／筆電麥克風、手機 App 校正）與小組討論共用簡報版面與設定視窗；另待試用秩序分節與 SR，Word 說明待補 SR 章節
-updated: 2026-10-10
+next_action: 教室試印當週秩序小卡；SR及其他待辦見handoff.md
+updated: 2026-10-13
 ---
 
 # CLAUDE.md — 班級計時器
@@ -31,6 +31,7 @@ updated: 2026-10-10
 ## 不能動的地方
 
 - **試算表只能動「上課表現紀錄」分頁**。同一份檔案裡的 9月～1月份聯絡簿是老師每天在用的資料，任何腳本都不得寫入或重排。
+- **班級集點新增授權例外（2026-10-12）**：使用者同意新增「班級集點紀錄」工作表；`gas/Points.gs` 僅可建立與追加這個新分頁，不改原有工作表。11 欄表頭固定，`_manifest` 為重送與部分寫入復原的內部保護紀錄，不可自行刪除或編輯。集點設定獨立存 `pointSettings`，與既有秩序、小組、SR 設定分開。
 - **「上課表現紀錄」的欄位順序固定**：`日期 | 座號 | 姓名 | 項目 | 次數 | 最後更新 | 項目代碼`。
   G 欄「項目代碼」是程式比對用的 key，改名或刪除會讓舊紀錄對不上檢查項目。
 - **部署一律帶 `--deploymentId <見 gas/weburl.txt，已 gitignore>`**，

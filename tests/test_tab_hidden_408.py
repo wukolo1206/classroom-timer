@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 from test_sr_408 import MOCK_GAS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ALL = ['timer', 'group', 'exam', 'seat', 'weekly', 'sr', 'noise']
+ALL = ['timer', 'group', 'exam', 'seat', 'points', 'weekly', 'sr', 'noise']
 
 
 class TabHidden408(unittest.TestCase):
@@ -82,12 +82,12 @@ class TabHidden408(unittest.TestCase):
         self.assertIn('預設畫面', page.locator('#tab-order-list > div', has_text='小組討論').inner_text())
         page.click('#tab-order-save')
         page.wait_for_timeout(300)
-        self.assertEqual(self.visible(page), ['group', 'seat', 'weekly', 'sr', 'noise'])
+        self.assertEqual(self.visible(page), ['group', 'seat', 'points', 'weekly', 'sr', 'noise'])
         self.assertEqual(self.active(page), ['group'])        # 原本在倒數計時 → 切到第一個顯示的分頁
         self.assertEqual(json.loads(page.evaluate("() => localStorage.getItem('timerTabHidden')")), ['timer', 'exam'])
         self.assertIsNotNone(page.query_selector('a[href*="sh150"]'))   # SH150 外部連結不受影響
         page.reload(); page.wait_for_timeout(800)
-        self.assertEqual(self.visible(page), ['group', 'seat', 'weekly', 'sr', 'noise'])
+        self.assertEqual(self.visible(page), ['group', 'seat', 'points', 'weekly', 'sr', 'noise'])
         self.assertEqual(self.active(page), ['group'])
 
     def test_cancel_and_reset(self):

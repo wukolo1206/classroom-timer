@@ -8,6 +8,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans TC', sans-serif; }
+        #classroom-shell { max-width: none; }
 
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
         .time-up { animation: pulse 0.5s 5; color: #ef4444 !important; }
@@ -128,11 +129,11 @@
 
         /* ── Seat check ── */
         .seat-dot { width: 10px; height: 10px; border-radius: 9999px; display: inline-block; }
-        .seat-cell { width: 86px; min-width: 86px; }
+        #seat-chart { container: seat-board / inline-size; align-items: flex-start; }
+        #seat-chart > div { margin-inline: auto; }
+        #seat-modes > button { flex-shrink: 0; white-space: nowrap; }
+        .seat-cell { width: clamp(96px, calc((100cqw - var(--seat-row-gaps, 68px)) / var(--seat-columns, 6)), 144px); min-width: 96px; flex-shrink: 0; position: relative; }
         .seat-cell:active { transform: scale(0.96); }
-        @media (min-width: 1280px) {
-            .seat-cell { width: 96px; min-width: 96px; }
-        }
 
         /* ── Weekly record ── */
         .weekly-table { border-collapse: separate; border-spacing: 0; }
@@ -288,9 +289,64 @@
         }
         .draw-animating { animation: drawPulse 0.12s infinite; }
     </style>
+<!-- POINTS_STYLE_START -->
+<style>
+#panel-points{padding:24px;background:#f5f7ff;color:#26334d}#panel-points *{box-sizing:border-box}.points-toolbar,.points-view,.points-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}#panel-points button,.points-modal button{font:inherit;cursor:pointer;border:1px solid #d6ddeb;border-radius:12px;padding:10px 16px;background:white;color:#33425b;font-weight:700}.points-primary{background:#6556dc!important;color:white!important}.points-toolbar h2{font-size:26px;font-weight:800;margin-right:auto}.points-status{font-size:13px;color:#536784}.points-message{color:#a34221;min-height:24px}.points-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:15px}.points-card{position:relative;display:flex;flex-direction:column;align-items:center;background:white!important;padding:15px 8px!important;box-shadow:0 5px 15px #6556dc0d;border:2px solid transparent!important;min-width:0}.points-card.selected{border-color:#7666df!important;background:#f0edff!important}.points-card svg{width:82px;height:82px}.points-name{font-size:16px;margin-top:5px}.points-seat{color:#728198;font-size:12px}.points-score{border-radius:30px;background:#fff2c3;color:#775115;font-size:24px;padding:0 18px;margin-top:8px}.points-group{padding:20px;background:white;border:1px solid #dde2ef;border-radius:18px}.points-group strong{display:block;font-size:24px}.points-modal{position:fixed;inset:0;background:#17244377;display:flex;align-items:center;justify-content:center;z-index:10001;padding:16px;color:#26334d}.points-modal[hidden]{display:none!important}.points-dialog{background:#fff;border-radius:22px;padding:24px;width:640px;max-width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 80px #17244344}.points-dialog h3{font-size:23px;font-weight:800;margin-bottom:12px}.points-dialog input,.points-dialog select{border:1px solid #ccd3e1;border-radius:8px;padding:9px;max-width:100%;background:white;color:#26334d}.points-dialog label{display:block;margin:8px 0}.points-dialog table{width:100%;font-size:13px;border-collapse:collapse}.points-dialog td,.points-dialog th{padding:8px;text-align:left;border-bottom:1px solid #e5e8f0}.points-item-row,.points-group-row,.points-avatar-row{display:flex;gap:8px;margin:8px 0;align-items:center}.points-item-row input:first-child,.points-group-row input{min-width:0;flex:1}.points-item-row input[type=number]{width:85px}.points-avatar-row span{flex:1}.points-dialog fieldset{border:1px solid #e0e4ef;border-radius:12px;padding:12px;margin:16px 0}.points-dialog legend{font-weight:bold}.points-float{position:absolute;top:20%;font-size:35px;font-weight:900;color:#6556dc;pointer-events:none;animation:points-rise 1s forwards}.points-negative{color:#d45b67}.points-help{color:#66778e;font-size:13px;margin:8px 0}.points-empty{padding:25px;text-align:center;color:#69778d}@keyframes points-rise{to{transform:translateY(-65px);opacity:0}}@media(max-width:600px){#panel-points{padding:16px 10px}.points-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.points-card svg{width:65px;height:65px}.points-name{font-size:14px}.points-dialog{padding:16px}.points-toolbar h2{font-size:23px}.points-toolbar button{padding:8px 10px}.points-group-row{flex-wrap:wrap}.points-dialog table{font-size:12px}.points-dialog td{padding:6px 3px}}
+
+#panel-points.hidden,#points-students[hidden],#points-groups[hidden]{display:none!important}
+
+.points-group{position:relative}.points-group .points-float{font-size:25px;left:15px}.points-status{margin:0 0 8px}.points-message{margin:0 0 8px}.points-message:empty{display:none}.points-toolbar h2{margin-top:0;margin-bottom:0}
+@media(min-width:1000px){#panel-points{padding:16px}.points-toolbar{margin-bottom:8px}.points-view,.points-actions{display:inline-flex;margin-bottom:10px;margin-right:10px}#points-students{grid-template-columns:repeat(8,minmax(0,1fr));gap:9px}.points-card{padding:7px 6px!important}.points-card svg{width:64px;height:64px}.points-seat{font-size:11px;line-height:14px}.points-name{font-size:15px;line-height:19px;margin-top:0}.points-score{font-size:21px;line-height:27px;margin-top:4px;padding:0 14px}}
+
+@media(min-width:1000px){.points-card{padding:4px 6px!important}.points-name{line-height:18px}.points-score{line-height:24px;margin-top:2px}}
+@media(min-width:1200px){#points-students{grid-template-columns:repeat(11,minmax(0,1fr))}}
+
+.points-avatar-dialog{width:840px}.points-avatar-picker{display:flex;align-items:center;gap:8px}.points-avatar-picker svg{width:48px;height:48px}.points-avatar-preview{display:flex;align-items:center;justify-content:center;gap:16px}.points-avatar-preview svg{width:110px;height:110px}
+#panel-points .points-card{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+@media(hover:hover){#panel-points .points-card:hover{transform:translateY(-3px);border-color:#7666df!important;box-shadow:0 10px 24px #6556dc30}}
+#panel-points .points-card:focus-visible{outline:3px solid #6556dc;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){#panel-points .points-card{transition:none}#panel-points .points-card:hover{transform:none}}
+
+.points-class-total{font-size:16px;font-weight:700;color:#6556dc;white-space:nowrap}.points-settings-feedback{color:#536784;font-size:14px;line-height:1.6;margin:12px 0}.points-settings-feedback.points-save-error{color:#b33a29}.points-modal button:disabled{opacity:.6;cursor:wait}
+
+/* Keep all class-point controls together; smaller screens wrap complete labels. */
+#panel-points .points-toolbar{gap:8px;margin-bottom:10px}
+#panel-points .points-toolbar h2{margin:0;font-size:24px;white-space:nowrap;flex-shrink:0}
+#panel-points .points-toolbar .points-view,#panel-points .points-toolbar .points-actions,#panel-points .points-toolbar .points-tools{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0;min-width:0;max-width:100%}
+#panel-points .points-toolbar .points-tools{margin-left:auto}
+#panel-points .points-toolbar button{font-size:14px;padding:8px 10px;white-space:nowrap;flex-shrink:0}
+#points-selected-count{font-size:13px;white-space:nowrap}
+#points-selected-count:empty{display:none}
+@media(max-width:600px){#panel-points .points-toolbar h2{font-size:23px}#panel-points .points-toolbar .points-tools{margin-left:0}}
+
+/* Shared avatars and scores in the order seating chart. */
+.seat-points-line{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px}.seat-point-avatar{display:flex;flex-shrink:0}.seat-point-avatar svg{width:48px;height:48px}.seat-point-score{border-radius:20px;background:#fff2c3;color:#775115;font-size:22px;line-height:30px;padding:0 10px;font-variant-numeric:tabular-nums}.seat-cell .points-float{left:50%;top:25%;z-index:2;text-shadow:0 2px 4px white}.seat-cell:focus-visible{outline:3px solid #0284c7;outline-offset:3px}@media(min-width:1280px){.seat-point-avatar svg{width:54px;height:54px}}
+@container seat-board (max-width:760px){.seat-point-avatar svg{width:36px;height:36px}.seat-point-score{font-size:18px;padding:0 6px}.seat-points-line{gap:3px}.seat-cell{padding-left:6px;padding-right:6px}}
+</style>
+<!-- POINTS_STYLE_END -->
+<!-- AVATAR_STYLE_START -->
+<style>
+.points-modal .points-avatar-gallery{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin:14px 0}
+.points-modal .points-avatar-choice{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:8px 4px;border:2px solid #e1e6f1;border-radius:14px;background:#fff;color:#33425b;font-size:12px;line-height:1.4;text-align:center}
+.points-modal .points-avatar-choice svg{width:64px;height:64px;max-width:100%;flex-shrink:0}
+.points-modal .points-avatar-choice[aria-pressed="true"]{border-color:#7666df;background:#f0edff;box-shadow:0 0 0 1px #7666df}
+.points-modal .points-avatar-choice:focus-visible{outline:3px solid #6556dc;outline-offset:3px}
+.points-modal .points-avatar-choice:hover{border-color:#9a8dec;background:#f7f5ff}
+.points-modal .points-avatar-choice[aria-pressed="true"]:hover{background:#f0edff}
+:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate{background:#fff9df!important}
+:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate svg{animation:points-avatar-hop 1.1s ease-in-out;transform-origin:50% 88%}
+:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::before,:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::after{content:'✦';position:absolute;top:18%;color:#e8b849;font-size:24px;line-height:1;pointer-events:none;animation:points-avatar-stars 1.1s ease-out both;z-index:1}
+:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::before{left:12%;transform:rotate(-12deg)}
+:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::after{right:12%;top:26%;font-size:18px;animation-delay:.08s}
+@keyframes points-avatar-hop{0%,100%{transform:translateY(0) rotate(0) scale(1)}18%{transform:translateY(2px) scale(1.06,.94)}42%{transform:translateY(-12px) rotate(-8deg) scale(.98,1.03)}62%{transform:translateY(0) rotate(7deg) scale(1.04,.96)}80%{transform:translateY(-5px) rotate(-3deg)}}
+@keyframes points-avatar-stars{0%{opacity:0;scale:.3}25%{opacity:1;scale:1.15}70%{opacity:1;scale:1}100%{opacity:0;scale:.6;translate:0 -12px}}
+@media(max-width:600px){.points-modal .points-avatar-gallery{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.points-modal .points-avatar-choice svg{width:72px;height:72px}.points-modal .points-avatar-choice{font-size:13px;padding:8px}}
+@media(prefers-reduced-motion:reduce){:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate svg{animation:none}:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::before,:is(#panel-points .points-card,#seat-chart .seat-cell).points-celebrate::after{animation:none;opacity:1;scale:1;translate:none}.points-modal .points-avatar-choice{transition:none}}
+</style>
+<!-- AVATAR_STYLE_END -->
 </head>
 <body class="bg-sky-50 min-h-screen p-4 md:p-6">
-<div class="max-w-5xl mx-auto">
+<div id="classroom-shell" class="max-w-5xl mx-auto">
 <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
 
     <!-- Header -->
@@ -308,6 +364,7 @@
         <button id="tab-group-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">👥 小組討論</button>
         <button id="tab-exam-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">📋 監考</button>
         <button id="tab-seat-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">🪑 秩序登記</button>
+        <button id="tab-points-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all">⭐ 班級集點</button>
         <button id="tab-weekly-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🗓 含氟每週紀錄</button>
         <button id="tab-sr-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">📚 SR 閱讀小卡</button>
         <button id="tab-noise-btn" class="tab-btn tab-inactive flex-1 py-3 px-4 font-semibold transition-all whitespace-nowrap">🔊 音量計</button>
@@ -996,31 +1053,36 @@
     </div><!-- end #panel-sr -->
 
     <!-- ══════════════ SEAT CHECK PANEL ══════════════ -->
-    <div id="panel-seat" class="hidden p-6 md:p-8">
+    <div id="panel-points" class="hidden">
+        <div class="points-toolbar">
+            <h2>⭐ 班級集點</h2><span id="points-class-total" class="points-class-total" aria-live="polite"></span>
+            <div class="points-view"><button id="points-view-students">學生</button><button id="points-view-groups">小組</button><button id="points-multi">多選學生</button><span id="points-selected-count"></span></div>
+            <div class="points-actions"><button id="points-all" class="points-primary">全班加扣點</button><button id="points-award-selected">選取學生加扣點</button><button id="points-undo">復原上一筆</button><button id="points-reset">點數歸零</button></div>
+            <div class="points-tools"><button id="points-history">紀錄</button><button id="points-settings">⚙ 設定</button><button id="points-refresh">重新同步</button></div>
+        </div>
+        <p id="points-status" class="points-status"></p><p id="points-message" class="points-message" role="status"></p>
+        <p class="points-help">復原會依序回復這台裝置最近的計分；歸零後不再復原先前計分。</p>
+        <div id="points-students" class="points-grid"></div><div id="points-groups" class="points-grid" hidden></div>
+    </div>
+    <div id="points-award" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-award-title"><h3 id="points-award-title">加扣點</h3><div class="points-actions"><button id="points-award-positive">加點 ＋</button><button id="points-award-negative">扣點 −</button></div><div id="points-award-items" class="points-actions"></div><div id="points-auction" hidden><label for="points-auction-value">拍賣扣點：輸入每位學生要扣除的點數</label><div class="points-actions"><input id="points-auction-value" type="number" inputmode="numeric" min="1" max="1000000" step="1" placeholder="例如 120"><button id="points-auction-submit" class="points-primary">一次扣除</button></div><p id="points-auction-message" class="points-message" role="status"></p></div><button id="points-award-close">取消</button></div></div>
+    <div id="points-history-modal" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-history-title"><h3 id="points-history-title">集點紀錄</h3><div class="points-actions"><select id="points-history-student" aria-label="查詢學生"></select><input id="points-history-date" type="date" aria-label="查詢日期"><button id="points-history-close">關閉</button></div><table><thead><tr><th>時間</th><th>學生</th><th>操作</th><th>分值</th></tr></thead><tbody id="points-history-list"></tbody></table></div></div>
+    <div id="points-settings-modal" class="points-modal" hidden><div class="points-dialog" role="dialog" aria-modal="true" aria-labelledby="points-settings-title"><h3 id="points-settings-title">班級集點設定</h3><p id="points-settings-message" class="points-message" role="status"></p><button id="points-settings-reload" hidden>重新載入最新設定（捨棄草稿）</button><fieldset hidden><legend>加扣點項目</legend><p class="points-help">名稱與分值可自由調整：＋加點、−扣點，範圍 −100～100，不能填 0。</p><div id="points-settings-items"></div><button id="points-settings-add-item">新增項目</button></fieldset><fieldset><legend>小組成員</legend><p class="points-help">填入座號，以逗號分隔；每位學生最多一組。小組點數是成員合計。</p><div id="points-settings-groups"></div><button id="points-settings-add-group">新增小組</button></fieldset><fieldset><legend>學生角色</legend><button id="points-avatars-browse">查看全部 24 款角色</button><div id="points-settings-avatars"></div></fieldset><fieldset><legend>加點音效</legend><div class="points-actions"><select id="points-settings-sound" aria-label="加點音效"><option value="chime">清脆提示</option><option value="dingdong">叮咚</option><option value="levelup">遊戲升級</option><option value="sparkle">星星閃亮</option></select><button id="points-settings-sound-preview">▶ 試聽</button></div></fieldset><label><input id="points-settings-muted" type="checkbox"> 靜音（保留分值動畫）</label><p id="points-settings-feedback" class="points-settings-feedback" role="status" aria-live="polite"></p><div class="points-actions"><button id="points-settings-save" class="points-primary">儲存設定</button><button id="points-settings-cancel">取消</button></div></div></div>
+    <div id="panel-seat" class="hidden px-6 py-4 md:px-8 md:py-5">
 
-        <div class="mb-5">
-            <div class="flex items-center justify-between mb-2">
-                <span class="text-slate-600 text-sm font-bold">秩序登記日期</span>
-                <span id="seat-week-label" class="text-slate-400 text-sm"></span>
+        <div id="seat-calendar-line" class="flex flex-wrap items-center gap-2 mb-1">
+            <div id="seat-date-tabs" class="shrink-0"></div>
+            <!-- 節次（每節課分開記錄） -->
+            <div id="seat-period-wrap" class="basis-full md:basis-0 md:flex-1 min-w-0">
+                <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
             </div>
-            <div id="seat-date-tabs" class="grid grid-cols-2 sm:grid-cols-5 gap-2"></div>
+        </div>
+        <div id="seat-mode-line" class="flex items-center gap-2 mb-3 min-w-0">
+            <span class="hidden sm:block shrink-0 text-slate-500 text-sm font-medium mr-1">點學生卡片：</span>
+            <div id="seat-modes" class="flex flex-1 min-w-0 gap-2 overflow-x-auto py-1"></div>
+            <button id="seat-undo-btn" class="shrink-0 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-all" title="把最後一次登記減回一筆" aria-label="按錯？減回一筆">↩<span class="hidden sm:inline"> 按錯？減回一筆</span></button>
         </div>
 
-        <!-- 節次（每節課分開記錄） -->
-        <div id="seat-period-wrap" class="mb-5 -mt-2">
-            <div id="seat-period-bar" class="flex flex-wrap gap-2"></div>
-            <div id="seat-period-status" class="mt-2 text-sm text-slate-500"></div>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2 mb-5">
-            <span class="text-slate-500 text-sm font-medium mr-1">點學生卡片：</span>
-            <div id="seat-modes" class="flex flex-wrap gap-2"></div>
-            <button id="seat-undo-btn" class="px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-all" title="把最後一次登記減回一筆">↩ 按錯？減回一筆</button>
-            <span id="seat-sync-status" class="ml-auto text-slate-400 text-sm"></span>
-            <span id="seat-check-date" class="text-slate-400 text-sm"></span>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-6">
+        <div class="flex flex-col xl:flex-row gap-6">
 
             <!-- 左：座位表 -->
             <div class="flex-1 min-w-0">
@@ -1034,8 +1096,8 @@
             </div>
 
             <!-- 右：統計與名單 -->
-            <aside class="w-full lg:w-72 lg:flex-shrink-0">
-                <div class="bg-sky-50 border border-sky-100 rounded-xl p-4">
+            <aside class="w-full xl:w-72 xl:flex-shrink-0">
+                <div id="seat-summary-card" class="bg-sky-50 border border-sky-100 rounded-xl p-4">
                     <div class="flex gap-1 mb-3">
                         <button data-srange="period" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">本節</button>
                         <button data-srange="today" class="seat-srange-btn flex-1 py-1.5 rounded-lg text-sm font-semibold transition-all">當日</button>
@@ -1050,9 +1112,18 @@
                             <b id="seat-count-people" class="text-slate-500 text-xl">0</b><span class="text-slate-400 text-sm ml-1">人</span>
                         </span>
                     </div>
+                    <div id="seat-point-tools" class="flex flex-col gap-2 mb-3 pb-3 border-b border-sky-200">
+                        <button id="seat-batch-points-btn" class="w-full px-3 py-2 rounded-lg bg-violet-700 text-white text-sm font-bold">本節已登記學生扣點</button>
+                        <span id="seat-check-date" class="text-slate-500 text-xs"></span>
+                        <div id="seat-period-status" class="text-slate-500 text-xs"></div>
+                        <span id="seat-week-label" class="text-slate-400 text-xs"></span>
+                        <span id="seat-sync-status" class="text-slate-400 text-xs"></span>
+                        <span id="seat-points-feedback" class="text-xs font-semibold text-violet-700" role="status" aria-live="polite"></span>
+                    </div>
                     <div id="seat-summary" class="flex flex-col gap-3"></div>
                 </div>
                 <button id="seat-text-btn" class="w-full mt-3 px-4 py-2 bg-white border border-sky-200 text-sky-700 rounded-lg text-sm font-semibold hover:bg-sky-50 transition-all">📝 文字報告</button>
+                <button id="seat-week-print-btn" class="w-full mt-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700">🖨️ 當週小卡列印</button>
                 <div id="seat-text-box" class="hidden mt-2">
                     <pre id="seat-report-text" class="whitespace-pre-wrap break-words bg-white border border-sky-100 rounded-lg p-3 text-slate-600 text-sm leading-relaxed max-h-72 overflow-y-auto" style="font-family: inherit;"></pre>
                 </div>
@@ -1439,6 +1510,46 @@
 </div>
 
 <!-- Seat check modal -->
+<div id="seat-batch-points-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="seat-batch-points-title">
+    <div class="modal-content p-6 w-full max-w-lg bg-white rounded-2xl">
+        <h3 id="seat-batch-points-title" class="text-xl font-bold mb-3">本節已登記學生扣點</h3>
+        <div id="seat-batch-points-summary" class="font-bold mb-2"></div>
+        <div id="seat-batch-points-names" class="mb-3 max-h-48 overflow-auto"></div>
+        <p class="mb-3 text-sm">每人只扣一次，登記次數不會增加扣點。</p>
+        <label for="seat-batch-points-delta" class="font-bold">每人扣幾點</label>
+        <select id="seat-batch-points-delta" class="w-full border rounded-lg p-2 my-2 text-lg">
+            <option value="-1">扣 1 點</option><option value="-2">扣 2 點</option><option value="-3">扣 3 點</option><option value="-4">扣 4 點</option><option value="-5">扣 5 點</option>
+        </select>
+        <div id="seat-batch-points-error" class="text-red-700 mb-3" role="alert"></div>
+        <div class="flex justify-end gap-3">
+            <button id="seat-batch-points-cancel" class="px-4 py-2 rounded-lg bg-slate-100">取消</button>
+            <button id="seat-batch-points-confirm" class="px-4 py-2 rounded-lg bg-violet-700 text-white font-bold">確定扣點</button>
+        </div>
+    </div>
+</div>
+<div id="seat-week-print-modal" class="modal">
+    <div class="bg-white rounded-2xl p-4 md:p-6 w-full max-w-5xl max-h-[94vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="seat-week-print-title">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 id="seat-week-print-title" class="text-xl font-bold text-slate-800">當週秩序小卡列印</h3>
+            <button id="seat-week-print-close" class="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 font-semibold">關閉</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 mb-2 text-sm">
+            <label for="seat-week-print-date">週內任一天：</label>
+            <input id="seat-week-print-date" type="date" class="border border-sky-200 rounded-lg px-2 py-1.5">
+            <button id="seat-week-print-registered" class="px-3 py-2 rounded-lg bg-sky-100 text-sky-700">勾選本週有登記</button>
+            <button id="seat-week-print-all" class="px-3 py-2 rounded-lg bg-sky-100 text-sky-700">全班</button>
+            <button id="seat-week-print-none" class="px-3 py-2 rounded-lg bg-slate-100">取消全選</button>
+        </div>
+        <p class="text-sm text-slate-500 mb-2">星期一至星期日，包含全部節次與未分節紀錄；每天總次數與項目週合計，不會變更秩序或點數。</p>
+        <div id="seat-week-print-students" class="flex flex-wrap gap-x-4 gap-y-2 max-h-32 overflow-y-auto border border-sky-100 rounded-lg p-3 mb-3 text-sm"></div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span id="seat-week-print-summary" class="text-sm text-slate-700" role="status"></span>
+            <button id="seat-week-print-go" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold disabled:opacity-50">列印／另存 PDF</button>
+        </div>
+        <p id="seat-week-print-error" class="text-sm text-rose-700 mb-2" role="alert"></p>
+        <iframe id="seat-week-print-frame" title="當週秩序小卡 A4 列印預覽" class="w-full border border-slate-200 rounded-lg bg-slate-100" style="height:52vh;"></iframe>
+    </div>
+</div>
 <div id="seat-modal" class="modal">
     <div class="modal-content">
         <div class="flex items-baseline gap-2 mb-1">
@@ -1448,9 +1559,19 @@
         <div id="seat-modal-duty" class="text-slate-400 text-sm mb-4"></div>
         <div class="text-slate-500 text-sm mb-2">點項目增加 1 次；按右側「減 1」可修正誤按：</div>
         <div id="seat-modal-list" class="flex flex-col gap-2"></div>
+        <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
+            <label for="seat-points-delta" class="block text-violet-800 font-bold mb-2">學生點數（按確定才計分）</label>
+            <select id="seat-points-delta" class="w-full rounded-lg border border-violet-300 bg-white px-3 py-2 text-lg font-bold text-violet-800">
+                <option value="0">不計點</option>
+                <option value="1">加 1 點</option><option value="2">加 2 點</option><option value="3">加 3 點</option><option value="4">加 4 點</option><option value="5">加 5 點</option>
+                <option value="-1">扣 1 點</option><option value="-2">扣 2 點</option><option value="-3">扣 3 點</option><option value="-4">扣 4 點</option><option value="-5">扣 5 點</option>
+            </select>
+            <div id="seat-points-error" class="mt-2 text-sm text-red-700" role="alert"></div>
+        </div>
         <div class="flex gap-3 justify-between items-center mt-5">
             <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人本節紀錄</button>
-            <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">完成</button>
+            <button id="seat-modal-close" class="px-3 py-2 text-slate-500 rounded-lg font-semibold">關閉</button>
+            <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">確定</button>
         </div>
     </div>
 </div>
@@ -1851,12 +1972,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-group-btn').addEventListener('click', () => switchTab('group'));
     document.getElementById('tab-exam-btn').addEventListener('click', () => switchTab('exam'));
     document.getElementById('tab-seat-btn').addEventListener('click', () => switchTab('seat'));
+    document.getElementById('tab-points-btn').addEventListener('click', () => switchTab('points'));
     document.getElementById('tab-weekly-btn').addEventListener('click', () => switchTab('weekly'));
     document.getElementById('tab-sr-btn').addEventListener('click', () => switchTab('sr'));
     document.getElementById('tab-noise-btn').addEventListener('click', () => switchTab('noise'));
 
     // ── 分頁順序 ──
-    var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'weekly', 'sr', 'noise'];
+    var defaultTabOrder = ['timer', 'group', 'exam', 'seat', 'points', 'weekly', 'sr', 'noise'];
     var defaultTabHidden = [];   // 408 預設全部顯示
     var tabOrder = loadTabOrder();
     var tabOrderDraft = [];
@@ -2011,6 +2133,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (tab === 'seat') {
             stopCleaningCountdown(); stopExamClock();
             seatResetAuto(); renderSeatDateTabs(); updateSeatDate(); renderSeatChart(); seatSyncPull();
+            if (window.c408PointsSeatShow) window.c408PointsSeatShow();
+        } else if (tab === 'points') {
+            stopCleaningCountdown(); stopExamClock();
+            if (window.c408PointsShow) window.c408PointsShow();
         } else if (tab === 'weekly') {
             stopCleaningCountdown(); stopExamClock();
             renderWeeklyTable(); weeklySyncPull();
@@ -3707,6 +3833,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     var seatMode = null;   // null = 開勾選視窗；否則為快速登記的項目 key
     var seatModalNum = null;
+    var seatPointsDraftId = null;
+    var seatBatchPointsDraft = null;
     var seatItems = loadSeatItems();
     var seatItemsDraft = [];
     var seatLayout = parseSeatLayout(localStorage.getItem('seatLayout') || defaultSeatLayoutText);
@@ -3944,7 +4072,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 座位登記 modal
         var seatModal = document.getElementById('seat-modal');
-        document.getElementById('seat-modal-done').addEventListener('click', closeSeatModal);
+        document.getElementById('seat-batch-points-btn').addEventListener('click', openSeatBatchPoints);
+        document.getElementById('seat-batch-points-confirm').addEventListener('click', confirmSeatBatchPoints);
+        document.getElementById('seat-batch-points-cancel').addEventListener('click', closeSeatBatchPoints);
+        document.getElementById('seat-batch-points-modal').addEventListener('click', function (e) { if (e.target === this) closeSeatBatchPoints(); });
+        document.addEventListener('keydown', function (e) {
+            if (!seatBatchPointsDraft) return;
+            if (e.key === 'Escape') { e.preventDefault(); closeSeatBatchPoints(); return; }
+            if (e.key === 'Tab') {
+                var first = document.getElementById('seat-batch-points-delta');
+                var last = document.getElementById('seat-batch-points-confirm');
+                var dialog = document.getElementById('seat-batch-points-modal');
+                if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+            }
+        });
+        document.getElementById('seat-modal-done').addEventListener('click', confirmSeatModal);
+        document.getElementById('seat-modal-close').addEventListener('click', closeSeatModal);
         document.getElementById('seat-modal-pass').addEventListener('click', function () {
             if (seatModalSlot === null) return;
             seatClearSlot(seatModalSlot, seatModalNum);
@@ -4057,6 +4201,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('seat-report-text').textContent = buildSeatReport();
             }
         });
+        document.getElementById('seat-week-print-btn').addEventListener('click', openSeatWeeklyPrint);
+        document.getElementById('seat-week-print-close').addEventListener('click', closeSeatWeeklyPrint);
+        document.getElementById('seat-week-print-date').addEventListener('change', function () { if(this.value)loadSeatPrintWeek(this.value); });
+        ['all','none','registered'].forEach(function (mode) {
+            document.getElementById('seat-week-print-' + mode).addEventListener('click', function () {
+                seatPrintSelected = seatPrintData.students.filter(function (s) { return mode === 'all' || (mode === 'registered' && s.total > 0); }).map(function (s) { return s.seat; });
+                renderSeatPrintSelection();
+            });
+        });
+        document.getElementById('seat-week-print-go').addEventListener('click', function () {
+            var frame = document.getElementById('seat-week-print-frame');
+            frame.contentWindow.focus(); frame.contentWindow.print();
+        });
+        document.getElementById('seat-week-print-modal').addEventListener('click', function (e) { if(e.target===this)closeSeatWeeklyPrint(); });
+        document.getElementById('seat-week-print-modal').addEventListener('keydown', function (e) {
+            if(e.key==='Escape'){e.preventDefault();closeSeatWeeklyPrint();}
+            if(e.key!=='Tab')return;
+            var nodes=Array.from(this.querySelectorAll('button,input,iframe')).filter(function(n){return !n.disabled&&n.getClientRects().length;});
+            var first=nodes[0],last=nodes[nodes.length-1];
+            if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+            else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+        });
 
         var savedSummaryRange = localStorage.getItem('seatSummaryRange');
         seatSummaryRange = (SEAT_PERIOD_UI ? ['period', 'today', 'week', 'all'] : ['today', 'week', 'all']).indexOf(savedSummaryRange) >= 0
@@ -4110,28 +4276,39 @@ document.addEventListener('DOMContentLoaded', () => {
         var weekLabel = document.getElementById('seat-week-label');
         var start = seatWeekStartKey(seatActiveDate);
         if (weekLabel) weekLabel.textContent = '本週：' + seatWeekLabel(start);
-        bar.innerHTML = '';
-        for (var i = 0; i < 5; i++) {
-            var dateKey = seatDateAdd(start, i);
-            var btn = document.createElement('button');
-            var selected = dateKey === seatActiveDate;
-            btn.className = 'px-2 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ' +
-                (selected ? 'bg-sky-700 text-white border-sky-700 shadow' : 'bg-white text-slate-700 border-sky-100 hover:border-sky-300 hover:bg-sky-50');
-            btn.textContent = seatDateLabel(dateKey);
-            btn.addEventListener('click', function (key) {
-                return function () {
-                    seatActiveDate = key;
-                    if (key === getTodayKey()) seatResetAuto();          // 點回今天＝回到自動
-                    else { seatAutoPeriod = false; seatViewAll = false; } // 看別天＝手動，停在目前選的節次
-                    seatSummaryRange = SEAT_PERIOD_UI ? 'period' : 'today';
-                    localStorage.setItem('seatSummaryRange', seatSummaryRange);
-                    renderSeatDateTabs();
-                    updateSeatDate();
-                    renderSeatChart();
-                };
-            }(dateKey));
-            bar.appendChild(btn);
+        var select = document.getElementById('seat-date-select');
+        if (!select) {
+            select = document.createElement('select');
+            select.id = 'seat-date-select';
+            select.setAttribute('aria-label', '秩序登記日期：切換星期');
+            select.className = 'px-3 py-2 rounded-lg border-2 border-sky-700 bg-sky-700 text-white text-sm font-bold shadow';
+            select.addEventListener('change', function () {
+                var key = this.value;
+                if (!key) return;
+                seatActiveDate = key;
+                if (key === getTodayKey()) seatResetAuto();
+                else { seatAutoPeriod = false; seatViewAll = false; }
+                seatSummaryRange = SEAT_PERIOD_UI ? 'period' : 'today';
+                localStorage.setItem('seatSummaryRange', seatSummaryRange);
+                renderSeatDateTabs();
+                updateSeatDate();
+                renderSeatChart();
+            });
+            bar.appendChild(select);
         }
+        var days = [];
+        for (var i = 0; i < 5; i++) days.push(seatDateAdd(start, i));
+        var today = getTodayKey();
+        if (seatWeekStartKey(today) === start && days.indexOf(today) < 0) days.push(today);
+        if (days.indexOf(seatActiveDate) < 0) days.push(seatActiveDate);
+        select.textContent = '';
+        days.forEach(function (dateKey) {
+            var option = document.createElement('option');
+            option.value = dateKey;
+            option.textContent = seatDateLabel(dateKey);
+            select.appendChild(option);
+        });
+        select.value = seatActiveDate;
     }
 
     function updateSeatDate() {
@@ -4207,7 +4384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     /** 每 30 秒：自動模式且沒開登記彈窗時，跟著時間換節（跨午夜也換到新的今天） */
     function seatAutoTick() {
-        if (!SEAT_PERIOD_UI || !seatAutoPeriod || seatModalSlot !== null) return;
+        if (!SEAT_PERIOD_UI || !seatAutoPeriod || seatModalSlot !== null || seatBatchPointsDraft) return;
         var today = getTodayKey(), cur = seatPeriodAt(new Date());
         if (today === seatActiveDate && cur === seatActivePeriod) return;
         var dateChanged = today !== seatActiveDate;
@@ -4252,7 +4429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         var chart = document.getElementById('seat-chart');
         if (!chart) return;
         renderSeatPeriodBar();
-        ['seat-undo-btn', 'seat-clear-btn'].forEach(function (id) {   // 全天檢視時停用會寫入的按鈕
+        ['seat-undo-btn', 'seat-clear-btn', 'seat-batch-points-btn'].forEach(function (id) {   // 全天檢視時停用會寫入的按鈕
             var b = document.getElementById(id);
             if (b) { b.disabled = seatActiveSlot() === null; b.classList.toggle('opacity-40', b.disabled); }
         });
@@ -4268,6 +4445,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         chart.innerHTML = '';
+        var widestRow = seatLayout.reduce(function (best, row) {
+            var columns = row.reduce(function (sum, zone) { return sum + zone.length; }, 0);
+            var gaps = 32 + row.length * 8 + (columns - row.length) * 4;
+            return columns > best.columns || (columns === best.columns && gaps > best.gaps) ? {columns:columns,gaps:gaps} : best;
+        }, {columns:1,gaps:32});
+        chart.style.setProperty('--seat-columns', widestRow.columns);
+        chart.style.setProperty('--seat-row-gaps', widestRow.gaps + 'px');
 
         seatLayout.forEach(function (row, ri) {
             var rowEl = document.createElement('div');
@@ -4313,12 +4497,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
 
         cell.innerHTML =
+            '<div class="seat-points-line"><span class="seat-point-avatar" aria-hidden="true"></span><strong class="seat-point-score">—</strong></div>' +
             '<div class="flex items-baseline gap-1.5">' +
                 '<span class="text-slate-400 text-xs font-bold" style="font-variant-numeric:tabular-nums;">' + ctuEsc(num) + '</span>' +
                 '<span class="text-slate-700 font-bold text-base leading-tight">' + ctuEsc(info[0]) + '</span>' +
             '</div>' +
             '<div class="text-slate-400 text-[11px] leading-tight truncate">' + ctuEsc(info[1]) + '</div>' +
             '<div class="flex flex-wrap items-center gap-1 mt-1.5">' + marks + '</div>';
+
+        if(window.c408PointsDecorateSeat)window.c408PointsDecorateSeat(cell);
 
         cell.addEventListener('click', function () {
             if (seatActiveSlot() === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
@@ -4441,10 +4628,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 座位登記 modal ──
+    function openSeatBatchPoints() {
+        var slot = seatActiveSlot();
+        if (slot === null) { alert('目前是「全天」檢視，請先選一節再扣點'); return; }
+        var rec = getSlotRecord(slot);
+        var seats = Object.keys(seatRoster).map(Number).filter(function (n) { return seatTotalOf(rec, n) > 0; }).sort(function (a, b) { return a - b; });
+        if (!seats.length) { document.getElementById('seat-points-feedback').textContent = '本節沒有已登記學生，不需扣點。'; return; }
+        seatBatchPointsDraft = {slot:slot,seats:seats,id:'seat_batch_' + Date.now().toString(36) + Math.random().toString(36).slice(2,11)};
+        document.getElementById('seat-batch-points-summary').textContent = seatSlotLabel(slot) + '｜' + seats.length + ' 位';
+        document.getElementById('seat-batch-points-names').textContent = seats.map(function (n) { return n + ' ' + seatRoster[n][0]; }).join('、');
+        document.getElementById('seat-batch-points-delta').value = '-1';
+        document.getElementById('seat-batch-points-error').textContent = '';
+        document.getElementById('seat-batch-points-modal').classList.add('show');
+        document.getElementById('seat-batch-points-delta').focus();
+    }
+    function confirmSeatBatchPoints() {
+        if (!seatBatchPointsDraft) return;
+        var draft = seatBatchPointsDraft, result;
+        try { result = window.c408PointsBatchFromSeat({seats:draft.seats.slice(),delta:Number(document.getElementById('seat-batch-points-delta').value),id:draft.id}); }
+        catch (_) { result = {accepted:false,error:'集點暫時無法接受操作，請保留視窗後重試。'}; }
+        if (result && result.accepted) closeSeatBatchPoints();
+        else document.getElementById('seat-batch-points-error').textContent = result && result.error || '集點尚未接受操作，請重試。';
+    }
+    function closeSeatBatchPoints() {
+        document.getElementById('seat-batch-points-modal').classList.remove('show');
+        seatBatchPointsDraft = null;
+        document.getElementById('seat-batch-points-btn').focus();
+        seatAutoTick();
+    }
     function openSeatModal(num) {
         var slot = seatActiveSlot();
         if (slot === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
         seatModalNum = num;
+        seatPointsDraftId = 'seat_points_' + Date.now().toString(36) + Math.random().toString(36).slice(2,11);
+        document.getElementById('seat-points-delta').value = '0';
+        document.getElementById('seat-points-error').textContent = '';
         seatModalSlot = slot;   // 彈窗開著時自動換節暫停，彈窗內的加減都記到這個時段
         var info = seatRoster[num];
         document.getElementById('seat-modal-num').textContent = num;
@@ -4453,9 +4671,23 @@ document.addEventListener('DOMContentLoaded', () => {
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
+    function confirmSeatModal() {
+        if (seatModalNum === null || !seatPointsDraftId) return;
+        var delta = Number(document.getElementById('seat-points-delta').value);
+        if (delta === 0) { closeSeatModal(); return; }
+        var result;
+        try {
+            result = window.c408PointsFromSeat({seat:seatModalNum,delta:delta,id:seatPointsDraftId});
+        } catch (_) {
+            result = {accepted:false,error:'集點暫時無法接受操作，請保留視窗後重試。'};
+        }
+        if (result && result.accepted) closeSeatModal();
+        else document.getElementById('seat-points-error').textContent = result && result.error || '集點尚未接受操作，請重試。';
+    }
     function closeSeatModal() {
         document.getElementById('seat-modal').classList.remove('show');
         seatModalNum = null;
+        seatPointsDraftId = null;
         seatModalSlot = null;
         seatAutoTick();
     }
@@ -4631,6 +4863,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function seatDateKeyFromDate(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    var seatPrintData = null, seatPrintSelected = [];
+    function seatWeeklyPrintData(dateKey) {
+        var start=seatWeekStartKey(dateKey),parts=start.split('-').map(Number),days=[];
+        for(var i=0;i<7;i++){var d=new Date(parts[0],parts[1]-1,parts[2]+i);days.push({date:seatDateKeyFromDate(d),label:['一','二','三','四','五','六','日'][i]});}
+        var items=seatItems.map(function(it){return {key:it.key,label:it.label};}),known={};
+        items.forEach(function(it){known[it.key]=true;});
+        var students=Object.keys(seatRoster).map(Number).sort(function(a,b){return a-b;}).map(function(n){return {seat:n,name:seatRoster[n][0],daily:[0,0,0,0,0,0,0],counts:{},total:0};}),bySeat={};
+        students.forEach(function(s){bySeat[s.seat]=s;});
+        var records=getSeatRecords();
+        Object.keys(records).forEach(function(slot){
+            var date=seatSlotDate(slot),day=days.findIndex(function(d){return d.date===date;});
+            if(day<0)return;
+            Object.keys(records[slot]).forEach(function(n){
+                var student=bySeat[n];if(!student)return;
+                Object.keys(records[slot][n]).forEach(function(key){
+                    var count=records[slot][n][key];
+                    student.counts[key]=(student.counts[key]||0)+count;student.daily[day]+=count;student.total+=count;
+                    if(!known[key]){known[key]=true;items.push({key:key,label:'舊項目：'+key});}
+                });
+            });
+        });
+        return {start:start,end:days[6].date,days:days,items:items,students:students,label:seatWeekLabel(start)};
+    }
+    function openSeatWeeklyPrint(){
+        loadSeatPrintWeek(seatActiveDate);
+        document.getElementById('seat-week-print-modal').classList.add('show');
+        document.getElementById('seat-week-print-date').focus();
+    }
+    function closeSeatWeeklyPrint(){document.getElementById('seat-week-print-modal').classList.remove('show');document.getElementById('seat-week-print-btn').focus();}
+    function loadSeatPrintWeek(date){
+        seatPrintData=seatWeeklyPrintData(date);
+        document.getElementById('seat-week-print-date').value=seatPrintData.start;
+        seatPrintSelected=seatPrintData.students.filter(function(s){return s.total>0;}).map(function(s){return s.seat;});
+        renderSeatPrintSelection();
+    }
+    function renderSeatPrintSelection(){
+        var box=document.getElementById('seat-week-print-students');box.textContent='';
+        seatPrintData.students.forEach(function(s){
+            var label=document.createElement('label');label.className='inline-flex items-center gap-1 cursor-pointer';
+            var input=document.createElement('input');input.type='checkbox';input.value=s.seat;input.checked=seatPrintSelected.indexOf(s.seat)>=0;
+            input.addEventListener('change',function(){seatPrintSelected=seatPrintData.students.filter(function(s){var node=box.querySelector('input[value="'+s.seat+'"]');return node&&node.checked;}).map(function(s){return s.seat;});renderSeatPrintPreview();});
+            label.appendChild(input);label.appendChild(document.createTextNode(s.seat+' '+s.name+'（'+s.total+'次）'));box.appendChild(label);
+        });
+        renderSeatPrintPreview();
+    }
+    function renderSeatPrintPreview(forceRoomy){
+        var data=seatPrintData,list=data.students.filter(function(s){return seatPrintSelected.indexOf(s.seat)>=0;}),dense=!!forceRoomy||data.items.length>10||data.items.some(function(it){return it.label.length>20;}),perPage=dense?4:8;
+        var html='',summary=document.getElementById('seat-week-print-summary'),go=document.getElementById('seat-week-print-go'),error=document.getElementById('seat-week-print-error'),frame=document.getElementById('seat-week-print-frame');
+        summary.textContent=data.start+'～'+data.end+'｜已勾選 '+list.length+' 位，'+Math.ceil(list.length/perPage)+' 張 A4（每頁 '+perPage+' 張）';error.textContent='';go.disabled=true;
+        for(var offset=0;offset<list.length;offset+=perPage){
+            html+='<section class="order-sheet'+(dense?' roomy':'')+'">';
+            list.slice(offset,offset+perPage).forEach(function(s){
+                html+='<article class="order-card" data-seat="'+s.seat+'"><header><b>秩序登記・每週紀錄</b><span>'+ctuEsc(data.label)+'</span></header><h2>'+s.seat+' 號　'+ctuEsc(s.name)+'</h2>';
+                html+='<table><thead><tr>'+data.days.map(function(d){return '<th>週'+d.label+'</th>';}).join('')+'</tr></thead><tbody><tr>'+data.days.map(function(d,i){return '<td data-day="'+d.date+'">'+s.daily[i]+'</td>';}).join('')+'</tr></tbody></table>';
+                html+='<div class="items">'+data.items.map(function(it){return '<div data-item="'+ctuEsc(it.key)+'"><span>'+ctuEsc(it.label)+'</span><strong>'+(s.counts[it.key]||0)+'</strong></div>';}).join('')+'</div>';
+                html+='<div class="total">本週登記合計：<strong data-week-total>'+s.total+'</strong> 次'+(s.total?'':'（本週未登記）')+'</div><footer>教師備註：________________________</footer></article>';
+            });
+            html+='</section>';
+        }
+        if(!list.length)html='<p class="empty">請勾選要列印的學生；本週沒有登記時，仍可選全班或個別學生。</p>';
+        var style='*{box-sizing:border-box}body{margin:0;background:#eef2f6;color:#111;font-family:"Microsoft JhengHei","PingFang TC",sans-serif}.order-sheet{width:210mm;height:297mm;padding:10mm;margin:0 auto 12mm;background:white;display:grid;grid-template-columns:repeat(2,92mm);grid-template-rows:repeat(4,66mm);justify-content:space-between;align-content:space-between;break-after:page}.order-sheet.roomy{grid-template-rows:repeat(2,136mm)}.order-card{border:1px dashed #555;padding:3mm;min-height:0;display:flex;flex-direction:column;gap:1.3mm;font-size:9pt;line-height:1.25}header{display:flex;justify-content:space-between;gap:2mm;border-bottom:1px solid #555;padding-bottom:1mm;font-size:8.5pt}h2{font-size:12pt;line-height:1.2;margin:0}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8pt}td,th{border:1px solid #888;text-align:center;padding:0.7mm 0}.items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 3mm}.items>div{display:flex;justify-content:space-between;align-items:baseline;gap:1mm;min-width:0}.items span{overflow-wrap:anywhere}.items strong{flex-shrink:0}.total{border-top:1px solid #aaa;padding-top:1mm;font-size:9pt}footer{margin-top:auto;font-size:8pt;white-space:nowrap}.empty{padding:20px}@page{size:A4 portrait;margin:0}@media print{body{background:white}.order-sheet{margin:0;break-after:page;page-break-after:always}.order-sheet:last-child{break-after:auto;page-break-after:auto}}';
+        frame.onload=function(){
+            frame.contentDocument.addEventListener('keydown',function(e){
+                if(e.key==='Escape'){e.preventDefault();closeSeatWeeklyPrint();}
+                else if(e.key==='Tab'){e.preventDefault();document.getElementById(e.shiftKey?'seat-week-print-go':'seat-week-print-close').focus();}
+            });
+            if(!list.length)return;
+            var overflow=Array.from(frame.contentDocument.querySelectorAll('.order-card')).some(function(card){return card.scrollHeight>card.clientHeight+1;});
+            if(overflow&&!dense){renderSeatPrintPreview(true);return;}
+            error.textContent=overflow?'項目名稱或內容太長，超出小卡範圍；請先縮短項目名稱再列印，以免裁掉內容。':'';go.disabled=overflow;
+        };
+        frame.srcdoc='<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>當週秩序小卡 '+ctuEsc(data.label)+'</title><style>'+style+'</style></head><body>'+html+'</body></html>';
     }
 
     /** 以星期一為每週起點，將日期分到同一週。 */
@@ -8338,5 +8644,221 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 })();
 </script>
+<div id="points-avatar-modal" class="points-modal" hidden><div class="points-dialog points-avatar-dialog" role="dialog" aria-modal="true" aria-labelledby="points-avatar-title"><div class="points-actions"><h3 id="points-avatar-title">角色圖鑑</h3><button id="points-avatar-close">關閉</button></div><div id="points-avatar-preview" class="points-avatar-preview"></div><div id="points-avatar-gallery" class="points-avatar-gallery"></div></div></div>
+<!-- AVATAR_SCRIPT_START -->
+<script>
+(function () {
+    'use strict';
+    var colors = ['#8bcdb0','#b3a3eb','#ffb4ad','#f5d475','#91cbea','#dfa3d8','#a6d57c','#ffbb7e'];
+    var labels = ['薄荷芽芽','星星軟糖','桃桃小獸','布丁夥伴','雲朵泡泡','莓果毛球','森林豆豆','橘子圓圓','棉花跳跳兔','蜂蜜抱抱熊','奶茶喵喵','日落小狐狸','月光貓頭鷹','荷葉呱呱','竹林小熊貓','銀河機器人','翡翠小飛龍','奶油汪汪','冰糖小企鵝','泡泡小章魚','海風小鯨魚','陽光小獅子','慢慢小烏龜','彩虹獨角獸'];
+    function original(n) {
+        var ears=n%3===0?'<path d="M25 40 Q12 2 38 25 M62 25 Q88 2 75 40" fill="'+colors[n]+'"/>':n%3===1?'<path d="M24 34 L13 10 L43 25 M60 25 L88 10 L76 34" fill="'+colors[n]+'"/>':'<path d="M28 31 Q24 4 47 23 M54 23 Q78 4 72 31" fill="'+colors[n]+'"/>';
+        return ears+'<ellipse cx="50" cy="86" rx="30" ry="5" fill="#edf0fa"/><path d="M19 54 Q17 21 50 22 Q83 21 81 54 L84 70 Q84 85 69 84 L61 78 L39 78 L31 84 Q16 85 16 70 Z" fill="'+colors[n]+'"/><ellipse cx="50" cy="64" rx="21" ry="18" fill="#ffffff55"/><circle cx="36" cy="48" r="4" fill="#33425b"/><circle cx="64" cy="48" r="4" fill="#33425b"/><circle cx="35" cy="47" r="1" fill="white"/><circle cx="63" cy="47" r="1" fill="white"/><ellipse cx="26" cy="58" rx="6" ry="4" fill="#f38ea566"/><ellipse cx="74" cy="58" rx="6" ry="4" fill="#f38ea566"/><path d="M43 59 Q50 67 57 59" fill="none" stroke="#33425b" stroke-width="2.5" stroke-linecap="round"/>'+ (n%2?'<path d="M49 27 L52 33 L59 34 L54 39 L55 46 L49 42 L43 46 L44 39 L39 34 L46 33 Z" fill="#fff6b8"/>':'<path d="M45 26 Q40 12 51 14 Q63 15 54 27" fill="#ffffff88"/>');
+    }
+    var shadow = '<ellipse cx="50" cy="89" rx="31" ry="4" fill="#e8edf8"/>';
+    function face(x,y,spacing) {
+        return '<g fill="#33425b"><circle cx="'+(x-spacing)+'" cy="'+y+'" r="3.5"/><circle cx="'+(x+spacing)+'" cy="'+y+'" r="3.5"/></g><g fill="white"><circle cx="'+(x-spacing-1)+'" cy="'+(y-1)+'" r="1"/><circle cx="'+(x+spacing-1)+'" cy="'+(y-1)+'" r="1"/></g><path d="M'+(x-6)+' '+(y+10)+' Q'+x+' '+(y+16)+' '+(x+6)+' '+(y+10)+'" fill="none" stroke="#33425b" stroke-width="2.4" stroke-linecap="round"/><g fill="#f4a4b4" opacity=".65"><ellipse cx="'+(x-spacing-7)+'" cy="'+(y+7)+'" rx="5" ry="3"/><ellipse cx="'+(x+spacing+7)+'" cy="'+(y+7)+'" rx="5" ry="3"/></g>';
+    }
+    var bodies = [
+        // Rabbit: upright long ears and rounded body.
+        '<g fill="#f8dfe9"><ellipse cx="36" cy="23" rx="9" ry="20" transform="rotate(-9 36 23)"/><ellipse cx="64" cy="23" rx="9" ry="20" transform="rotate(9 64 23)"/><ellipse cx="50" cy="66" rx="27" ry="23"/><ellipse cx="50" cy="48" rx="30" ry="24"/></g><g fill="#eea8c6"><ellipse cx="36" cy="20" rx="4" ry="13"/><ellipse cx="64" cy="20" rx="4" ry="13"/></g><ellipse cx="50" cy="73" rx="15" ry="12" fill="white"/><g fill="#f8dfe9"><ellipse cx="31" cy="84" rx="10" ry="5"/><ellipse cx="69" cy="84" rx="10" ry="5"/></g>'+face(50,47,12),
+        // Bear: round ears, honey muzzle, little paws.
+        '<g fill="#c89265"><circle cx="26" cy="27" r="12"/><circle cx="74" cy="27" r="12"/><ellipse cx="50" cy="66" rx="28" ry="22"/><circle cx="50" cy="48" r="31"/></g><g fill="#eed4ae"><circle cx="26" cy="27" r="6"/><circle cx="74" cy="27" r="6"/><ellipse cx="50" cy="61" rx="17" ry="13"/><ellipse cx="50" cy="78" rx="16" ry="8"/></g><path d="M45 56 Q50 52 55 56 L50 61Z" fill="#715440"/>'+face(50,45,13),
+        // Cat: triangular ears, whiskers, curled tail.
+        '<path d="M74 74 Q98 73 86 54" fill="none" stroke="#d8b891" stroke-width="10" stroke-linecap="round"/><path d="M22 43 L21 13 L42 28 L60 28 L79 13 L78 45 Q88 75 70 84 L30 84 Q12 76 22 43Z" fill="#e5c7a1"/><path d="M26 31 L26 21 L36 30 M65 30 L74 21 L74 33" fill="#e9a8a9"/><path d="M43 30 L46 41 M50 28 L50 40 M57 30 L54 41" stroke="#bb936a" stroke-width="3" stroke-linecap="round"/><ellipse cx="50" cy="73" rx="17" ry="12" fill="#fff3df"/><path d="M14 55 L28 58 M15 63 L28 62 M72 58 L86 55 M72 62 L85 63" stroke="#a78260" stroke-width="2"/>'+face(50,49,12),
+        // Fox: pointed ears and white cheek wedges.
+        '<path d="M70 82 Q97 75 89 52 Q87 69 67 69Z" fill="#eaa065"/><path d="M85 67 Q93 60 89 52 Q85 64 79 67Z" fill="#fff4de"/><path d="M21 41 L19 9 L43 26 L57 26 L81 9 L79 41 Q83 66 50 83 Q17 66 21 41Z" fill="#f0a56e"/><path d="M25 31 L24 19 L36 29 M65 29 L76 19 L75 31" fill="#785451"/><path d="M23 49 Q39 49 50 66 Q61 49 77 49 Q71 72 50 78 Q29 72 23 49Z" fill="#fff6e6"/>'+face(50,45,14)+'<path d="M46 61 L54 61 L50 66Z" fill="#5b4a4b"/>',
+        // Owl: ear tufts, two large eye discs and feathered wings.
+        '<path d="M21 36 L24 15 L39 27 Q50 20 61 27 L76 15 L79 36 Q94 85 50 88 Q6 85 21 36Z" fill="#a5a3d6"/><path d="M23 47 Q9 63 25 78 M77 47 Q91 63 75 78" fill="#7b7cb9"/><g fill="#faf2e8"><circle cx="35" cy="47" r="17"/><circle cx="65" cy="47" r="17"/><ellipse cx="50" cy="74" rx="20" ry="11"/></g><g fill="#33425b"><circle cx="35" cy="47" r="5"/><circle cx="65" cy="47" r="5"/></g><g fill="white"><circle cx="33" cy="45" r="2"/><circle cx="63" cy="45" r="2"/></g><path d="M44 57 L56 57 L50 65Z" fill="#e8b953"/><path d="M40 73 L43 77 M49 73 L52 77 M58 73 L61 77" stroke="#c2b8bd" stroke-width="2"/>',
+        // Frog: bulging eye bumps and wide smile.
+        '<g fill="#95cca1"><ellipse cx="50" cy="68" rx="26" ry="19"/><ellipse cx="26" cy="84" rx="16" ry="5"/><ellipse cx="74" cy="84" rx="16" ry="5"/><circle cx="30" cy="30" r="15"/><circle cx="70" cy="30" r="15"/><ellipse cx="50" cy="49" rx="37" ry="25"/></g><g fill="#faffef"><circle cx="30" cy="29" r="9"/><circle cx="70" cy="29" r="9"/><ellipse cx="50" cy="72" rx="17" ry="12"/></g><g fill="#33425b"><circle cx="30" cy="29" r="4"/><circle cx="70" cy="29" r="4"/></g><path d="M30 52 Q50 73 70 52" fill="none" stroke="#48705a" stroke-width="3" stroke-linecap="round"/><g fill="#f4a4b4"><ellipse cx="24" cy="48" rx="6" ry="3"/><ellipse cx="76" cy="48" rx="6" ry="3"/></g>',
+        // Panda: black ears and tilted eye patches.
+        '<g fill="#566278"><circle cx="25" cy="26" r="12"/><circle cx="75" cy="26" r="12"/><ellipse cx="28" cy="74" rx="10" ry="14"/><ellipse cx="72" cy="74" rx="10" ry="14"/></g><ellipse cx="50" cy="69" rx="25" ry="20" fill="#eef1ed"/><circle cx="50" cy="47" r="31" fill="#fcfdf7"/><g fill="#566278"><ellipse cx="36" cy="47" rx="10" ry="12" transform="rotate(25 36 47)"/><ellipse cx="64" cy="47" rx="10" ry="12" transform="rotate(-25 64 47)"/></g><g fill="white"><circle cx="36" cy="47" r="4"/><circle cx="64" cy="47" r="4"/></g><g fill="#33425b"><circle cx="36" cy="48" r="2"/><circle cx="64" cy="48" r="2"/></g><path d="M45 58 Q50 54 55 58 L50 63Z M44 65 Q50 70 56 65" fill="#566278"/><path d="M69 85 L76 55 M72 67 L84 63 M74 59 L65 54" stroke="#88b877" stroke-width="4" stroke-linecap="round"/>',
+        // Robot: antenna, square screen and jointed arms.
+        '<path d="M50 13 L50 24" stroke="#879cba" stroke-width="4"/><circle cx="50" cy="11" r="5" fill="#ffcd79"/><g fill="#91baca"><rect x="20" y="24" width="60" height="39" rx="12"/><rect x="30" y="63" width="40" height="22" rx="7"/><rect x="11" y="36" width="8" height="19" rx="4"/><rect x="81" y="36" width="8" height="19" rx="4"/></g><rect x="27" y="30" width="46" height="27" rx="8" fill="#e9fbff"/>'+face(50,40,12)+'<g fill="#688baa"><rect x="18" y="64" width="9" height="16" rx="4"/><rect x="73" y="64" width="9" height="16" rx="4"/><rect x="34" y="82" width="10" height="6" rx="3"/><rect x="56" y="82" width="10" height="6" rx="3"/></g><circle cx="50" cy="72" r="5" fill="#ffcd79"/>',
+        // Dragon: small wings, horns and spiked tail.
+        '<path d="M25 63 L7 39 L7 68 L28 77 M75 63 L93 39 L93 68 L72 77" fill="#bdace2"/><path d="M24 63 L13 51 L13 65 M76 63 L87 51 L87 65" fill="none" stroke="#947fbd" stroke-width="2"/><path d="M67 81 Q85 87 90 70 L82 74 L78 64 L74 75Z" fill="#83c5aa"/><path d="M30 29 L28 13 L42 29 M58 29 L72 13 L70 29" fill="#f5d78e"/><path d="M24 51 Q19 24 50 23 Q81 24 76 51 L78 74 Q72 89 50 86 Q28 89 22 74Z" fill="#83c5aa"/><ellipse cx="50" cy="72" rx="18" ry="13" fill="#d2edbf"/>'+face(50,47,13)+'<g fill="#527865"><circle cx="46" cy="57" r="1.5"/><circle cx="54" cy="57" r="1.5"/></g>',
+        // Dog: long floppy ears, muzzle and spotted coat.
+        '<ellipse cx="50" cy="69" rx="27" ry="19" fill="#f4dcad"/><path d="M28 29 Q8 21 12 55 Q15 71 27 62 M72 29 Q92 21 88 55 Q85 71 73 62" fill="#b79170"/><ellipse cx="50" cy="47" rx="29" ry="27" fill="#f5e1bc"/><ellipse cx="63" cy="42" rx="13" ry="16" fill="#d9b28b"/><ellipse cx="50" cy="61" rx="16" ry="12" fill="#fff5df"/>'+face(50,45,12)+'<path d="M45 57 Q50 54 55 57 L50 62Z" fill="#64554b"/><path d="M46 65 Q50 76 54 65" fill="#e894a6"/><path d="M31 77 Q18 84 14 70" fill="none" stroke="#b79170" stroke-width="8" stroke-linecap="round"/>',
+        // Penguin: tall dark silhouette, white belly and orange feet.
+        '<path d="M22 59 Q6 70 16 79 L29 67 M78 59 Q94 70 84 79 L71 67" fill="#7b91ad"/><ellipse cx="50" cy="54" rx="29" ry="33" fill="#7b91ad"/><path d="M28 49 Q31 31 43 41 Q50 47 57 41 Q69 31 72 49 L71 71 Q69 84 50 84 Q31 84 29 71Z" fill="#f7fcff"/><g fill="#edbf7b"><ellipse cx="34" cy="86" rx="13" ry="5"/><ellipse cx="66" cy="86" rx="13" ry="5"/></g><g fill="#33425b"><circle cx="38" cy="48" r="3.5"/><circle cx="62" cy="48" r="3.5"/></g><path d="M44 56 Q50 52 56 56 L50 63Z" fill="#edbf7b"/><path d="M39 25 Q48 11 54 22 Q64 10 68 25" fill="#7b91ad"/>',
+        // Octopus: bell head and eight curved tentacles.
+        '<path d="M21 59 Q14 16 50 19 Q86 16 79 59 Q92 75 82 83 Q76 88 69 73 Q72 90 61 89 Q54 90 54 76 Q50 95 43 87 L41 76 Q37 91 28 87 Q22 84 29 71 Q15 88 11 76 Q8 70 21 59Z" fill="#d4a9e4"/><path d="M23 58 Q49 68 77 58" fill="none" stroke="#bc8fd1" stroke-width="2"/>'+face(50,45,13)+'<path d="M43 24 Q48 16 55 24" fill="none" stroke="#ebd5f4" stroke-width="5" stroke-linecap="round"/>',
+        // Whale: wide body, tail flukes and water spout.
+        '<path d="M74 55 Q81 53 80 39 Q89 40 89 50 Q96 44 99 49 Q97 63 81 68 Q70 89 34 83 Q9 79 10 58 Q13 37 39 39 Q66 34 74 55Z" fill="#8abddc"/><path d="M14 67 Q45 82 76 65 Q66 88 34 80 Q20 78 14 67Z" fill="#d7edf8"/><path d="M40 74 Q47 60 57 70 Q60 80 45 85Z" fill="#71a8cc"/><path d="M40 34 Q39 23 31 22 M40 34 Q42 19 51 20 M40 34 L41 13" fill="none" stroke="#8abddc" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="18" r="3" fill="#a6d9ec"/><circle cx="54" cy="16" r="3" fill="#a6d9ec"/>'+face(37,55,12),
+        // Lion: flower-shaped mane and soft golden face.
+        '<g fill="#df9c64"><circle cx="50" cy="21" r="14"/><circle cx="73" cy="28" r="14"/><circle cx="83" cy="51" r="14"/><circle cx="73" cy="73" r="14"/><circle cx="50" cy="82" r="14"/><circle cx="27" cy="73" r="14"/><circle cx="17" cy="51" r="14"/><circle cx="27" cy="28" r="14"/></g><circle cx="50" cy="51" r="28" fill="#f5d38b"/><g fill="#f5d38b"><circle cx="29" cy="30" r="9"/><circle cx="71" cy="30" r="9"/></g><ellipse cx="50" cy="63" rx="16" ry="12" fill="#fff0c9"/>'+face(50,48,12)+'<path d="M45 59 L55 59 L50 64Z" fill="#986747"/>',
+        // Turtle: dome shell, patterned scutes and small head.
+        '<g fill="#94c8a6"><ellipse cx="25" cy="78" rx="11" ry="8"/><ellipse cx="72" cy="78" rx="11" ry="8"/><path d="M21 65 L10 71 L20 76Z"/></g><path d="M18 68 Q15 26 50 27 Q85 26 82 68 Q50 83 18 68Z" fill="#a7c68f"/><path d="M50 34 L65 43 L63 60 L49 67 L35 58 L35 43Z" fill="#d7dfa7" stroke="#78a483" stroke-width="2"/><path d="M35 43 L24 36 M65 43 L75 37 M35 58 L22 65 M63 60 L78 67 M49 67 L50 74" stroke="#78a483" stroke-width="2"/><ellipse cx="66" cy="65" rx="23" ry="19" fill="#a9d5ae"/>'+face(67,61,9),
+        // Unicorn: tall horn, rainbow forelock and cloudlike muzzle.
+        '<path d="M39 28 L50 5 L59 28Z" fill="#f1d697"/><path d="M45 17 L54 20 M42 24 L57 27" stroke="#d4b771" stroke-width="2"/><path d="M24 42 L18 18 L39 29 M61 29 L82 18 L76 42" fill="#ddd9f1"/><path d="M25 29 L24 23 L34 31 M66 31 L76 23 L75 29" fill="#f1bdcf"/><path d="M20 51 Q18 23 50 24 Q82 23 80 51 L77 75 Q67 88 50 84 Q33 88 23 75Z" fill="#ece7f8"/><path d="M33 31 Q41 17 51 26 Q61 18 67 32 Q63 45 55 39 Q51 33 44 42Z" fill="#baa5e4"/><path d="M43 28 Q49 21 54 28 L51 39 L44 42Z" fill="#f2b2cf"/><path d="M54 28 Q62 22 66 31 L61 38 L55 39Z" fill="#9dcecf"/><ellipse cx="50" cy="66" rx="23" ry="16" fill="#faf5ff"/>'+face(50,49,13)+'<g fill="#a19ab4"><circle cx="42" cy="66" r="2"/><circle cx="58" cy="66" r="2"/></g>'
+    ];
+    function svg(index) {
+        var n = Number(index);
+        if (!Number.isInteger(n) || n < 0 || n >= labels.length) n = 0;
+        return '<svg viewBox="0 0 100 100" xmlns="http:/'+'/www.w3.org/2000/svg" aria-label="'+labels[n]+'" role="img">'+(n < 8 ? original(n) : shadow + bodies[n-8])+'</svg>';
+    }
+    window.c408PointAvatars = {labels: labels, svg: svg};
+})();
+</script>
+<!-- AVATAR_SCRIPT_END -->
+<!-- POINTS_SCRIPT_START -->
+<script>
+(function () {
+    'use strict';
+    var cloud = !!(window.google && google.script && google.script.run);
+    var key = cloud ? 'c408_points_cloud/state' : 'c408_points_local/state';
+    var state, stateRaw = null, roster, ready = false, selected = [], multi = false, view = 'students', negative = false;
+    var chain = Promise.resolve(), busy = 0, lastError = '', lastSync = '', settingsDraft = null, draftRevision = 0;
+    var feedback=null;
+    var avatarTarget=null;
+    function el(id) { return document.getElementById(id); }
+    function copy(x) { return JSON.parse(JSON.stringify(x)); }
+    function id() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,11); }
+    function defaults() {
+        var names = {}; try { names = JSON.parse(localStorage.getItem('groupNames') || '{}'); } catch (_) {}
+        var groups = []; for (var i=1;i<=8;i++) groups.push({id:'g'+i,name:names[i] || ('第 '+i+' 組'),seats:[]});
+        return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:groups,muted:false};
+    }
+    function store(next) {
+        try {
+            if(localStorage.getItem(key)!==stateRaw){message('另一個分頁已更新本機資料，這次操作未接受。請重新整理此頁，保留其他分頁的待同步操作。');return false;}
+            var serialized=JSON.stringify(next);localStorage.setItem(key,serialized);stateRaw=serialized;state = next;return true;
+        }
+        catch (_) { message('本機儲存失敗：請確認瀏覽器允許儲存並有足夠空間，再重試。這次操作尚未接受。'); return false; }
+    }
+    function message(s) { el('points-message').textContent = s || ''; if(s&&el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+s; }
+    function settings() { return state.bundle.settings || state.defaults; }
+    function seats() { return Object.keys(roster).map(Number).sort(function(a,b){return a-b;}); }
+    function targets(list) { return list.map(function(n){return {seat:n,name:roster[n][0]};}); }
+    function rpc(name,args) {
+        return new Promise(function(resolve,reject) {
+            var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+            r[name].apply(r,args);
+        });
+    }
+    function serial(fn) {
+        chain = chain.then(async function(){ busy++; status(); try { await fn(); } catch (e) { lastError=e.message || String(e); message(lastError + '。操作已保留；請檢查連線後按「重新同步」。若持續失敗請保留此畫面並聯絡管理者。'); } finally { busy--; status(); } });
+        return chain;
+    }
+    function status() {
+        if (!ready) return;
+        el('points-status').textContent = cloud ? (state.pending.length ? '☁ 待同步 '+state.pending.length+' 筆'+(lastError?'（失敗）':'') : lastError ? '☁ 同步失敗' : busy ? '☁ 同步中' : '☁ 已同步'+(lastSync?' · '+lastSync:'')) : '○ 本機模式 · 僅保存在這台瀏覽器';
+        el('points-undo').disabled = !state.lastUndo || !!state.pending.length;
+        el('points-reset').disabled = !!state.pending.length;
+        if(el('seat-points-feedback'))el('seat-points-feedback').textContent='集點：'+el('points-status').textContent+(cloud&&(state.pending.length||lastError)?' · 到「班級集點」按「重新同步」重試':'');
+    }
+    function allEvents() {
+        var events = [], known = {};
+        state.bundle.events.forEach(function(e){if(!known[e.id]){known[e.id]=true;events.push(e);}});
+        state.pending.forEach(function(b){if(b.type==='score')b.seats.forEach(function(s){var eid=b.id+':'+s.seat;if(!known[eid]){known[eid]=true;events.push({id:eid,batchId:b.id,time:b.time,seat:s.seat,name:s.name,label:b.label,delta:b.delta,type:b.type,pending:true});}});});
+        return events;
+    }
+    function totals() { var t={};allEvents().forEach(function(e){t[e.seat]=(t[e.seat]||0)+e.delta;});return t; }
+    function avatar(n) { return window.c408PointAvatars.svg(n); }
+    function decorateSeat(card,t) {
+        if(!ready||!card)return;
+        var n=Number(card.dataset.seat), icon=card.querySelector('.seat-point-avatar'), score=card.querySelector('.seat-point-score');
+        if(!roster[n]||!icon||!score)return;
+        var choice=settings().avatars[n]===undefined?n%8:settings().avatars[n];
+        if(icon.dataset.avatar!==String(choice)){icon.innerHTML=avatar(choice);icon.dataset.avatar=String(choice);}
+        score.textContent=(t||totals())[n]||0;
+        score.setAttribute('aria-label',score.textContent+' 點');
+        if(!card.isConnected&&feedback&&Date.now()<feedback.until&&feedback.list.indexOf(n)>=0)floatOn(card,(feedback.delta>0?'+':'')+feedback.delta,feedback.delta);
+    }
+    function renderSeatPoints(){var t=totals();document.querySelectorAll('#seat-chart [data-seat]').forEach(function(card){decorateSeat(card,t);});}
+    function button(text, fn, cls) { var b=document.createElement('button');b.type='button';b.textContent=text;if(cls)b.className=cls;b.onclick=fn;return b; }
+    function render() {
+        var t=totals(), box=el('points-students');el('points-class-total').textContent='全班 '+seats().reduce(function(sum,n){return sum+(t[n]||0);},0)+' 點';box.textContent='';
+        seats().forEach(function(n){
+            var b=button('',function(){if(multi){var at=selected.indexOf(n);if(at<0)selected.push(n);else selected.splice(at,1);render();}else{selected=[n];render();openAward();}},'points-card'+(selected.indexOf(n)>=0?' selected':''));
+            b.dataset.pointSeat=n;b.innerHTML=avatar(settings().avatars[n]===undefined?n%8:settings().avatars[n]);
+            var s=document.createElement('span');s.className='points-seat';s.textContent=n+' 號';b.appendChild(s);
+            s=document.createElement('span');s.className='points-name';s.textContent=roster[n][0];b.appendChild(s);
+            s=document.createElement('strong');s.className='points-score';s.textContent=t[n]||0;b.appendChild(s);box.appendChild(b);
+        });
+        box.hidden=view==='groups';var groups=el('points-groups');groups.textContent='';groups.hidden=view!=='groups';
+        settings().groups.forEach(function(g){var node=document.createElement('div');node.className='points-group';node.dataset.pointGroup=g.id;var title=document.createElement('strong');title.textContent=g.name+' · '+g.seats.reduce(function(sum,n){return sum+(t[n]||0);},0)+' 點';node.appendChild(title);var names=document.createElement('p');names.className='points-help';names.textContent=g.seats.map(function(n){return n+' '+roster[n][0];}).join('、')||'尚未設定成員';node.appendChild(names);var b=g.seats.length?button('整組加扣點',function(){selected=g.seats.slice();openAward();}):button('設定小組成員',openSettings);node.appendChild(b);groups.appendChild(node);});
+        if(!settings().groups.length){var empty=document.createElement('div');empty.className='points-empty';empty.textContent='尚未設定小組，先加入組名與成員就能整組加扣點。';empty.appendChild(button('設定小組',openSettings));groups.appendChild(empty);}
+        el('points-selected-count').textContent=selected.length?'已選 '+selected.length+' 人':'點學生卡片加扣點';
+        el('points-multi').textContent=multi?'✓ 多選中':'多選學生';renderSeatPoints();status();showFeedback();
+    }
+    var previousFocus={};
+    function modal(id,show) {el(id).hidden=!show;if(show){previousFocus[id]=document.activeElement;var focus=el(id).querySelector('button,input,select');if(focus)focus.focus();}else if(previousFocus[id]){previousFocus[id].focus();delete previousFocus[id];}}
+    function openAward(){if(!selected.length){message('請先選取學生，或在設定中加入小組成員。');return;}negative=false;el('points-auction-value').value='';el('points-auction-message').textContent='';el('points-award-title').textContent='為 '+selected.length+' 位學生加扣點';awardItems();modal('points-award',true);}
+    function awardItems(){el('points-auction').hidden=!negative;var box=el('points-award-items');box.textContent='';[1,2,3,4,5].forEach(function(n){var delta=negative?-n:n;box.appendChild(button((negative?'−':'+')+n,function(){score({id:'quick_'+(negative?'minus_':'plus_')+n,label:negative?'扣點':'加點',delta:delta});},'points-primary'));});}
+    function auction(){var raw=el('points-auction-value').value.trim(), amount=Number(raw);if(!/^\d+$/.test(raw)||!Number.isInteger(amount)||amount<1||amount>1000000){el('points-auction-message').textContent='請輸入 1～1,000,000 的正整數。';return;}score({id:'auction',label:'拍賣扣點',delta:-amount});}
+    function celebrate(card){if(!card||feedback.delta<=0)return;card.classList.add('points-celebrate');setTimeout(function(){card.classList.remove('points-celebrate');},Math.max(0,feedback.until-Date.now()));}
+    function floatOn(card,text,delta){if(!card)return;var s=document.createElement('span');s.className='points-float'+(delta<0?' points-negative':'');s.textContent=text;card.appendChild(s);celebrate(card);setTimeout(function(){s.remove();},Math.max(0,feedback.until-Date.now()));}
+    function showFeedback(){if(!feedback||Date.now()>=feedback.until)return;var list=feedback.list,delta=feedback.delta,value=(delta>0?'+':'')+delta;Array.from(document.querySelectorAll('#panel-points .points-float,#seat-chart .points-float')).forEach(function(n){n.remove();});if(view==='groups'){settings().groups.forEach(function(g){var count=g.seats.filter(function(n){return list.indexOf(n)>=0;}).length;if(!count)return;var card=Array.from(el('points-groups').children).find(function(n){return n.dataset.pointGroup===g.id;});floatOn(card,(count===g.seats.length?'每人 ':count+' 人各 ')+value,delta);});}else list.forEach(function(n){floatOn(document.querySelector('[data-point-seat="'+n+'"]'),value,delta);});list.forEach(function(n){floatOn(document.querySelector('#seat-chart [data-seat="'+n+'"]'),value,delta);});}
+    function playSound(delta,kind,preview){if(!preview&&settings().muted)return;kind=kind||settings().sound||'chime';var patterns={chime:[[620,0,.18]],dingdong:[[880,0,.15],[660,.16,.22]],levelup:[[523,0,.1],[659,.11,.1],[784,.22,.2]],sparkle:[[1047,0,.07],[1319,.08,.07],[1568,.16,.18]]};try{var ac=new(window.AudioContext||window.webkitAudioContext)();(patterns[kind]||patterns.chime).forEach(function(note){var o=ac.createOscillator(),g=ac.createGain(),start=ac.currentTime+note[1];o.connect(g);g.connect(ac.destination);o.frequency.value=note[0]*(delta<0?.65:1);g.gain.setValueAtTime(.001,start);g.gain.linearRampToValueAtTime(.055,start+.012);g.gain.exponentialRampToValueAtTime(.001,start+note[2]);o.start(start);o.stop(start+note[2]+.025);});setTimeout(function(){ac.close();},800);}catch(e){if(preview)settingsNotice('這台裝置無法播放音效，請檢查瀏覽器聲音設定。',true);}}
+    function animate(list,delta){feedback={list:list.slice(),delta:delta,until:Date.now()+1100};showFeedback();playSound(delta);}
+    function score(item){var b={id:id(),type:'score',seats:targets(selected),itemId:item.id,label:item.label,delta:item.delta,device:state.device,time:new Date().toISOString()};if(enqueue(b)){modal('points-award',false);animate(selected,item.delta);}}
+    function localApply(next,b){var events=next.bundle.events, list=b.seats;
+        if(b.type==='undo')list=events.filter(function(e){return e.batchId===b.originalBatchId;}).map(function(e){return {seat:e.seat,name:e.name,delta:-e.delta};});
+        list.forEach(function(s){var d=b.type==='score'?b.delta:b.type==='undo'?s.delta:-events.filter(function(e){return e.seat===s.seat;}).reduce(function(sum,e){return sum+e.delta;},0);events.push({id:b.id+':'+s.seat,batchId:b.id,time:b.time,seat:s.seat,name:s.name,itemId:b.itemId||'',label:b.type==='undo'?'復原':b.type==='reset'?'歸零':b.label,delta:d,type:b.type,originalBatchId:b.originalBatchId||'',device:b.device});});
+    }
+    function reconcileUndo(next){var undone={};next.bundle.events.forEach(function(e){if(e.type==='undo')undone[e.originalBatchId]=true;});next.undoStack=next.undoStack.filter(function(batchId){return !undone[batchId];});next.lastUndo=next.undoStack.length?next.undoStack[next.undoStack.length-1]:null;}
+    function enqueue(b){var next=copy(state);if(cloud)next.pending.push(b);else localApply(next,b);if(b.type==='score')next.undoStack.push(b.id);else if(b.type==='undo')next.undoStack=next.undoStack.filter(function(batchId){return batchId!==b.originalBatchId;});else next.undoStack=[];reconcileUndo(next);if(!store(next))return false;lastError='';message('');render();if(cloud)sync(false);return true;}
+    async function flush(){while(state.pending.length){var b=state.pending[0], bundle=await rpc('commitPointBatch',[b]);var next=copy(state);next.bundle=bundle;next.pending.shift();reconcileUndo(next);if(!store(next))throw Error('雲端可能已接受操作，但本機儲存失敗。待送編號已保留，請恢復儲存後重新同步');render();} }
+    function sync(pull){if(!cloud)return;return serial(async function(){await flush();if(pull){var bundle=await rpc('getPointBundle',[]);var next=copy(state);next.bundle=bundle;reconcileUndo(next);if(!store(next))throw Error('同步資料無法儲存');}lastError='';lastSync=new Date().toLocaleTimeString();message('');render();});}
+    function undo(){if(state.pending.length){message('請先完成待同步操作。');return;}if(!state.lastUndo)return;enqueue({id:'undo:'+state.lastUndo,type:'undo',originalBatchId:state.lastUndo,device:state.device,time:new Date().toISOString()});}
+    function reset(){if(state.pending.length){message('請先完成待同步操作。');return;}var list=selected.length?selected.slice():seats();if(!window.confirm('確定將'+(selected.length?'選取的 '+list.length+' 位学生':'全班')+'點數歸零？歷史紀錄會保留。'))return;enqueue({id:id(),type:'reset',seats:targets(list),device:state.device,time:new Date().toISOString()});}
+    function history(){var box=el('points-history-student');box.textContent='';var option=document.createElement('option');option.value='';option.textContent='全班';box.appendChild(option);seats().forEach(function(n){var o=document.createElement('option');o.value=n;o.textContent=n+' '+roster[n][0];box.appendChild(o);});renderHistory();modal('points-history-modal',true);}
+    function renderHistory(){var student=el('points-history-student').value,date=el('points-history-date').value,box=el('points-history-list');box.textContent='';allEvents().slice().reverse().filter(function(e){return (!student||Number(student)===e.seat)&&(!date||localDate(e.time)===date);}).forEach(function(e){var row=document.createElement('tr');[new Date(e.time).toLocaleString(),e.seat+' '+e.name,e.label+(e.type==='undo'?'（復原）':e.type==='reset'?'（歸零）':'')+(e.pending?' · 待同步':''),(e.delta>0?'+':'')+e.delta].forEach(function(s){var td=document.createElement('td');td.textContent=s;row.appendChild(td);});box.appendChild(row);});}
+    function localDate(time){var d=new Date(time);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+    function input(value,type){var i=document.createElement('input');i.value=value;i.type=type||'text';return i;}
+    function openSettings(){settingsDraft=copy(settings());if(!settingsDraft.groups.length)settingsDraft.groups=defaults().groups;draftRevision=state.bundle.revision;settingsNotice('');el('points-settings-reload').hidden=true;renderSettings();modal('points-settings-modal',true);}
+    function renderSettings(){var items=el('points-settings-items');items.textContent='';settingsDraft.items.forEach(function(item,idx){var row=document.createElement('div');row.className='points-item-row';var name=input(item.label);name.maxLength=80;name.setAttribute('aria-label','項目名稱');name.oninput=function(){item.label=name.value;};var delta=input(item.delta,'number');delta.min=-100;delta.max=100;delta.setAttribute('aria-label','項目分值');delta.oninput=function(){item.delta=Number(delta.value);};row.appendChild(name);row.appendChild(delta);row.appendChild(button('刪除',function(){settingsDraft.items.splice(idx,1);renderSettings();}));items.appendChild(row);});
+        var groups=el('points-settings-groups');groups.textContent='';settingsDraft.groups.forEach(function(g,idx){var row=document.createElement('div');row.className='points-group-row';var name=input(g.name);name.maxLength=40;name.setAttribute('aria-label','小組名稱');name.oninput=function(){g.name=name.value;};var members=input(g.seats.join(', '));members.placeholder='座號，例如 1, 2, 3';members.setAttribute('aria-label','小組成員座號');members.oninput=function(){g.seatsText=members.value;};if(g.seatsText!==undefined)members.value=g.seatsText;row.appendChild(name);row.appendChild(members);row.appendChild(button('刪除',function(){settingsDraft.groups.splice(idx,1);renderSettings();}));groups.appendChild(row);});
+        var avatars=el('points-settings-avatars');avatars.textContent='';seats().forEach(function(n){var row=document.createElement('div');row.className='points-avatar-row';var name=document.createElement('span');name.textContent=n+' '+roster[n][0];row.appendChild(name);var idx=settingsDraft.avatars[n]===undefined?n%8:settingsDraft.avatars[n];var picker=button('',function(){openAvatarGallery(n);},'points-avatar-picker');picker.innerHTML=avatar(idx);picker.dataset.avatar=idx;picker.dataset.pointAvatarSeat=n;picker.setAttribute('aria-label',n+' 號選擇角色');var caption=document.createElement('span');caption.textContent=window.c408PointAvatars.labels[idx]+' · 選角色';picker.appendChild(caption);row.appendChild(picker);avatars.appendChild(row);});el('points-settings-muted').checked=settingsDraft.muted;el('points-settings-sound').value=settingsDraft.sound||'chime';
+    }
+    function openAvatarGallery(seat){avatarTarget=seat;var current=seat===null?null:(settingsDraft.avatars[seat]===undefined?seat%8:settingsDraft.avatars[seat]);el('points-avatar-title').textContent=seat===null?'角色圖鑑 · 24 款':seat+' 號 '+roster[seat][0]+' · 選擇角色';var box=el('points-avatar-gallery');box.textContent='';el('points-avatar-preview').textContent='';window.c408PointAvatars.labels.forEach(function(label,idx){var choice=button('',function(){if(avatarTarget!==null){var chosenSeat=avatarTarget;settingsDraft.avatars[chosenSeat]=idx;modal('points-avatar-modal',false);renderSettings();var restored=el('points-settings-avatars').querySelector('[data-point-avatar-seat="'+chosenSeat+'"]');if(restored)restored.focus();}else{var preview=el('points-avatar-preview');preview.innerHTML=avatar(idx);var text=document.createElement('strong');text.textContent=label;preview.appendChild(text);Array.from(box.children).forEach(function(n){n.setAttribute('aria-pressed',n.dataset.avatar===String(idx)?'true':'false');});}},'points-avatar-choice');choice.dataset.avatar=idx;choice.setAttribute('aria-pressed',current===idx?'true':'false');choice.innerHTML=avatar(idx);var name=document.createElement('span');name.textContent=label;choice.appendChild(name);box.appendChild(choice);});modal('points-avatar-modal',true);}
+    function validatedDraft(){var s=copy(settingsDraft),seen={};s.muted=el('points-settings-muted').checked;s.sound=el('points-settings-sound').value;if(!s.items.length||s.items.length>40)throw Error('請保留 1～40 個項目。');s.items.forEach(function(i){i.label=i.label.trim();if(!i.label||!Number.isInteger(i.delta)||!i.delta||Math.abs(i.delta)>100)throw Error('項目名稱不可空白，分值須為 −100～100 的非零整數。');});if(!s.items.some(function(i){return i.delta>0;})||!s.items.some(function(i){return i.delta<0;}))throw Error('必須保留至少一個加點與扣點項目。');if(s.groups.length>16)throw Error('小組最多 16 組。');s.groups.forEach(function(g){g.name=g.name.trim();if(!g.name)throw Error('小組名稱不可空白。');if(g.seatsText!==undefined){var raw=g.seatsText.trim();g.seats=raw?raw.split(/[\s,，、]+/).map(Number):[];delete g.seatsText;}g.seats.forEach(function(n){if(!Number.isInteger(n)||!roster[n])throw Error('小組成員須填有效座號。');if(seen[n])throw Error(n+' 號重複加入小組，每位學生最多一組。');seen[n]=true;});});return s;}
+    function settingsNotice(text,error){el('points-settings-message').textContent=text;var notice=el('points-settings-feedback');notice.textContent=text;notice.classList.toggle('points-save-error',!!error);if(text&&!el('points-settings-modal').hidden)notice.scrollIntoView({block:'nearest'});}
+    function saveSettings(){var s,revision=draftRevision;try{s=validatedDraft();}catch(e){settingsNotice(e.message,true);return;}if(!cloud){var next=copy(state);next.bundle.settings=s;next.bundle.revision++;if(store(next)){modal('points-settings-modal',false);render();message('設定已儲存（本機）。');}else settingsNotice('本機儲存失敗，請確認瀏覽器儲存空間與權限。',true);return;}var saveButton=el('points-settings-save');saveButton.disabled=true;saveButton.textContent='儲存中…';settingsNotice('正在儲存設定，請稍候…');serial(async function(){try{await flush();var result=await rpc('savePointSettings',[s,revision]);var next=copy(state);next.bundle.settings=result.settings;next.bundle.revision=result.revision;if(!store(next))throw Error('雲端設定已儲存，本機儲存失敗，請重新同步。');modal('points-settings-modal',false);render();message('設定已儲存並同步至雲端。');}catch(e){settingsNotice(e.message+'。草稿已保留；可重新載入最新設定（會捨棄草稿），或取消稍後處理。',true);el('points-settings-reload').hidden=false;}finally{saveButton.disabled=false;saveButton.textContent='儲存設定';}});}
+    function init(){roster=window.c408SeatRoster||{};var raw;try{raw=localStorage.getItem(key);stateRaw=raw;state=raw?JSON.parse(raw):null;}catch(e){message('本機資料無法讀取，請保留瀏覽器資料並聯絡管理者。');return false;}if(!state)state={bundle:{events:[],settings:null,revision:0},defaults:defaults(),pending:[],lastUndo:null,undoStack:[],device:'device_'+id()};if(!state.bundle||!Array.isArray(state.bundle.events)||!Array.isArray(state.pending)){message('本機資料格式異常，請勿清除資料，請聯絡管理者。');return false;}if(!Array.isArray(state.undoStack))state.undoStack=state.lastUndo?[state.lastUndo]:[];reconcileUndo(state);ready=true;
+        el('points-all').onclick=function(){selected=seats();render();openAward();};el('points-award-selected').onclick=openAward;el('points-multi').onclick=function(){multi=!multi;selected=[];render();};el('points-view-students').onclick=function(){view='students';render();};el('points-view-groups').onclick=function(){view='groups';render();};el('points-award-positive').onclick=function(){negative=false;awardItems();};el('points-award-negative').onclick=function(){negative=true;awardItems();};el('points-auction-submit').onclick=auction;el('points-award-close').onclick=function(){modal('points-award',false);};el('points-undo').onclick=undo;el('points-reset').onclick=reset;el('points-refresh').onclick=function(){sync(true);};el('points-history').onclick=history;el('points-history-close').onclick=function(){modal('points-history-modal',false);};el('points-history-student').onchange=renderHistory;el('points-history-date').onchange=renderHistory;el('points-settings-sound').onchange=function(){if(settingsDraft)settingsDraft.sound=this.value;};el('points-settings-sound-preview').onclick=function(){playSound(1,el('points-settings-sound').value,true);};el('points-settings-muted').onchange=function(){if(settingsDraft)settingsDraft.muted=this.checked;};el('points-avatar-close').onclick=function(){modal('points-avatar-modal',false);};el('points-avatars-browse').onclick=function(){openAvatarGallery(null);};el('points-settings').onclick=openSettings;el('points-settings-cancel').onclick=function(){modal('points-settings-modal',false);};el('points-settings-save').onclick=saveSettings;el('points-settings-add-item').onclick=function(){settingsDraft.items.push({id:id(),label:'新項目',delta:1});renderSettings();};el('points-settings-add-group').onclick=function(){settingsDraft.groups.push({id:id(),name:'新小組',seats:[]});renderSettings();};el('points-settings-reload').onclick=function(){serial(async function(){var bundle=await rpc('getPointBundle',[]);var next=copy(state);next.bundle=bundle;if(store(next)){openSettings();render();}});};
+        document.addEventListener('keydown',function(e){var dialogs=Array.from(document.querySelectorAll('.points-modal:not([hidden])')),dialog=dialogs[dialogs.length-1];if(!dialog)return;if(e.key==='Escape'){modal(dialog.id,false);return;}if(e.key==='Tab'){var controls=Array.from(dialog.querySelectorAll('button,input,select')).filter(function(n){return !n.disabled&&!n.hidden&&n.getClientRects().length;});if(!controls.length)return;var first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}});
+        window.addEventListener('focus',function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&(window.c408CurrentTab==='points'||window.c408CurrentTab==='seat'))sync(true);});setInterval(function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden&&!busy)sync(true);},15000);return true;
+    }
+    window.c408PointsDecorateSeat=function(card){decorateSeat(card);};
+    window.c408PointsShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsSeatShow=function(){if(!ready&&!init())return;render();sync(true);};
+    window.c408PointsBatchFromSeat=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Array.isArray(request.seats)||!request.seats.length||request.seats.some(function(n){return !Number.isInteger(n)||!roster[n];})||!Number.isInteger(request.delta)||request.delta>=0||request.delta<-5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及每人扣 1～5 點。'};
+        var list=Array.from(new Set(request.seats)).sort(function(a,b){return a-b;});
+        var pending=state.pending.find(function(b){return b.id===request.id;});
+        var confirmed=state.bundle.events.filter(function(e){return e.batchId===request.id;});
+        var itemId='seat_batch_points_minus_'+Math.abs(request.delta);
+        if(pending||confirmed.length){
+            var entries=pending?pending.seats:confirmed;
+            var actual=entries.map(function(e){return e.seat;}).sort(function(a,b){return a-b;});
+            var same=JSON.stringify(actual)===JSON.stringify(list)&&(pending?pending.type==='score'&&pending.delta===request.delta&&pending.itemId===itemId:confirmed.every(function(e){return e.type==='score'&&e.delta===request.delta&&e.itemId===itemId;}));
+            if(!same)return {accepted:false,error:'這個計分編號已用於不同操作，請取消後重新開啟扣點視窗。'};
+            status();return {accepted:true,duplicate:true};
+        }
+        var b={id:request.id,type:'score',seats:targets(list),itemId:itemId,label:'秩序登記：本節批次扣點',delta:request.delta,device:state.device,time:new Date().toISOString()};
+        if(!enqueue(b))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次集點尚未接受。'};
+        animate(list,request.delta);status();return {accepted:true,duplicate:false};
+    };
+    window.c408PointsFromSeat=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Number.isInteger(request.seat)||!roster[request.seat]||!Number.isInteger(request.delta)||!request.delta||Math.abs(request.delta)>5||typeof request.id!=='string'||!/^[-A-Za-z0-9_:]{1,100}$/.test(request.id))return {accepted:false,error:'請選擇有效學生及加扣 1～5 點。'};
+        var pending=state.pending.find(function(b){return b.id===request.id;});
+        var confirmed=state.bundle.events.filter(function(e){return e.batchId===request.id;});
+        if(pending||confirmed.length){
+            var same=pending?pending.type==='score'&&pending.delta===request.delta&&pending.seats.length===1&&pending.seats[0].seat===request.seat:confirmed.length===1&&confirmed[0].type==='score'&&confirmed[0].seat===request.seat&&confirmed[0].delta===request.delta;
+            if(!same)return {accepted:false,error:'這個計分編號已用於不同操作，請關閉後重新開啟學生視窗。'};
+            status();return {accepted:true,duplicate:true};
+        }
+        var b={id:request.id,type:'score',seats:targets([request.seat]),itemId:'seat_points_'+(request.delta>0?'plus_':'minus_')+Math.abs(request.delta),label:'秩序登記：'+(request.delta>0?'加點':'扣點'),delta:request.delta,device:state.device,time:new Date().toISOString()};
+        if(!enqueue(b))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次集點尚未接受。'};
+        animate([request.seat],request.delta);status();return {accepted:true,duplicate:false};
+    };
+})();
+</script>
+<!-- POINTS_SCRIPT_END -->
 </body>
 </html>
