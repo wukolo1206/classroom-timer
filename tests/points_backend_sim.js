@@ -233,4 +233,27 @@ test('server roster exactly matches authoritative index.html seatRoster', () => 
   const expected=Object.keys(roster).map(seat=>[Number(seat),roster[seat][0]]).sort((a,b)=>a[0]-b[0]);
   assert.equal(JSON.stringify(e.ctx.POINT_ROSTER),JSON.stringify(expected));
 });
+test('avatar purchase charges configured cost once, refuses low balance or stale price, undo reverses', () => {
+  const e=env(), buy=(id,idx,delta=-5,seats=[1])=>({id,type:'score',seats:score('x',1,seats).seats,itemId:'avatar:'+idx,label:'任意',delta,device:'A'});
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a0',3)),/點數不足/);
+  assert.equal(e.ctx.getPointBundle().events.length,0); assert.equal(e.rows.length,1);
+  e.ctx.commitPointBatch(score('earn',4,[1]));
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a1',3)),/點數不足/);
+  e.ctx.commitPointBatch(score('earn2',1,[1]));
+  let out=e.ctx.commitPointBatch(buy('a2',3));
+  assert.equal(total(out,1),0); const ev=out.events.find(x=>x.batchId==='a2');
+  assert.equal(ev.itemId,'avatar:3'); assert.equal(ev.label,'更換角色'); assert.equal(ev.delta,-5);
+  assert.equal(total(e.ctx.commitPointBatch(buy('a2',3)),1),0,'retry does not double charge');
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a3',24)),/換角色資料/);
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a4',3,-5,[1,2])),/換角色資料/);
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a5',3,5)),/換角色資料/);
+  out=e.ctx.commitPointBatch({type:'undo',originalBatchId:'a2',device:'A'});
+  assert.equal(total(out,1),5);
+  const s=e.ctx.getPointBundle().settings; e.ctx.savePointSettings({...s,avatarCost:3},0);
+  assert.equal(e.ctx.getPointBundle().settings.avatarCost,3);
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a6',4,-5)),/改為 3 點/);
+  assert.equal(total(e.ctx.commitPointBatch(buy('a7',4,-3)),1),2);
+  assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:0},1),/1～100/);
+  assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:101},1),/1～100/);
+});
 console.log(count+' backend scenarios passed');

@@ -43,6 +43,14 @@ function pointTargets_(seats) {
     return target;
   }).sort(function (a,b) { return a.seat - b.seat; });
 }
+function pointAvatarIndex_(itemId) {
+  var m = /^avatar:(\d{1,2})$/.exec(itemId || '');
+  return m && Number(m[1]) <= 23 ? Number(m[1]) : null;
+}
+function pointAvatarCost_(settings) {
+  var cost = settings && settings.avatarCost;
+  return Number.isInteger(cost) && cost >= 1 && cost <= 100 ? cost : 5;
+}
 function pointBatch_(batch) {
   if (!batch || typeof batch !== 'object') pointError_('批次格式不正確');
   var type = batch.type;
@@ -73,6 +81,11 @@ function pointBatch_(batch) {
       request.delta = batch.delta;
       request.label = '拍賣扣點';
     } else request.delta = pointDelta_(batch.delta);
+    if (request.itemId.indexOf('avatar:') === 0) {
+      // Avatar purchase: one student, a deduction; price and balance are checked under lock.
+      if (pointAvatarIndex_(request.itemId) === null || request.seats.length !== 1 || request.delta >= 0) pointError_('換角色資料不正確');
+      request.label = '更換角色';
+    }
   }
   return {request:request, device:device};
 }
@@ -136,7 +149,7 @@ function pointComplete_(sheet, data) {
   }
 }
 function pointDefaultSettings_() {
-  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false,sound:'chime'};
+  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false,sound:'chime',avatarCost:5};
 }
 function pointSettings_() {
   var raw = PropertiesService.getDocumentProperties().getProperty(POINT_SETTINGS_KEY);
@@ -176,6 +189,11 @@ function commitPointBatch(batch) {
       targets = originals.map(function (e) { return {seat:e.seat,name:e.name}; });
     } else targets = request.seats;
     data.events.forEach(function (e) { totals[e.seat] = (totals[e.seat] || 0) + e.delta; });
+    if (request.type === 'score' && pointAvatarIndex_(request.itemId) !== null) {
+      var cost = pointAvatarCost_(pointSettings_().settings), seat = request.seats[0].seat;
+      if (request.delta !== -cost) pointError_('換角色扣點已改為 ' + cost + ' 點，請重新整理後再換');
+      if ((totals[seat] || 0) < cost) pointError_('點數不足：換角色需要 ' + cost + ' 點，目前 ' + (totals[seat] || 0) + ' 點');
+    }
     var time = new Date().toISOString();
     var events = targets.map(function (target, index) {
       var original = originals[index];
@@ -198,6 +216,8 @@ function pointValidateSettings_(settings) {
   if (!settings || typeof settings !== 'object' || !Array.isArray(settings.items) || !settings.items.length || settings.items.length > 40 || !Array.isArray(settings.groups) || settings.groups.length > 16 || !settings.avatars || Array.isArray(settings.avatars) || typeof settings.avatars !== 'object' || typeof settings.muted !== 'boolean') pointError_('集點設定格式不正確');
   var sound = typeof settings.sound === 'undefined' ? 'chime' : settings.sound;
   if (['chime','dingdong','levelup','sparkle'].indexOf(sound) < 0) pointError_('音效設定不正確');
+  var avatarCost = typeof settings.avatarCost === 'undefined' ? 5 : settings.avatarCost;
+  if (!Number.isInteger(avatarCost) || avatarCost < 1 || avatarCost > 100) pointError_('換角色扣點須為 1～100 的整數');
   var ids = {}, positive = false, negative = false;
   var items = settings.items.map(function (item) {
     if (!item) pointError_('項目格式不正確');
@@ -225,7 +245,7 @@ function pointValidateSettings_(settings) {
     }).sort(function (a,b) {return a-b;});
     return {id:id,name:pointText_(group.name,40,'組名'),seats:seats};
   });
-  return {items:items,avatars:avatars,groups:groups,muted:settings.muted,sound:sound};
+  return {items:items,avatars:avatars,groups:groups,muted:settings.muted,sound:sound,avatarCost:avatarCost};
 }
 function savePointSettings(settings, revision) {
   var clean = pointValidateSettings_(settings);

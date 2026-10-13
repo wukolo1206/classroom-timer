@@ -17,6 +17,11 @@ MOCK = r"""
  commitPointBatch:b=>{
    if(sessionStorage.getItem('__pointsFail')) throw Error('模擬離線');
    const c=load();let id=b.id,seats=b.seats,delta=b.delta,label=b.label;
+   if(/^avatar:/.test(b.itemId||'')&&!c.events.some(e=>e.batchId===b.id)){
+     const cost=(c.settings&&c.settings.avatarCost)||5,bal=c.events.filter(e=>e.seat===b.seats[0].seat).reduce((n,e)=>n+e.delta,0);
+     if(sessionStorage.getItem('__pointsAvatarReject')||bal<cost)throw Error('永久：點數不足：換角色需要 '+cost+' 點，目前 '+bal+' 點');
+     if(delta!==-cost)throw Error('永久：換角色扣點已改為 '+cost+' 點，請重新整理後再換');
+   }
    if(b.type==='undo'){
      id='undo:'+b.originalBatchId;
      seats=c.events.filter(e=>e.batchId===b.originalBatchId).map(e=>({seat:e.seat,name:e.name,delta:-e.delta}));label='復原';
@@ -116,25 +121,25 @@ class Points(unittest.TestCase):
     def test_settings_groups_avatar_and_quick_five(self):
         p=self.open(gas=True);p.locator('#points-settings').click()
         p.locator('#points-settings-groups input[aria-label="小組成員座號"]').first.fill('1,2')
-        p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="7"]').click()
         p.locator('#points-settings-save').click();p.wait_for_timeout(200)
         p.locator('#points-view-groups').click();p.locator('#points-groups button').first.click()
         p.locator('#points-award-items button').nth(4).click();p.wait_for_timeout(200)
         p.locator('#points-view-students').click();self.assertEqual(self.value(p,1),5);self.assertEqual(self.value(p,2),5)
         p.locator('#points-view-groups').click();self.assertIn('10 點',p.locator('#points-groups').inner_text())
         p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(150)
-        p.locator('#points-settings').click();self.assertEqual(p.locator('#points-settings-avatars .points-avatar-picker').first.get_attribute('data-avatar'),'7')
+        p.locator('#points-view-students').click();self.assertEqual(self.value(p,1),5)
     def test_desktop_all_students_fit(self):
         p=self.open();p.set_viewport_size({'width':1366,'height':768})
         self.assertLessEqual(p.locator('#points-students .points-card').last.bounding_box()['y']+p.locator('#points-students .points-card').last.bounding_box()['height'],768)
     def test_avatar_gallery_twenty_four_and_saved_selection(self):
-        p=self.open(gas=True);p.locator('#points-settings').click()
+        p=self.open(gas=True);self.score(p,1,4);p.locator('#points-settings').click()
         p.locator('#points-settings-avatars .points-avatar-picker').first.click(timeout=3000)
         self.assertEqual(p.locator('#points-avatar-gallery .points-avatar-choice').count(),24)
         p.locator('#points-avatar-gallery [data-avatar="23"]').click()
-        self.assertFalse(p.locator('#points-avatar-modal').is_visible())
-        p.locator('#points-settings-save').click();p.wait_for_timeout(200)
-        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).settings.avatars['1']"),23)
+        self.assertFalse(p.locator('#points-avatar-modal').is_visible());p.wait_for_timeout(300)
+        p.locator('#points-settings-cancel').click();self.assertEqual(self.value(p),0)
+        bought=p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).events.filter(e=>e.itemId==='avatar:23')")
+        self.assertEqual([(e['seat'],e['delta'],e['label']) for e in bought],[(1,-5,'更換角色')])
         p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(150)
         p.locator('#points-settings').click();p.locator('#points-settings-avatars .points-avatar-picker').first.click()
         self.assertEqual(p.locator('#points-avatar-gallery [aria-pressed="true"]').get_attribute('data-avatar'),'23')
@@ -147,15 +152,61 @@ class Points(unittest.TestCase):
         p.wait_for_timeout(1200)
         self.assertFalse(card.evaluate("n=>n.classList.contains('points-celebrate')"))
     def test_avatar_selection_preserves_muted_draft(self):
-        p=self.open();p.locator('#points-settings').click();p.locator('#points-settings-muted').check()
+        p=self.open();self.score(p,1,4);p.locator('#points-settings').click();p.locator('#points-settings-muted').check()
         p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="23"]').click()
         self.assertTrue(p.locator('#points-settings-muted').is_checked())
         p.locator('#points-settings-save').click()
         self.assertTrue(p.evaluate("JSON.parse(localStorage.getItem('c408_points_local/state')).bundle.settings.muted"))
     def test_avatar_selection_restores_keyboard_focus(self):
-        p=self.open();p.locator('#points-settings').click()
+        p=self.open();self.score(p,1,4);p.locator('#points-settings').click()
         p.locator('#points-settings-avatars .points-avatar-picker').first.click();p.locator('#points-avatar-gallery [data-avatar="23"]').click()
         self.assertTrue(p.locator('#points-settings-avatars .points-avatar-picker').first.evaluate('n=>document.activeElement===n'))
+    def avatar_of(self,p,seat=1):
+        return p.locator('[data-point-seat="%s"] svg'%seat).evaluate('n=>n.outerHTML')
+    def buy(self,p,seat,idx):
+        p.locator('[data-point-seat="%s"]'%seat).click();p.locator('#points-award-avatar').click()
+        p.locator('#points-avatar-gallery [data-avatar="%s"]'%idx).click();p.wait_for_timeout(300)
+    def test_avatar_purchase_insufficient_points_blocked(self):
+        for gas in [False,True]:
+            p=self.open(gas=gas);before=self.avatar_of(p);self.score(p,1,3)
+            self.buy(p,1,20)
+            self.assertTrue(p.locator('#points-avatar-modal').is_visible())
+            self.assertIn('點數不足',p.locator('#points-avatar-preview').inner_text())
+            p.locator('#points-avatar-close').click()
+            self.assertEqual(self.value(p),4);self.assertEqual(self.avatar_of(p),before)
+    def test_avatar_purchase_deducts_and_undo_restores(self):
+        for gas in [False,True]:
+            p=self.open(gas=gas);before=self.avatar_of(p);self.score(p,1,4);self.score(p,1,4)
+            self.buy(p,1,20);self.assertEqual(self.value(p),5);after=self.avatar_of(p);self.assertNotEqual(after,before)
+            p.locator('[data-point-seat="1"]').click();p.locator('#points-award-avatar').click()
+            p.locator('#points-avatar-gallery [data-avatar="20"]').click();p.wait_for_timeout(200)
+            self.assertEqual(self.value(p),5,'選目前的角色不扣點')
+            p.reload();p.locator('#tab-points-btn').click();p.wait_for_timeout(300)
+            self.assertEqual(self.avatar_of(p),after);self.assertEqual(self.value(p),5)
+            p.locator('#points-undo').click();p.wait_for_timeout(400)
+            self.assertEqual(self.value(p),10);self.assertEqual(self.avatar_of(p),before)
+            p.locator('#points-history').click();self.assertIn('更換角色',p.locator('#points-history-list').inner_text())
+    def test_avatar_button_single_student_only_and_custom_cost(self):
+        p=self.open();p.locator('#points-settings').click()
+        p.locator('#points-settings-avatar-cost').fill('3');p.locator('#points-settings-save').click();p.wait_for_timeout(200)
+        p.locator('#points-multi').click();p.locator('[data-point-seat="1"]').click();p.locator('[data-point-seat="2"]').click()
+        p.locator('#points-award-selected').click();self.assertFalse(p.locator('#points-award-avatar').is_visible())
+        p.locator('#points-award-close').click();p.locator('#points-multi').click()
+        self.score(p,1,2);p.locator('[data-point-seat="1"]').click()
+        self.assertIn('扣 3 點',p.locator('#points-award-avatar').inner_text())
+        p.locator('#points-award-avatar').click();p.locator('#points-avatar-gallery [data-avatar="21"]').click();p.wait_for_timeout(200)
+        self.assertEqual(self.value(p),0)
+        p.locator('#points-settings').click();p.locator('#points-settings-avatar-cost').fill('0');p.locator('#points-settings-save').click()
+        self.assertIn('1～100',p.locator('#points-settings-feedback').inner_text())
+    def test_avatar_server_rejection_drops_pending_and_keeps_queue(self):
+        p=self.open(gas=True);before=self.avatar_of(p);self.score(p,1,4);p.wait_for_timeout(300)
+        p.evaluate("sessionStorage.setItem('__pointsAvatarReject','1')")
+        self.buy(p,1,20);p.wait_for_timeout(500)
+        self.assertIn('換角色沒有完成',p.locator('#points-message').inner_text())
+        self.assertEqual(self.value(p),5);self.assertEqual(self.avatar_of(p),before)
+        self.assertEqual(p.evaluate("JSON.parse(localStorage.getItem('c408_points_cloud/state')).pending.length"),0)
+        p.evaluate("sessionStorage.removeItem('__pointsAvatarReject')");self.score(p,2,0);p.wait_for_timeout(400)
+        self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).events.filter(e=>e.seat===2).length"),1)
     def test_save_validation_feedback_visible_next_to_button(self):
         p=self.open();p.locator('#points-settings').click()
         p.locator('#points-settings-groups input[aria-label="小組成員座號"]').first.fill('999')
