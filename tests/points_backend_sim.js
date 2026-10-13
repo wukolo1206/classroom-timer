@@ -5,7 +5,7 @@ const assert = require('assert');
 const file = path.join(__dirname, '../gas/Points.gs');
 assert.ok(fs.existsSync(file), 'Points.gs backend is not implemented yet');
 function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = false, normalizeQuotes = false) {
-  const rows = [], props = {}, touched = [], opened = [];
+  const rows = [], props = {}, touched = [], opened = [], cache = {}, auction = {sheets:null, fail:false};
   let failAt = 0, writes = 0, locked = false, eventBlocks = 0, flushes = 0, flushFail = false;
   const lockTrace=[];
   function acquire() {assert.ok(!locked); locked=true; lockTrace.push('acquire');}
@@ -16,13 +16,19 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
     setFrozenRows: () => {} };
   const spreadsheet={getSheetByName: name => { touched.push(name); return rows.length ? sheet : null; }, insertSheet: name => {touched.push(name); return sheet;}};
   const ctx = vm.createContext({console, Date, JSON, Object, Array, Number, String, Math, Error,
-    SpreadsheetApp: { getActiveSpreadsheet: () => activeSpreadsheetUnavailable ? null : spreadsheet, openById: id => {opened.push(id); return spreadsheet;}, flush: () => {assert.ok(locked,'flush must execute under held lock'); lockTrace.push('flush'); flushes++; if(flushFail) throw Error('simulated flush failure');}},
+    SpreadsheetApp: { getActiveSpreadsheet: () => activeSpreadsheetUnavailable ? null : spreadsheet, openById: id => {if (id === ctx.AUCTION_SPREADSHEET_ID) return auctionBook(); opened.push(id); return spreadsheet;}, flush: () => {assert.ok(locked,'flush must execute under held lock'); lockTrace.push('flush'); flushes++; if(flushFail) throw Error('simulated flush failure');}},
     LockService: {getDocumentLock: () => documentLockUnavailable ? null : ({waitLock: acquire, releaseLock: release}), getScriptLock: () => ({waitLock: acquire, releaseLock: release})},
     PropertiesService: {getDocumentProperties: () => ({getProperty: k => props[k] ?? null, setProperty: (k,v) => {props[k]=v;}})},
-    Utilities: {newBlob: value => ({getBytes: () => Buffer.from(value)})}
+    Utilities: {newBlob: value => ({getBytes: () => Buffer.from(value)})},
+    CacheService: {getScriptCache: () => ({get: k => cache[k] ?? null, put: (k,v) => {cache[k]=v;}})}
   });
+  function auctionBook() {
+    if (auction.fail) throw Error('simulated auction outage');
+    const table = rows => ({getLastRow: () => rows.length + 1, getRange: (r, c, nr, nc) => ({getValues: () => rows.slice(r-2, r-2+nr).map(x => x.slice(c-1, c-1+nc))})});
+    return {getSheetByName: name => auction.sheets && auction.sheets[name] ? table(auction.sheets[name]) : null};
+  }
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx);
-  return {ctx, rows, props, touched, opened, lockTrace, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
+  return {ctx, rows, props, touched, opened, lockTrace, auction, clearCache: () => {for (const k in cache) delete cache[k];}, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
 }
 function score(id, delta=1, seats=[1,2], device='A') {return {id,type:'score',seats:seats.map(seat => ({seat,name:seat===1?'游濬謙':'李晨睿'})),itemId:'focus',label:'認真上課',delta,device};}
 function total(bundle, seat) {return bundle.events.filter(e=>e.seat===seat).reduce((n,e)=>n+e.delta,0);}
@@ -255,5 +261,22 @@ test('avatar purchase charges configured cost once, refuses low balance or stale
   assert.equal(total(e.ctx.commitPointBatch(buy('a7',4,-3)),1),2);
   assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:0},1),/1～100/);
   assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:101},1),/1～100/);
+});
+test('auction wins after cutoff import once as deductions; old, unknown, ambiguous and outage are skipped', () => {
+  const e=env(), since=e.ctx.AUCTION_IMPORT_SINCE.getTime(), t=n=>new Date(since+n*1000);
+  e.ctx.commitPointBatch(score('earn',50,[1,2]));
+  e.auction.sheets={'名冊_408':[['01','游O謙'],['02','李O睿'],['03','重O名'],['04','重O名']],
+    '得標紀錄_408':[[new Date(since-1000),'舊商品','游O謙',30],[t(5),'POCKY\n一盒','游O謙',16],[t(6),'貼紙','（無人出價）',0],[t(7),'筆','路O人',5],[t(8),'橡皮擦','重O名',3],[t(9),'大獎','李O睿',120]]};
+  e.auction.fail=true; let out=e.ctx.getPointBundle(); assert.equal(total(out,1),50,'outage does not block sync');
+  e.auction.fail=false; out=e.ctx.getPointBundle();
+  const imported=out.events.filter(x=>x.itemId==='auction_win');
+  assert.deepEqual(imported.map(x=>[x.seat,x.delta,x.label,x.batchId]),[[1,-16,'拍賣得標：POCKY 一盒','auction408_'+t(5).getTime()+'_1'],[2,-120,'拍賣得標：大獎','auction408_'+t(9).getTime()+'_2']]);
+  assert.equal(total(out,1),34); assert.equal(total(out,2),-70);
+  e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(out.events.filter(x=>x.itemId==='auction_win').length,2,'repeat import is idempotent');
+  e.auction.sheets['得標紀錄_408'].push([t(20),'第二件','游O謙',4]);
+  out=e.ctx.getPointBundle(); assert.equal(total(out,1),34,'cache throttles reads');
+  e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(total(out,1),30);
+  assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'auction408_1_1'}),/保留字/);
+  assert.equal(out.events.filter(x=>x.itemId==='auction_win').length,3);
 });
 console.log(count+' backend scenarios passed');

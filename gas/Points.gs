@@ -13,6 +13,11 @@ var POINT_SETTINGS_KEY = 'pointSettings';
 // Copied from index.html seatRoster; seat 7 intentionally absent.
 var POINT_ROSTER = [[1,'游濬謙'],[2,'李晨睿'],[3,'王柏勛'],[4,'劉宸燁'],[5,'鄭又仁'],[6,'簡宇辰'],[8,'楊晨熙'],[9,'林宏哲'],[10,'李亦修'],[11,'汪昱辰'],[12,'李宸緯'],[13,'陳冠宇'],[14,'李茗堃'],[15,'林祐辰'],[16,'蔡秉浩'],[17,'蔡菲芸'],[18,'陳依婕'],[19,'陳依綺'],[20,'柯祉妤'],[21,'程旻薰'],[22,'陳玥筑'],[23,'王梓羽'],[24,'黃庭蓁'],[25,'李玉琳'],[26,'黃樂芙'],[27,'林忻'],[28,'沈盈萱'],[29,'游穠羽'],[30,'沈芷心'],[31,'吳苡熙'],[32,'吳芊妤']];
 
+// 點數拍賣系統（另一個 GAS 專案）的資料試算表；408 得標自動轉成集點扣點。
+// AUCTION_SPREADSHEET_ID 定義在 gas/Private.gs（不進版控：repo 公開）
+// 此時間之前的得標老師已手動「拍賣扣點」，不可再匯入。
+var AUCTION_IMPORT_SINCE = new Date('2026-10-14T06:30:00+08:00');
+
 function pointError_(message) { throw new Error('永久：' + message); }
 function pointText_(value, max, field) {
   if (typeof value !== 'string' || !value.trim() || value.length > max || /[\u0000-\u001f]/.test(value)) pointError_(field + '格式不正確');
@@ -62,7 +67,7 @@ function pointBatch_(batch) {
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
@@ -168,6 +173,7 @@ function getPointBundle() {
   try {
     var sheet = pointSheet_(), data = pointRead_(sheet);
     pointComplete_(sheet,data);
+    pointImportAuction_(sheet,data);
     return pointBundle_(data);
   } finally {
     try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
@@ -182,35 +188,75 @@ function commitPointBatch(batch) {
     if (found && JSON.stringify(found.request) !== JSON.stringify(request)) pointError_('批次編號內容衝突');
     pointComplete_(sheet,data);
     if (found) return pointBundle_(data);
-    var targets, totals = {}, originals = [];
-    if (request.type === 'undo') {
-      originals = data.events.filter(function (e) { return e.batchId === request.originalBatchId && e.type === 'score'; });
-      if (!originals.length) pointError_('找不到可復原的計分批次');
-      targets = originals.map(function (e) { return {seat:e.seat,name:e.name}; });
-    } else targets = request.seats;
-    data.events.forEach(function (e) { totals[e.seat] = (totals[e.seat] || 0) + e.delta; });
-    if (request.type === 'score' && pointAvatarIndex_(request.itemId) !== null) {
-      var cost = pointAvatarCost_(pointSettings_().settings), seat = request.seats[0].seat;
-      if (request.delta !== -cost) pointError_('換角色扣點已改為 ' + cost + ' 點，請重新整理後再換');
-      if ((totals[seat] || 0) < cost) pointError_('點數不足：換角色需要 ' + cost + ' 點，目前 ' + (totals[seat] || 0) + ' 點');
-    }
-    var time = new Date().toISOString();
-    var events = targets.map(function (target, index) {
-      var original = originals[index];
-      var delta = request.type === 'score' ? request.delta : request.type === 'undo' ? -original.delta : request.type === 'balance' ? request.totals[target.seat] - (totals[target.seat] || 0) : -(totals[target.seat] || 0);
-      if (!Number.isSafeInteger(delta)) pointError_('總分超出整數安全範圍');
-      return {id:request.id + ':' + target.seat,batchId:request.id,time:time,seat:target.seat,name:target.name,itemId:request.type === 'score' ? request.itemId : request.type === 'undo' ? original.itemId : request.type === 'balance' ? 'balance' : 'reset',label:request.type === 'score' ? request.label : request.type === 'undo' ? original.label : request.type === 'balance' ? '點數設定' : '點數歸零',delta:delta,type:request.type,originalBatchId:request.originalBatchId || '',device:clean.device};
-    });
-    var manifest = {request:request,events:events};
-    var json = JSON.stringify(manifest);
-    if (json.length > 45000) pointError_('批次資料太大');
-    pointAppend_(sheet, ['manifest:' + request.id,request.id,time,0,'','',''+json,0,'_manifest',request.originalBatchId || '',clean.device].map(pointEscape_));
-    data.manifests.push(manifest);
-    pointComplete_(sheet,data);
+    pointCommitLocked_(sheet, data, request, clean.device);
     return pointBundle_(data);
   } finally {
     try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
   }
+}
+// Caller holds the script lock and has completed existing manifests.
+function pointCommitLocked_(sheet, data, request, device) {
+  var targets, totals = {}, originals = [];
+  if (request.type === 'undo') {
+    originals = data.events.filter(function (e) { return e.batchId === request.originalBatchId && e.type === 'score'; });
+    if (!originals.length) pointError_('找不到可復原的計分批次');
+    targets = originals.map(function (e) { return {seat:e.seat,name:e.name}; });
+  } else targets = request.seats;
+  data.events.forEach(function (e) { totals[e.seat] = (totals[e.seat] || 0) + e.delta; });
+  if (request.type === 'score' && pointAvatarIndex_(request.itemId) !== null) {
+    var cost = pointAvatarCost_(pointSettings_().settings), seat = request.seats[0].seat;
+    if (request.delta !== -cost) pointError_('換角色扣點已改為 ' + cost + ' 點，請重新整理後再換');
+    if ((totals[seat] || 0) < cost) pointError_('點數不足：換角色需要 ' + cost + ' 點，目前 ' + (totals[seat] || 0) + ' 點');
+  }
+  var time = new Date().toISOString();
+  var events = targets.map(function (target, index) {
+    var original = originals[index];
+    var delta = request.type === 'score' ? request.delta : request.type === 'undo' ? -original.delta : request.type === 'balance' ? request.totals[target.seat] - (totals[target.seat] || 0) : -(totals[target.seat] || 0);
+    if (!Number.isSafeInteger(delta)) pointError_('總分超出整數安全範圍');
+    return {id:request.id + ':' + target.seat,batchId:request.id,time:time,seat:target.seat,name:target.name,itemId:request.type === 'score' ? request.itemId : request.type === 'undo' ? original.itemId : request.type === 'balance' ? 'balance' : 'reset',label:request.type === 'score' ? request.label : request.type === 'undo' ? original.label : request.type === 'balance' ? '點數設定' : '點數歸零',delta:delta,type:request.type,originalBatchId:request.originalBatchId || '',device:device};
+  });
+  var manifest = {request:request,events:events};
+  var json = JSON.stringify(manifest);
+  if (json.length > 45000) pointError_('批次資料太大');
+  pointAppend_(sheet, ['manifest:' + request.id,request.id,time,0,'','',''+json,0,'_manifest',request.originalBatchId || '',device].map(pointEscape_));
+  data.manifests.push(manifest);
+  pointComplete_(sheet,data);
+}
+// 得標編號兩個專案必須一致：auction408_<得標時間毫秒>_<座號>（點數拍賣系統 程式碼.js 同名邏輯）。
+function pointAuctionWins_() {
+  var ss = SpreadsheetApp.openById(AUCTION_SPREADSHEET_ID);
+  var roster = ss.getSheetByName('名冊_408'), wins = ss.getSheetByName('得標紀錄_408');
+  if (!roster || !wins || roster.getLastRow() < 2 || wins.getLastRow() < 2) return [];
+  var seatOf = {}, duplicate = {};
+  roster.getRange(2,1,roster.getLastRow()-1,2).getValues().forEach(function (r) {
+    var seat = Number(r[0]), name = String(r[1]).trim();
+    if (!seat || !name) return;
+    if (seatOf[name] !== undefined) duplicate[name] = true;
+    seatOf[name] = seat;
+  });
+  return wins.getRange(2,1,wins.getLastRow()-1,4).getValues().map(function (r) {
+    var time = r[0] instanceof Date ? r[0] : null, name = String(r[2]).trim(), amount = Number(r[3]);
+    if (!time || time < AUCTION_IMPORT_SINCE || duplicate[name] || seatOf[name] === undefined || !Number.isInteger(amount) || amount <= 0 || amount > 1000000) return null;
+    var item = String(r[1]).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 60) || '商品';
+    return {id:'auction408_' + time.getTime() + '_' + seatOf[name], seat:seatOf[name], item:item, amount:amount};
+  }).filter(Boolean);
+}
+// 讀拍賣表失敗不影響集點同步；最多每 20 秒檢查一次，已匯入的編號靠 _manifest 去重。
+function pointImportAuction_(sheet, data) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get('auctionImportChecked')) return;
+  var wins;
+  try { wins = pointAuctionWins_(); } catch (err) { console.warn('拍賣得標讀取失敗：' + err.message); return; }
+  cache.put('auctionImportChecked', '1', 20);
+  var done = {};
+  data.manifests.forEach(function (m) { done[m.request.id] = true; });
+  wins.forEach(function (w) {
+    if (done[w.id]) return;
+    var target;
+    try { target = pointSeat_(w.seat); } catch (err) { return; }
+    pointCommitLocked_(sheet, data, {id:w.id,type:'score',seats:[target],itemId:'auction_win',label:'拍賣得標：' + w.item,delta:-w.amount}, 'auction408');
+    done[w.id] = true;
+  });
 }
 function pointValidateSettings_(settings) {
   if (!settings || typeof settings !== 'object' || !Array.isArray(settings.items) || !settings.items.length || settings.items.length > 40 || !Array.isArray(settings.groups) || settings.groups.length > 16 || !settings.avatars || Array.isArray(settings.avatars) || typeof settings.avatars !== 'object' || typeof settings.muted !== 'boolean') pointError_('集點設定格式不正確');
