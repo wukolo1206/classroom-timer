@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @54／全校版 v1.21
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室觀察測驗加點大屏效果；實際拍賣一場；試用換角色與當週小卡
+next_action: 教室試用秩序依次數扣點、觀察測驗加點大屏動畫；決定是否加大屏全螢幕加點卡片
 updated: 2026-10-14
 ---
 
