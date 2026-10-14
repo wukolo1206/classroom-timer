@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @56／全校版 v1.22
+version: GAS @57／全校版 v1.22
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 教室試用秩序依次數扣點、觀察測驗加點大屏動畫；決定是否加大屏全螢幕加點卡片
+next_action: 測驗成績試算表改回限制共用；教室試用小組轉入集點、秩序依次數扣點、SR 示範範本
 updated: 2026-10-14
 ---
 
