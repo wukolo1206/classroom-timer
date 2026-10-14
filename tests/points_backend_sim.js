@@ -15,7 +15,8 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
       setValues: values => { if (r > 1 && values[0][8] !== '_manifest') eventBlocks++; for (let i=0;i<values.length;i++) { rows[r+i-1] = values[i].map(v=>normalizeQuotes && typeof v==='string' && v.startsWith("'") ? v.slice(1) : v); writes++; if (failAt && writes === failAt) throw Error('simulated write/response loss'); } } }),
     setFrozenRows: () => {} };
   const spreadsheet={getSheetByName: name => { touched.push(name); return rows.length ? sheet : null; }, insertSheet: name => {touched.push(name); return sheet;}};
-  const ctx = vm.createContext({console, Date, JSON, Object, Array, Number, String, Math, Error,
+  // 外部試算表 ID 正式值在不進版控的 gas/Private.gs；模擬用固定假 ID
+  const ctx = vm.createContext({console, Date, JSON, Object, Array, Number, String, Math, Error, AUCTION_SPREADSHEET_ID: 'AUCTION_TEST_ID', QUIZ_SPREADSHEET_ID: 'QUIZ_TEST_ID',
     SpreadsheetApp: { getActiveSpreadsheet: () => activeSpreadsheetUnavailable ? null : spreadsheet, openById: id => {if (id === ctx.AUCTION_SPREADSHEET_ID) return auctionBook(); if (id === ctx.QUIZ_SPREADSHEET_ID) return quizBook(); opened.push(id); return spreadsheet;}, flush: () => {assert.ok(locked,'flush must execute under held lock'); lockTrace.push('flush'); flushes++; if(flushFail) throw Error('simulated flush failure');}},
     LockService: {getDocumentLock: () => documentLockUnavailable ? null : ({waitLock: acquire, releaseLock: release}), getScriptLock: () => ({waitLock: acquire, releaseLock: release})},
     PropertiesService: {getDocumentProperties: () => ({getProperty: k => props[k] ?? null, setProperty: (k,v) => {props[k]=v;}})},
