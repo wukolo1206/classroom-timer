@@ -54,17 +54,24 @@
     function avatarIndex(itemId){var m=/^avatar:(\d{1,2})$/.exec(itemId||'');return m&&Number(m[1])<=23?Number(m[1]):null;}
     // 角色由「最後一筆未復原的換角色扣點」決定；沒有就用設定裡的初始角色。
     function avatarMap(){var map={},undone={},events=allEvents(),base=settings().avatars;seats().forEach(function(n){map[n]=base[n]===undefined?n%8:base[n];});events.forEach(function(e){if(e.type==='undo')undone[e.originalBatchId]=true;});state.pending.forEach(function(b){if(b.type==='undo')undone[b.originalBatchId]=true;});events.forEach(function(e){var idx=avatarIndex(e.itemId);if(idx!==null&&e.type==='score'&&!undone[e.batchId]&&roster[e.seat])map[e.seat]=idx;});return map;}
-    function decorateSeat(card,t,map) {
+    // 秩序「本節依登記次數扣點」：每生一筆，編號 seatpd_<節>_s<座號>_to<累計登記次數>；已扣＝該節未復原的扣點合計。
+    function seatSlotId(slot){return String(slot).replace('#','_p').replace(/[^A-Za-z0-9_-]/g,'');}
+    function seatDeductedMap(slot){var prefix='seatpd_'+seatSlotId(slot)+'_s',undone={},out={};allEvents().forEach(function(e){if(e.type==='undo')undone[e.originalBatchId]=true;});state.pending.forEach(function(b){if(b.type==='undo')undone[b.originalBatchId]=true;});allEvents().forEach(function(e){if(e.type==='score'&&String(e.batchId).indexOf(prefix)===0&&!undone[e.batchId]&&e.delta<0)out[e.seat]=(out[e.seat]||0)-e.delta;});return out;}
+    function seatDeductPlan(slot,counts){var done=seatDeductedMap(slot),seen={};Object.keys(counts||{}).concat(Object.keys(done)).forEach(function(n){seen[Number(n)]=true;});return Object.keys(seen).map(Number).filter(function(n){return roster[n];}).sort(function(a,b){return a-b;}).map(function(n){var count=Math.max(0,Number(counts[n])||0),d=done[n]||0;return {seat:n,name:roster[n][0],count:count,done:d,remaining:Math.max(0,count-d)};}).filter(function(x){return x.count>0||x.done>0;});}
+    function decorateSeat(card,t,map,ded) {
         if(!ready||!card)return;
         var n=Number(card.dataset.seat), icon=card.querySelector('.seat-point-avatar'), score=card.querySelector('.seat-point-score');
         if(!roster[n]||!icon||!score)return;
         var choice=(map||avatarMap())[n];
         if(icon.dataset.avatar!==String(choice)){icon.innerHTML=avatar(choice);icon.dataset.avatar=String(choice);}
         score.textContent=(t||totals())[n]||0;
+        if(ded===undefined){var activeSlot=window.c408SeatActiveSlot&&window.c408SeatActiveSlot();ded=activeSlot?seatDeductedMap(activeSlot):{};}
+        var badge=card.querySelector('.seat-deduct-badge');
+        if(ded[n]){if(!badge){badge=document.createElement('span');badge.className='seat-deduct-badge';card.appendChild(badge);}badge.textContent='已扣 '+ded[n];badge.title='本節已依登記次數扣 '+ded[n]+' 點';}else if(badge)badge.remove();
         score.setAttribute('aria-label',score.textContent+' 點');
         if(!card.isConnected&&feedback&&Date.now()<feedback.until&&feedback.list.indexOf(n)>=0)floatOn(card,(feedback.delta>0?'+':'')+feedback.delta,feedback.delta);
     }
-    function renderSeatPoints(){var t=totals(),map=avatarMap();document.querySelectorAll('#seat-chart [data-seat]').forEach(function(card){decorateSeat(card,t,map);});}
+    function renderSeatPoints(){var t=totals(),map=avatarMap(),slot=window.c408SeatActiveSlot&&window.c408SeatActiveSlot(),ded=slot?seatDeductedMap(slot):{};document.querySelectorAll('#seat-chart [data-seat]').forEach(function(card){decorateSeat(card,t,map,ded);});if(window.c408SeatRefreshDeduct)window.c408SeatRefreshDeduct();}
     function button(text, fn, cls) { var b=document.createElement('button');b.type='button';b.textContent=text;if(cls)b.className=cls;b.onclick=fn;return b; }
     function render() {
         var t=totals(), map=avatarMap(), box=el('points-students');el('points-class-total').textContent='全班 '+seats().reduce(function(sum,n){return sum+(t[n]||0);},0)+' 點';box.textContent='';
@@ -100,7 +107,7 @@
     }
     function reconcileUndo(next){var undone={};next.bundle.events.forEach(function(e){if(e.type==='undo')undone[e.originalBatchId]=true;});next.undoStack=next.undoStack.filter(function(batchId){return !undone[batchId];});next.lastUndo=next.undoStack.length?next.undoStack[next.undoStack.length-1]:null;}
     function enqueue(b){var next=copy(state);if(cloud)next.pending.push(b);else localApply(next,b);if(b.type==='score')next.undoStack.push(b.id);else if(b.type==='undo')next.undoStack=next.undoStack.filter(function(batchId){return batchId!==b.originalBatchId;});else next.undoStack=[];reconcileUndo(next);if(!store(next))return false;lastError='';notice='';message('');render();if(cloud)sync(false);return true;}
-    async function flush(){while(state.pending.length){var b=state.pending[0], bundle;try{bundle=await rpc('commitPointBatch',[b]);}catch(e){var text=e&&e.message||String(e);if(avatarIndex(b.itemId)===null||!/點數不足|換角色扣點已改為/.test(text))throw e;var dropped=copy(state);dropped.pending.shift();dropped.undoStack=dropped.undoStack.filter(function(x){return x!==b.id;});reconcileUndo(dropped);if(!store(dropped))throw e;render();notice='換角色沒有完成：'+text.replace(/^(Error:\s*)?永久：/,'')+'。角色與點數維持原樣。';message(notice);continue;}var next=copy(state);next.bundle=bundle;next.pending.shift();reconcileUndo(next);if(!store(next))throw Error('雲端可能已接受操作，但本機儲存失敗。待送編號已保留，請恢復儲存後重新同步');render();} }
+    async function flush(){while(state.pending.length){var b=state.pending[0], bundle;try{bundle=await rpc('commitPointBatch',[b]);}catch(e){var text=e&&e.message||String(e);if(String(b.id).indexOf('seatpd_')===0&&/批次編號內容衝突/.test(text)){var same=copy(state);same.pending.shift();same.undoStack=same.undoStack.filter(function(x){return x!==b.id;});reconcileUndo(same);if(!store(same))throw e;render();continue;}if(avatarIndex(b.itemId)===null||!/點數不足|換角色扣點已改為/.test(text))throw e;var dropped=copy(state);dropped.pending.shift();dropped.undoStack=dropped.undoStack.filter(function(x){return x!==b.id;});reconcileUndo(dropped);if(!store(dropped))throw e;render();notice='換角色沒有完成：'+text.replace(/^(Error:\s*)?永久：/,'')+'。角色與點數維持原樣。';message(notice);continue;}var next=copy(state);next.bundle=bundle;next.pending.shift();reconcileUndo(next);if(!store(next))throw Error('雲端可能已接受操作，但本機儲存失敗。待送編號已保留，請恢復儲存後重新同步');render();} }
     function sync(pull){if(!cloud)return;return serial(async function(){await flush();var before=null;if(pull){before={};state.bundle.events.forEach(function(e){before[e.id]=true;});var bundle=await rpc('getPointBundle',[]);var next=copy(state);next.bundle=bundle;reconcileUndo(next);if(!store(next))throw Error('同步資料無法儲存');}lastError='';lastSync=new Date().toLocaleTimeString();message(notice);render();if(before)announceArrivals(before,state.bundle.events);});}
     function undo(){if(state.pending.length){message('請先完成待同步操作。');return;}if(!state.lastUndo)return;enqueue({id:'undo:'+state.lastUndo,type:'undo',originalBatchId:state.lastUndo,device:state.device,time:new Date().toISOString()});}
     function reset(){if(state.pending.length){message('請先完成待同步操作。');return;}var list=selected.length?selected.slice():seats();if(!window.confirm('確定將'+(selected.length?'選取的 '+list.length+' 位学生':'全班')+'點數歸零？歷史紀錄會保留。'))return;enqueue({id:id(),type:'reset',seats:targets(list),device:state.device,time:new Date().toISOString()});}
@@ -125,6 +132,24 @@
         window.addEventListener('focus',function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&(window.c408CurrentTab==='points'||window.c408CurrentTab==='seat'))sync(true);});setInterval(function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden&&!busy)sync(true);},15000);return true;
     }
     window.c408PointsDecorateSeat=function(card){decorateSeat(card);};
+    window.c408PointsSeatDeductPlan=function(slot,counts){if(!ready&&!init())return null;return seatDeductPlan(slot,counts);};
+    // 依登記次數扣點：只補扣尚未扣的次數；整批一次寫入本機，任何一筆失敗就全部不接受。
+    window.c408PointsDeductSeatCounts=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||typeof request.slot!=='string'||!/^\d{4}-\d{2}-\d{2}(#[A-Za-z0-9]+)?$/.test(request.slot)||!request.counts)return {accepted:false,error:'請先選一節再扣點。'};
+        var plan=seatDeductPlan(request.slot,request.counts).filter(function(x){return x.remaining>0;});
+        if(!plan.length)return {accepted:true,duplicate:true,deducted:[]};
+        var known={};allEvents().forEach(function(e){known[e.batchId]=true;});state.pending.forEach(function(b){known[b.id]=true;});
+        var next=copy(state),time=new Date().toISOString(),done=[];
+        plan.forEach(function(x){var id='seatpd_'+seatSlotId(request.slot)+'_s'+x.seat+'_to'+x.count;if(known[id])return;var b={id:id,type:'score',seats:targets([x.seat]),itemId:'seat_period_deduct',label:('秩序登記：'+String(request.label||request.slot)+' 登記 '+x.count+' 次').slice(0,80),delta:-x.remaining,device:state.device,time:time};if(cloud)next.pending.push(b);else localApply(next,b);next.undoStack.push(id);done.push({seat:x.seat,delta:-x.remaining});});
+        if(!done.length)return {accepted:true,duplicate:true,deducted:[]};
+        reconcileUndo(next);
+        if(!store(next))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次扣點尚未接受。'};
+        lastError='';notice='';message('');render();if(cloud)sync(false);
+        var groups={};done.forEach(function(x){(groups[x.delta]=groups[x.delta]||[]).push(x.seat);});
+        Object.keys(groups).sort(function(a,b){return a-b;}).forEach(function(delta,i){setTimeout(function(){animate(groups[delta],Number(delta));},i*1300);});
+        status();return {accepted:true,duplicate:false,deducted:done};
+    };
     window.c408PointsShow=function(){if(!ready&&!init())return;render();sync(true);};
     window.c408PointsSeatShow=function(){if(!ready&&!init())return;render();sync(true);};
     window.c408PointsBatchFromSeat=function(request){

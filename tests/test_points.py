@@ -26,6 +26,7 @@ MOCK = r"""
      id='undo:'+b.originalBatchId;
      seats=c.events.filter(e=>e.batchId===b.originalBatchId).map(e=>({seat:e.seat,name:e.name,delta:-e.delta}));label='復原';
    }
+   if(b.type!=='undo'&&c.events.some(e=>e.batchId===id&&e.device&&b.device&&e.device!==b.device))throw Error('永久：批次編號內容衝突');
    seats.forEach(s=>{
      if(c.events.some(e=>e.id===id+':'+s.seat))return;
      const d=b.type==='reset'?-c.events.filter(e=>e.seat===s.seat).reduce((n,e)=>n+e.delta,0):b.type==='undo'?s.delta:delta;
@@ -369,14 +370,41 @@ class Points(unittest.TestCase):
         before=p.evaluate("localStorage.getItem('seatCheckRecords')")
         p.locator('#seat-batch-points-btn').click()
         p.locator('#seat-batch-points-modal.show').wait_for(state='visible')
-        self.assertIn('2 位',p.locator('#seat-batch-points-summary').inner_text())
-        p.locator('#seat-batch-points-delta').select_option('-2')
+        self.assertIn('2 位，共扣 4 點',p.locator('#seat-batch-points-summary').inner_text())
+        names=p.locator('#seat-batch-points-names').inner_text()
+        self.assertIn('1 號 游濬謙：登記 3 次 → 扣 3 點',names);self.assertIn('2 號 李晨睿：登記 1 次 → 扣 1 點',names)
         p.locator('#seat-batch-points-confirm').click()
         self.assertEqual(p.evaluate("localStorage.getItem('seatCheckRecords')"),before)
+        self.assertEqual(p.locator('#seat-batch-points-btn').inner_text(),'✓ 本節已扣點')
+        self.assertEqual(p.locator('#seat-chart [data-seat="1"] .seat-deduct-badge').inner_text(),'已扣 3')
+        self.assertEqual(p.locator('#seat-chart [data-seat="2"] .seat-deduct-badge').inner_text(),'已扣 1')
+        self.assertEqual(p.locator('#seat-chart [data-seat="3"] .seat-deduct-badge').count(),0)
+        p.locator('#seat-batch-points-btn').click()
+        self.assertFalse(p.locator('#seat-batch-points-modal').is_visible())
+        self.assertIn('已扣過點',p.locator('#seat-points-feedback').inner_text())
         p.locator('#tab-points-btn').click()
-        self.assertEqual([self.value(p,n) for n in [1,2,3]],[-2,-2,0])
+        self.assertEqual([self.value(p,n) for n in [1,2,3]],[-3,-1,0])
         p.locator('#points-undo').click()
-        self.assertEqual([self.value(p,n) for n in [1,2]], [0,0])
+        self.assertEqual([self.value(p,n) for n in [1,2]], [-3,0])
+        p.locator('#tab-seat-btn').click();p.locator('#seat-period-bar [data-period="1"]').click()   # 回到秩序頁會自動跳目前節次
+        self.assertEqual(p.locator('#seat-batch-points-btn').inner_text(),'補扣新增 1 次')
+        self.assertEqual(p.locator('#seat-chart [data-seat="2"] .seat-deduct-badge').count(),0)
+
+    def test_seat_batch_only_new_registrations_after_deduct(self):
+        p=self.open();self.batch_prepare(p)
+        p.locator('#seat-batch-points-btn').click();p.locator('#seat-batch-points-confirm').click()
+        self.batch_register(p,1);p.locator('#seat-modal-list button').first.click();p.locator('#seat-modal-close').click()
+        self.assertEqual(p.locator('#seat-batch-points-btn').inner_text(),'補扣新增 1 次')
+        p.locator('#seat-modal').wait_for(state='hidden');p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-modal.show').wait_for(state='visible')
+        self.assertIn('1 位，共扣 1 點',p.locator('#seat-batch-points-summary').inner_text())
+        self.assertIn('1 號 游濬謙：登記 4 次（已扣 3） → 扣 1 點',p.locator('#seat-batch-points-names').inner_text())
+        p.locator('#seat-batch-points-confirm').click()
+        self.assertEqual(p.locator('#seat-chart [data-seat="1"] .seat-deduct-badge').inner_text(),'已扣 4')
+        self.assertEqual(p.locator('#seat-batch-points-btn').inner_text(),'✓ 本節已扣點')
+        p.locator('#seat-period-bar [data-period="2"]').click()
+        self.assertEqual(p.locator('#seat-chart .seat-deduct-badge').count(),0,'other lesson shows no badge')
+        p.locator('#tab-points-btn').click();self.assertEqual([self.value(p,n) for n in [1,2]],[-4,-1])
 
     def test_seat_batch_cancel_empty_and_allday(self):
         p=self.open();p.locator('#tab-seat-btn').click()
@@ -394,15 +422,13 @@ class Points(unittest.TestCase):
 
     def test_seat_batch_storage_failure_keeps_modal(self):
         p=self.open();self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
-        p.locator('#seat-batch-points-delta').select_option('-3')
         p.evaluate("(() => {window.__originalSet=Storage.prototype.setItem;Storage.prototype.setItem=function(){throw Error('quota');};})()")
         p.locator('#seat-batch-points-confirm').click()
         self.assertTrue(p.locator('#seat-batch-points-modal').is_visible())
         self.assertIn('儲存',p.locator('#seat-batch-points-error').inner_text())
-        self.assertEqual(p.locator('#seat-batch-points-delta').input_value(),'-3')
         p.evaluate('(() => {Storage.prototype.setItem=window.__originalSet;})()')
         p.locator('#seat-batch-points-confirm').click();p.locator('#tab-points-btn').click()
-        self.assertEqual([self.value(p,n) for n in [1,2]],[-3,-3])
+        self.assertEqual([self.value(p,n) for n in [1,2]],[-3,-1])
 
     def test_seat_batch_only_selected_lesson_frozen_and_mobile(self):
         p=self.open(width=390);p.locator('#tab-seat-btn').click()
@@ -421,24 +447,40 @@ class Points(unittest.TestCase):
         p.locator('#seat-batch-points-modal.show').wait_for(state='visible')
         summary=p.locator('#seat-batch-points-summary').inner_text()
         self.assertIn('第1節',summary);self.assertIn('2 位',summary)
-        self.assertNotIn('3 ',p.locator('#seat-batch-points-names').inner_text())
+        self.assertNotIn('3 號',p.locator('#seat-batch-points-names').inner_text())
         self.assertLessEqual(p.evaluate('document.documentElement.scrollWidth'),391)
         p.locator('#seat-period-bar [data-period="2"]').evaluate('n=>n.click()')
         self.assertEqual(p.locator('#seat-batch-points-summary').inner_text(),summary)
         p.locator('#seat-batch-points-confirm').click();p.locator('#tab-points-btn').click()
-        self.assertEqual([self.value(p,n) for n in [1,2,3,4,5]],[-1,-1,0,0,0])
+        self.assertEqual([self.value(p,n) for n in [1,2,3,4,5]],[-3,-1,0,0,0])
 
     def test_seat_batch_keyboard_cancel_and_focus_trap(self):
         p=self.open();self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
-        p.locator('#seat-batch-points-modal').wait_for(state='visible');p.locator('#seat-batch-points-delta').focus()
-        p.locator('#seat-batch-points-delta').press('Shift+Tab')
+        p.locator('#seat-batch-points-modal').wait_for(state='visible');p.wait_for_timeout(150)
         self.assertTrue(p.locator('#seat-batch-points-confirm').evaluate('n=>document.activeElement===n'))
         p.locator('#seat-batch-points-confirm').press('Tab')
-        self.assertTrue(p.locator('#seat-batch-points-delta').evaluate('n=>document.activeElement===n'))
-        p.locator('#seat-batch-points-delta').press('Escape')
+        self.assertTrue(p.locator('#seat-batch-points-cancel').evaluate('n=>document.activeElement===n'))
+        p.locator('#seat-batch-points-cancel').press('Shift+Tab')
+        self.assertTrue(p.locator('#seat-batch-points-confirm').evaluate('n=>document.activeElement===n'))
+        p.locator('#seat-batch-points-confirm').press('Escape')
         p.locator('#seat-batch-points-modal').wait_for(state='hidden')
         self.assertTrue(p.locator('#seat-batch-points-btn').evaluate('n=>document.activeElement===n'))
         p.locator('#tab-points-btn').click();self.assertEqual(self.value(p),0)
+
+    def test_seat_count_deduct_two_devices_same_target_counts_once(self):
+        p=self.open(gas=True);p.evaluate("sessionStorage.setItem('__pointsFail','1')")
+        p.locator('#tab-seat-btn').click();p.locator('#seat-period-bar [data-period="1"]').click()
+        slot=p.evaluate("window.c408SeatActiveSlot()")
+        r=p.evaluate("s=>window.c408PointsDeductSeatCounts({slot:s,label:'測試',counts:{1:2}})",slot)
+        self.assertTrue(r['accepted']);self.assertEqual(r['deducted'],[{'seat':1,'delta':-2}])
+        self.assertTrue(p.evaluate("s=>window.c408PointsDeductSeatCounts({slot:s,label:'測試',counts:{1:2}})",slot)['duplicate'])
+        bid='seatpd_'+slot.replace('#','_p')+'_s1_to2'
+        p.evaluate("""b=>{const c=JSON.parse(sessionStorage.getItem('__points_cloud'));c.events.push({id:b+':1',batchId:b,time:'2026-10-14T01:00:00Z',seat:1,name:'游濬謙',itemId:'seat_period_deduct',label:'秩序登記',delta:-2,type:'score',originalBatchId:'',device:'other-device'});sessionStorage.setItem('__points_cloud',JSON.stringify(c));sessionStorage.removeItem('__pointsFail');}""",bid)
+        p.locator('#tab-points-btn').click();p.locator('#points-refresh').click();p.wait_for_timeout(500)
+        self.assertEqual(self.value(p,1),-2)
+        self.assertEqual(p.evaluate("JSON.parse(localStorage.getItem('c408_points_cloud/state')).pending.length"),0)
+        self.assertEqual(p.locator('#points-message').inner_text(),'')
+        self.assertFalse(p.evaluate("window.c408PointsDeductSeatCounts({slot:'全天',counts:{1:1}})")['accepted'])
 
     def test_seat_batch_bridge_pending_confirmed_dedup_validation(self):
         p=self.open(gas=True);p.evaluate("sessionStorage.setItem('__pointsFail','1')")
