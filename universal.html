@@ -669,8 +669,8 @@
                     <button id="group-award-btn" type="button" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-extrabold shadow transition-all active:scale-95 flex items-center gap-1.5">
                         <span>🏆</span> 結算頒獎
                     </button>
-                    <button id="group-reset-scores-btn" type="button" class="group-prep-control px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
-                        🔄 分數歸零
+                    <button id="group-reset-scores-btn" type="button" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
+                        🔄 清空分數
                     </button>
                 </div>
             </div>
@@ -4790,7 +4790,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.21（2026-10-14）';
+    window.CTU_VERSION = 'v1.22（2026-10-14）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -8689,11 +8689,11 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.insertBefore(edit, toolbar.firstChild);
         var modal = document.getElementById('group-settings-modal');
         var actions = document.getElementById('group-settings-actions');
-        ['group-topic-presets-btn','group-bonus-edit-btn','group-reset-scores-btn'].forEach(function(id) {
+        ['group-topic-presets-btn','group-bonus-edit-btn'].forEach(function(id) {   // 清空分數留在加分區，不搬進設定
             var button = document.getElementById(id);
             button.classList.remove('group-prep-control');
             actions.appendChild(button);
-            if (id !== 'group-reset-scores-btn') button.addEventListener('click', function() { modal.classList.remove('show'); });
+            button.addEventListener('click', function() { modal.classList.remove('show'); });
         });
         var countControls = document.getElementById('group-score-toolbar').firstElementChild;
         countControls.classList.remove('group-prep-control');
@@ -8712,6 +8712,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function undoGroupScore() {
         if(!groupScoreUndo)return;
         var previous=groupScoreUndo;
+        if(previous.all){   // 復原「清空分數」：還原清空前所有組的分數與最近加分說明
+            if(!saveGroupScores(previous.all))return;
+            groupScores=Object.assign({},previous.all);groupLastBonuses=Object.assign({},previous.bonuses);
+            groupScoreUndo=null;renderGroupCards();showGroupToast('已復原清空前的分數。',true);return;
+        }
         var next=Object.assign({},groupScores);next[previous.groupId]=previous.score;
         if(!saveGroupScores(next))return;
         groupScores=next;
@@ -9691,14 +9696,16 @@ document.addEventListener('DOMContentLoaded', () => {
         var resetScoresBtn = document.getElementById('group-reset-scores-btn');
         if (resetScoresBtn) {
             resetScoresBtn.addEventListener('click', function () {
-                if (confirm('確定要將所有組別的分數歸零嗎？')) {
+                if (confirm('確定要清空所有組別的分數嗎？\n清空後可以按「復原上一筆」救回。')) {
+                    var before = {all: Object.assign({}, groupScores), bonuses: Object.assign({}, groupLastBonuses)};
                     var next = {};
                     for (var i = 1; i <= 8; i++) next[i] = 0;
                     if (!saveGroupScores(next)) return;
                     groupScores = next;
                     groupLastBonuses = {};
-                    groupScoreUndo = null;
+                    groupScoreUndo = before;
                     renderGroupCards();
+                    showGroupToast('已清空所有組別的分數。', true);
                 }
             });
         }

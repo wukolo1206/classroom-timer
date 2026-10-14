@@ -55,11 +55,19 @@ class GroupChecks:
         p.click('#group-undo-score-btn')
         self.assertEqual(self.stored(p, 'groupScores')['1'], 2)
         self.assertIn('加分 +2', p.locator('#group-cards-grid .group-card').first.inner_text())
-        p.click('#group-settings-btn')
+        p.locator('#group-cards-grid .group-card').nth(1).get_by_role('button', name='+2', exact=True).click()
+        p.locator('#group-cards-grid .group-card').nth(1).click(position={'x': 65, 'y': 65})
+        self.assertTrue(p.locator('#group-score-toolbar #group-reset-scores-btn').is_visible(), '清空分數在加分區')
+        self.assertEqual(p.locator('#group-settings-actions #group-reset-scores-btn').count(), 0)
+        before = [self.stored(p, 'groupScores')[k] for k in ['1', '2']]
+        self.assertNotEqual(before, [0, 0])
         p.click('#group-reset-scores-btn')
-        p.click('#group-settings-close-btn')
+        self.assertEqual([self.stored(p, 'groupScores')[k] for k in ['1', '2']], [0, 0])
+        self.assertFalse(p.is_disabled('#group-undo-score-btn'), '清空後可以復原')
+        p.click('#group-undo-score-btn')
+        self.assertEqual([self.stored(p, 'groupScores')[k] for k in ['1', '2']], before)
+        self.assertIn('加分 +2', p.locator('#group-cards-grid .group-card').first.inner_text())
         self.assertTrue(p.is_disabled('#group-undo-score-btn'))
-        self.assertEqual(self.stored(p, 'groupScores')['1'], 0)
 
     def test_draw_modes_persist_independently_after_reload(self):
         p = self.open_group()

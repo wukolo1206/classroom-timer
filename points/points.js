@@ -132,6 +132,20 @@
         window.addEventListener('focus',function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&(window.c408CurrentTab==='points'||window.c408CurrentTab==='seat'))sync(true);});setInterval(function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden&&!busy)sync(true);},15000);return true;
     }
     window.c408PointsDecorateSeat=function(card){decorateSeat(card);};
+    window.c408PointsGroupMembers=function(){if(!ready&&!init())return null;return settings().groups.map(function(g){return {name:g.name,seats:g.seats.filter(function(n){return roster[n];}).map(function(n){return {seat:n,name:roster[n][0]};})};});};
+    // 小組討論分數轉入：每組一筆（組員每人加該組分數），整批一次寫入本機，任何一組不合規就全部不接受。
+    window.c408PointsAwardGroups=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Array.isArray(request.awards)||!request.awards.length)return {accepted:false,error:'沒有可轉入的分數。'};
+        var base='grp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),next=copy(state),time=new Date().toISOString(),done=[],error='';
+        request.awards.forEach(function(a){if(error)return;var seats=Array.isArray(a.seats)?a.seats.filter(function(n){return roster[n];}):[];if(!seats.length||!Number.isInteger(a.delta)||a.delta<1||a.delta>100||!Number.isInteger(a.index)){error=(a&&a.name||'小組')+'：分數須為 1～100 的整數，且要有組員。';return;}var b={id:base+'_g'+a.index,type:'score',seats:targets(seats),itemId:'group_discussion',label:('小組討論：'+String(a.name||('第 '+a.index+' 組'))+' '+a.delta+' 分').slice(0,80),delta:a.delta,device:state.device,time:time};if(cloud)next.pending.push(b);else localApply(next,b);next.undoStack.push(b.id);done.push({seats:seats,delta:a.delta});});
+        if(error)return {accepted:false,error:error};
+        reconcileUndo(next);
+        if(!store(next))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次轉入尚未接受。'};
+        lastError='';notice='';message('');render();if(cloud)sync(false);
+        done.forEach(function(x,i){setTimeout(function(){animate(x.seats,x.delta);},i*1300);});
+        status();return {accepted:true,groups:done.length,students:done.reduce(function(n,x){return n+x.seats.length;},0)};
+    };
     window.c408PointsSeatDeductPlan=function(slot,counts){if(!ready&&!init())return null;return seatDeductPlan(slot,counts);};
     // 依登記次數扣點：只補扣尚未扣的次數；整批一次寫入本機，任何一筆失敗就全部不接受。
     window.c408PointsDeductSeatCounts=function(request){

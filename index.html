@@ -726,8 +726,9 @@
                     <button id="group-award-btn" type="button" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-sm font-extrabold shadow transition-all active:scale-95 flex items-center gap-1.5">
                         <span>🏆</span> 結算頒獎
                     </button>
-                    <button id="group-reset-scores-btn" type="button" class="group-prep-control px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
-                        🔄 分數歸零
+                    <button id="group-to-points-btn" type="button" class="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-bold transition-all">⭐ 轉入班級集點</button>
+                    <button id="group-reset-scores-btn" type="button" class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-bold transition-all" title="清空全部組別分數">
+                        🔄 清空分數
                     </button>
                 </div>
             </div>
@@ -5887,11 +5888,11 @@ document.addEventListener('DOMContentLoaded', () => {
         toolbar.insertBefore(edit, toolbar.firstChild);
         var modal = document.getElementById('group-settings-modal');
         var actions = document.getElementById('group-settings-actions');
-        ['group-topic-presets-btn','group-bonus-edit-btn','group-reset-scores-btn'].forEach(function(id) {
+        ['group-topic-presets-btn','group-bonus-edit-btn'].forEach(function(id) {   // 清空分數留在加分區，不搬進設定
             var button = document.getElementById(id);
             button.classList.remove('group-prep-control');
             actions.appendChild(button);
-            if (id !== 'group-reset-scores-btn') button.addEventListener('click', function() { modal.classList.remove('show'); });
+            button.addEventListener('click', function() { modal.classList.remove('show'); });
         });
         var countControls = document.getElementById('group-score-toolbar').firstElementChild;
         countControls.classList.remove('group-prep-control');
@@ -5910,6 +5911,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function undoGroupScore() {
         if(!groupScoreUndo)return;
         var previous=groupScoreUndo;
+        if(previous.all){   // 復原「清空分數」：還原清空前所有組的分數與最近加分說明
+            if(!saveGroupScores(previous.all))return;
+            groupScores=Object.assign({},previous.all);groupLastBonuses=Object.assign({},previous.bonuses);
+            groupScoreUndo=null;renderGroupCards();showGroupToast('已復原清空前的分數。',true);return;
+        }
         var next=Object.assign({},groupScores);next[previous.groupId]=previous.score;
         if(!saveGroupScores(next))return;
         groupScores=next;
@@ -6151,6 +6157,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         var countText = document.getElementById('draw-group-count-text');
         if (countText) countText.textContent = '第 ' + groupCount + ' 組';
+    }
+
+    function transferGroupScoresToPoints() {
+        var members = window.c408PointsGroupMembers ? window.c408PointsGroupMembers() : null;
+        if (!members) { showGroupToast('班級集點尚未載入，請稍後再試。', false); return; }
+        var awards = [], lines = [], skipped = [];
+        for (var i = 1; i <= groupCount; i++) {
+            var score = groupScores[i] || 0, name = groupNames[i] || ('第 ' + i + ' 組'), g = members[i - 1];
+            if (score <= 0) continue;
+            if (!g || !g.seats.length) { skipped.push(name); continue; }
+            awards.push({index: i, name: name, delta: score, seats: g.seats.map(function (s) { return s.seat; })});
+            lines.push(name + '（' + score + ' 分）→ ' + g.seats.length + ' 人各 +' + score + '：' + g.seats.map(function (s) { return s.seat + ' ' + s.name; }).join('、'));
+        }
+        if (!awards.length) {
+            showGroupToast(skipped.length ? '有分數的組別還沒設定成員：' + skipped.join('、') + '（到「班級集點 → ⚙ 設定 → 小組成員」設定）' : '目前沒有正分可以轉入。', false);
+            return;
+        }
+        if (!confirm('把小組分數轉入班級集點？\n\n' + lines.join('\n') +
+            (skipped.length ? '\n\n⚠ 尚未設定成員、不會轉入：' + skipped.join('、') : '') +
+            '\n\n轉入的組別分數會清空（可按「復原上一筆」救回小組分數）。')) return;
+        var result = window.c408PointsAwardGroups({awards: awards});
+        if (!result || !result.accepted) { showGroupToast((result && result.error) || '集點尚未接受，請重試。', false); return; }
+        var before = {all: Object.assign({}, groupScores), bonuses: Object.assign({}, groupLastBonuses)};
+        var next = Object.assign({}, groupScores);
+        awards.forEach(function (a) { next[a.index] = 0; delete groupLastBonuses[a.index]; });
+        if (!saveGroupScores(next)) { showGroupToast('已轉入班級集點，但小組分數無法清空，請手動按「清空分數」，避免重複轉入。', false); return; }
+        groupScores = next;
+        groupScoreUndo = before;
+        renderGroupCards();
+        showGroupToast('已轉入班級集點：' + result.groups + ' 組，共 ' + result.students + ' 位學生' + (skipped.length ? '（' + skipped.join('、') + ' 未設定成員，分數保留）' : ''), true);
     }
 
     function applyGroupScore(groupId, pts, label, cardEl) {
@@ -6889,17 +6925,23 @@ document.addEventListener('DOMContentLoaded', () => {
         var resetScoresBtn = document.getElementById('group-reset-scores-btn');
         if (resetScoresBtn) {
             resetScoresBtn.addEventListener('click', function () {
-                if (confirm('確定要將所有組別的分數歸零嗎？')) {
+                if (confirm('確定要清空所有組別的分數嗎？\n清空後可以按「復原上一筆」救回。')) {
+                    var before = {all: Object.assign({}, groupScores), bonuses: Object.assign({}, groupLastBonuses)};
                     var next = {};
                     for (var i = 1; i <= 8; i++) next[i] = 0;
                     if (!saveGroupScores(next)) return;
                     groupScores = next;
                     groupLastBonuses = {};
-                    groupScoreUndo = null;
+                    groupScoreUndo = before;
                     renderGroupCards();
+                    showGroupToast('已清空所有組別的分數。', true);
                 }
             });
         }
+
+        // 4b. 小組分數轉入班級集點：第 N 組 ↔ 集點設定的第 N 組成員；組員每人加該組分數，轉入的組分數清空（可復原）
+        var toPointsBtn = document.getElementById('group-to-points-btn');
+        if (toPointsBtn) toPointsBtn.addEventListener('click', transferGroupScoresToPoints);
 
         // 5. Group Count Selector
         document.querySelectorAll('.group-count-btn').forEach(function (btn) {
@@ -8863,6 +8905,20 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('focus',function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden)sync(true);});document.addEventListener('visibilitychange',function(){if(!document.hidden&&(window.c408CurrentTab==='points'||window.c408CurrentTab==='seat'))sync(true);});setInterval(function(){if((window.c408CurrentTab==='points'||window.c408CurrentTab==='seat')&&!document.hidden&&!busy)sync(true);},15000);return true;
     }
     window.c408PointsDecorateSeat=function(card){decorateSeat(card);};
+    window.c408PointsGroupMembers=function(){if(!ready&&!init())return null;return settings().groups.map(function(g){return {name:g.name,seats:g.seats.filter(function(n){return roster[n];}).map(function(n){return {seat:n,name:roster[n][0]};})};});};
+    // 小組討論分數轉入：每組一筆（組員每人加該組分數），整批一次寫入本機，任何一組不合規就全部不接受。
+    window.c408PointsAwardGroups=function(request){
+        if(!ready&&!init())return {accepted:false,error:el('points-message').textContent||'集點資料無法讀取。'};
+        if(!request||!Array.isArray(request.awards)||!request.awards.length)return {accepted:false,error:'沒有可轉入的分數。'};
+        var base='grp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),next=copy(state),time=new Date().toISOString(),done=[],error='';
+        request.awards.forEach(function(a){if(error)return;var seats=Array.isArray(a.seats)?a.seats.filter(function(n){return roster[n];}):[];if(!seats.length||!Number.isInteger(a.delta)||a.delta<1||a.delta>100||!Number.isInteger(a.index)){error=(a&&a.name||'小組')+'：分數須為 1～100 的整數，且要有組員。';return;}var b={id:base+'_g'+a.index,type:'score',seats:targets(seats),itemId:'group_discussion',label:('小組討論：'+String(a.name||('第 '+a.index+' 組'))+' '+a.delta+' 分').slice(0,80),delta:a.delta,device:state.device,time:time};if(cloud)next.pending.push(b);else localApply(next,b);next.undoStack.push(b.id);done.push({seats:seats,delta:a.delta});});
+        if(error)return {accepted:false,error:error};
+        reconcileUndo(next);
+        if(!store(next))return {accepted:false,error:el('points-message').textContent||'本機儲存失敗，這次轉入尚未接受。'};
+        lastError='';notice='';message('');render();if(cloud)sync(false);
+        done.forEach(function(x,i){setTimeout(function(){animate(x.seats,x.delta);},i*1300);});
+        status();return {accepted:true,groups:done.length,students:done.reduce(function(n,x){return n+x.seats.length;},0)};
+    };
     window.c408PointsSeatDeductPlan=function(slot,counts){if(!ready&&!init())return null;return seatDeductPlan(slot,counts);};
     // 依登記次數扣點：只補扣尚未扣的次數；整批一次寫入本機，任何一筆失敗就全部不接受。
     window.c408PointsDeductSeatCounts=function(request){
