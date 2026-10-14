@@ -353,3 +353,10 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **未來避免**：紙張輸出必須實際量測與PDF渲染，不能只以字數門檻判定。
 
 ---
+
+## 公開 repo 差點推出「任何人可編輯」的試算表 ID（2026-10-14）
+
+**症狀：** 準備 push 時檢查發現 Points.gs 寫著國語測驗平台成績試算表 ID；Drive 權限查到該表是 `anyone: writer`。
+**根因：** 只把「GAS 網址」當機密，沒檢查外部試算表的共用設定；ID 本身不是網址，但配合「知道連結者可編輯」就等於寫入權限。
+**修正：** ID 移到不進版控的 `gas/Private.gs`；未推送的 commit 用 `git filter-branch --tree-filter` 改寫後才 push，並以 `git log -p origin/master..HEAD | grep <ID>` 確認為 0。
+**預防：** 寫入任何外部試算表／檔案 ID 前先查 Drive 權限；push 前固定 grep 外部 ID。建議把測驗成績試算表改回「限定使用者」（GAS 以擁有者身分執行，不需要公開編輯）。

@@ -40,6 +40,7 @@ updated: 2026-10-14
 - **408 分頁隱藏**：⚙️「顯示」勾選存 `timerTabHidden`，只存本機、不同步雲端（順序才同步）。測試：`test_tab_hidden_408.py`。
 - **秩序登記分節**（設計 `docs/2026-10-10-seat-period-design.md`）：「上課表現紀錄」H 欄＝節次（空白＝未分節），**不可退回舊 7 欄後端**；要回復就把 `SEAT_PERIOD_UI` 改成 false 再部署。節次代碼（m、1～7、n）在 `gas/Code.gs` 的 `SEAT_PERIOD_TEXT` 與 index.html／universal.html 的 `SEAT_PERIODS` 三處必須一致。清除與匯入一律經 `seatCommitDestructive`（先寫本機、再存佇列＋opId），不可直接呼叫後端。測試：`test_seat_backend.py`、`test_seat_period_408.py`、`test_seat_period_universal.py`。
 - **GAS 網址不可寫進程式碼**，repo 是公開的，網址等於寫入權限。
+- **外部試算表 ID 放 `gas/Private.gs`**（不進版控、clasp 會推上 GAS）：國語測驗平台成績試算表共用設定是「知道連結者可編輯」，ID 公開等於寫入權限。換電腦要從 GAS 編輯器或舊電腦複製 `gas/Private.gs`，否則部署後拍賣／測驗匯入會失效。
 - 名冊姓名一律從試算表或既有程式碼複製，不可憑記憶輸入。
 
 ## 全校通用版 universal.html
