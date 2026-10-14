@@ -248,10 +248,22 @@ function pointAuctionWins_() {
     return {id:'auction408_' + time.getTime() + '_' + seatOf[name], seat:seatOf[name], item:item, amount:amount};
   }).filter(Boolean);
 }
-// 加點標準（與國語測驗平台 Code.gs quizPointAward_ 相同）：題數 20 題以上才計；90 分以上 +2、80 分以上 +1。
-function pointQuizDelta_(total, score) {
+// 加點標準（與國語測驗平台 Code.gs quizPointAward_ 相同）：題數 20 題以上才計；預設 90 分以上 +2、80 分以上 +1。
+// 個別學生的門檻由老師在測驗平台教師介面設定，存在成績試算表「集點加點標準」分頁（座號｜姓名｜+1 分數｜+2 分數）。
+function pointQuizDelta_(total, score, rule) {
   if (!(total >= 20)) return 0;
-  return score >= 90 ? 2 : score >= 80 ? 1 : 0;
+  rule = rule || {plus1:80, plus2:90};
+  return score >= rule.plus2 ? 2 : score >= rule.plus1 ? 1 : 0;
+}
+function pointQuizRules_(ss) {
+  var sheet = ss.getSheetByName('集點加點標準'), out = {};
+  if (!sheet || sheet.getLastRow() < 2) return out;
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(function (r) {
+    var seat = Number(r[0]);
+    if (!seat) return;
+    out[seat] = {plus1: r[2] === '' ? 80 : Number(r[2]), plus2: r[3] === '' ? 90 : Number(r[3])};
+  });
+  return out;
 }
 // 成績表時間欄可能是 Date，或 'yyyy/MM/dd HH:mm:ss' 文字（台北時間）。
 function pointQuizTime_(value) {
@@ -263,7 +275,7 @@ function pointQuizTime_(value) {
 }
 // 每次交卷一筆；編號 quiz408_<系統>_<交卷時間毫秒>_<座號>。只讀各表最後 300 列（成績依時間追加）。
 function pointQuizAwards_() {
-  var ss = SpreadsheetApp.openById(QUIZ_SPREADSHEET_ID), out = [];
+  var ss = SpreadsheetApp.openById(QUIZ_SPREADSHEET_ID), out = [], rules = pointQuizRules_(ss);
   QUIZ_SCORE_SHEETS.forEach(function (name) {
     var sheet = ss.getSheetByName(name);
     if (!sheet || sheet.getLastRow() < 2) return;
@@ -273,7 +285,7 @@ function pointQuizAwards_() {
     var shown = range.getDisplayValues();
     range.getValues().forEach(function (r, i) {
       var time = pointQuizTime_(r[0]), seat = Number(r[2]), system = String(r[4]).replace(/[^a-z]/g, '');
-      var total = Number(r[7]), score = Number(r[8]), delta = pointQuizDelta_(total, score);
+      var total = Number(r[7]), score = Number(r[8]), delta = pointQuizDelta_(total, score, rules[seat]);
       if (!time || time < QUIZ_IMPORT_SINCE || String(r[1]).trim() !== '408' || !Number.isInteger(seat) || !system || !delta) return;
       var scope = String(shown[i][6]).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 30);
       out.push({id:'quiz408_' + system + '_' + time.getTime() + '_' + seat, seat:seat, delta:delta,

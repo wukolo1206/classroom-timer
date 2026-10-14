@@ -310,4 +310,15 @@ test('quiz scores import per submission: >=20 questions, 90+ gives 2, 80+ gives 
   assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'quiz408_a_1_1'}),/保留字/);
   assert.equal(e.ctx.pointQuizDelta_(20,90),2); assert.equal(e.ctx.pointQuizDelta_(20,89.9),1); assert.equal(e.ctx.pointQuizDelta_(19,100),0); assert.equal(e.ctx.pointQuizDelta_(40,79),0);
 });
+test('per-student quiz thresholds from 集點加點標準 lower the bar only for that student', () => {
+  const e=env(), since=e.ctx.QUIZ_IMPORT_SINCE.getTime(), t=n=>new Date(since+n*1000);
+  e.quiz.sheets={
+    '集點加點標準':[['02','李晨睿',60,70,'2026/10/14 10:00:00'],['03','王柏勛','',75,'x']],
+    '期末考成績單':[[t(1),'408','02','李晨睿','exam','國語','L1',20,65],[t(2),'408','02','李晨睿','exam','國語','L1',20,72],
+      [t(3),'408','03','王柏勛','exam','國語','L1',20,78],[t(4),'408','03','王柏勛','exam','國語','L1',20,79],[t(5),'408','01','游濬謙','exam','國語','L1',20,72],
+      [t(6),'408','02','李晨睿','exam','國語','L1',19,100]]};
+  const out=e.ctx.getPointBundle();
+  assert.deepEqual(out.events.filter(x=>x.itemId==='quiz_award').map(x=>[x.seat,x.delta]),[[2,1],[2,2],[3,2],[3,2]]);
+  assert.equal(e.ctx.pointQuizDelta_(20,79,{plus1:80,plus2:90}),0);
+});
 console.log(count+' backend scenarios passed');
