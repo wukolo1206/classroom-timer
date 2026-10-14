@@ -207,6 +207,25 @@ class Points(unittest.TestCase):
         self.assertEqual(p.evaluate("JSON.parse(localStorage.getItem('c408_points_cloud/state')).pending.length"),0)
         p.evaluate("sessionStorage.removeItem('__pointsAvatarReject')");self.score(p,2,0);p.wait_for_timeout(400)
         self.assertEqual(p.evaluate("JSON.parse(sessionStorage.getItem('__points_cloud')).events.filter(e=>e.seat===2).length"),1)
+    def test_quiz_award_from_sync_animates_like_manual_award(self):
+        p=self.open(gas=True);p.wait_for_timeout(300)
+        p.evaluate("""()=>{const c=JSON.parse(sessionStorage.getItem('__points_cloud'));const now=new Date().toISOString();
+          c.events.push({id:'quiz408_general_1_1:1',batchId:'quiz408_general_1_1',time:now,seat:1,name:'游濬謙',itemId:'quiz_award',label:'測驗加點：綜合練習 第3課 95分',delta:2,type:'score',originalBatchId:'',device:'quiz408'});
+          c.events.push({id:'quiz408_general_2_2:2',batchId:'quiz408_general_2_2',time:now,seat:2,name:'李晨睿',itemId:'quiz_award',label:'測驗加點：綜合練習 第3課 85分',delta:1,type:'score',originalBatchId:'',device:'quiz408'});
+          c.events.push({id:'old:3',batchId:'old',time:'2026-01-01T00:00:00Z',seat:3,name:'王柏勛',itemId:'quiz_award',label:'測驗加點：舊',delta:2,type:'score',originalBatchId:'',device:'quiz408'});
+          sessionStorage.setItem('__points_cloud',JSON.stringify(c));}""")
+        p.locator('#points-refresh').click();p.wait_for_timeout(400)
+        self.assertEqual(self.value(p,1),2);self.assertEqual(self.value(p,2),1)
+        card=p.locator('[data-point-seat="1"]')
+        self.assertEqual(card.locator('.points-float').inner_text(),'+2')
+        self.assertTrue(card.evaluate("n=>n.classList.contains('points-celebrate')"))
+        self.assertEqual(p.locator('[data-point-seat="3"] .points-float').count(),0,'old imports do not animate')
+        msg=p.locator('#points-message').inner_text()
+        self.assertIn('1 號 游濬謙 +2（綜合練習 第3課 95分）',msg);self.assertIn('2 號 李晨睿 +1',msg)
+        p.wait_for_timeout(1500)
+        self.assertEqual(p.locator('[data-point-seat="2"] .points-float').inner_text(),'+1')
+        p.locator('#points-refresh').click();p.wait_for_timeout(400)
+        self.assertEqual(p.locator('[data-point-seat="1"] .points-float').count(),0,'same award is announced once')
     def test_save_validation_feedback_visible_next_to_button(self):
         p=self.open();p.locator('#points-settings').click()
         p.locator('#points-settings-groups input[aria-label="小組成員座號"]').first.fill('999')
@@ -411,6 +430,7 @@ class Points(unittest.TestCase):
 
     def test_seat_batch_keyboard_cancel_and_focus_trap(self):
         p=self.open();self.batch_prepare(p);p.locator('#seat-batch-points-btn').click()
+        p.locator('#seat-batch-points-modal').wait_for(state='visible');p.locator('#seat-batch-points-delta').focus()
         p.locator('#seat-batch-points-delta').press('Shift+Tab')
         self.assertTrue(p.locator('#seat-batch-points-confirm').evaluate('n=>document.activeElement===n'))
         p.locator('#seat-batch-points-confirm').press('Tab')

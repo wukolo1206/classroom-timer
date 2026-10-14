@@ -17,6 +17,12 @@ var POINT_ROSTER = [[1,'游濬謙'],[2,'李晨睿'],[3,'王柏勛'],[4,'劉宸�
 // AUCTION_SPREADSHEET_ID 定義在 gas/Private.gs（不進版控：repo 公開）
 // 此時間之前的得標老師已手動「拍賣扣點」，不可再匯入。
 var AUCTION_IMPORT_SINCE = new Date('2026-10-14T06:30:00+08:00');
+// 國語測驗平台（另一個 GAS 專案）的成績試算表；408 交卷達標自動加點。
+// QUIZ_SPREADSHEET_ID 定義在 gas/Private.gs（不進版控：repo 公開）
+var QUIZ_SCORE_SHEETS = ['成語測驗成績單', '閱讀測驗成績單', '字音字形成績單', '綜合練習成績單', '期末考成績單'];
+var QUIZ_SYSTEM_LABELS = {idiom:'成語', reading:'閱讀', ziyin:'字音字形', general:'綜合練習', exam:'測驗'};
+// 此時間之前交卷的成績不加點（功能上線時間）。
+var QUIZ_IMPORT_SINCE = new Date('2026-10-14T09:45:00+08:00');
 
 function pointError_(message) { throw new Error('永久：' + message); }
 function pointText_(value, max, field) {
@@ -67,7 +73,7 @@ function pointBatch_(batch) {
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
@@ -174,6 +180,7 @@ function getPointBundle() {
     var sheet = pointSheet_(), data = pointRead_(sheet);
     pointComplete_(sheet,data);
     pointImportAuction_(sheet,data);
+    pointImportQuiz_(sheet,data);
     return pointBundle_(data);
   } finally {
     try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
@@ -240,6 +247,56 @@ function pointAuctionWins_() {
     var item = String(r[1]).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 60) || '商品';
     return {id:'auction408_' + time.getTime() + '_' + seatOf[name], seat:seatOf[name], item:item, amount:amount};
   }).filter(Boolean);
+}
+// 加點標準（與國語測驗平台 Code.gs quizPointAward_ 相同）：題數 20 題以上才計；90 分以上 +2、80 分以上 +1。
+function pointQuizDelta_(total, score) {
+  if (!(total >= 20)) return 0;
+  return score >= 90 ? 2 : score >= 80 ? 1 : 0;
+}
+// 成績表時間欄可能是 Date，或 'yyyy/MM/dd HH:mm:ss' 文字（台北時間）。
+function pointQuizTime_(value) {
+  if (value instanceof Date) return value;
+  var m = /^(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{2}):(\d{2})$/.exec(String(value).trim());
+  if (!m) return null;
+  var pad = function (x) { return ('0' + x).slice(-2); };
+  return new Date(m[1] + '-' + pad(m[2]) + '-' + pad(m[3]) + 'T' + pad(m[4]) + ':' + m[5] + ':' + m[6] + '+08:00');
+}
+// 每次交卷一筆；編號 quiz408_<系統>_<交卷時間毫秒>_<座號>。只讀各表最後 300 列（成績依時間追加）。
+function pointQuizAwards_() {
+  var ss = SpreadsheetApp.openById(QUIZ_SPREADSHEET_ID), out = [];
+  QUIZ_SCORE_SHEETS.forEach(function (name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    var start = Math.max(2, sheet.getLastRow() - 299);
+    var range = sheet.getRange(start, 1, sheet.getLastRow() - start + 1, 9);
+    // 課別範圍如「1-2」會被試算表自動轉成日期，說明文字改用畫面顯示值。
+    var shown = range.getDisplayValues();
+    range.getValues().forEach(function (r, i) {
+      var time = pointQuizTime_(r[0]), seat = Number(r[2]), system = String(r[4]).replace(/[^a-z]/g, '');
+      var total = Number(r[7]), score = Number(r[8]), delta = pointQuizDelta_(total, score);
+      if (!time || time < QUIZ_IMPORT_SINCE || String(r[1]).trim() !== '408' || !Number.isInteger(seat) || !system || !delta) return;
+      var scope = String(shown[i][6]).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 30);
+      out.push({id:'quiz408_' + system + '_' + time.getTime() + '_' + seat, seat:seat, delta:delta,
+        label:('測驗加點：' + (QUIZ_SYSTEM_LABELS[system] || system) + (scope ? ' ' + scope : '') + ' ' + Math.round(score) + '分').slice(0, 80)});
+    });
+  });
+  return out;
+}
+function pointImportQuiz_(sheet, data) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get('quizImportChecked')) return;
+  var awards;
+  try { awards = pointQuizAwards_(); } catch (err) { console.warn('測驗成績讀取失敗：' + err.message); return; }
+  cache.put('quizImportChecked', '1', 20);
+  var done = {};
+  data.manifests.forEach(function (m) { done[m.request.id] = true; });
+  awards.forEach(function (a) {
+    if (done[a.id]) return;
+    var target;
+    try { target = pointSeat_(a.seat); } catch (err) { return; }
+    pointCommitLocked_(sheet, data, {id:a.id,type:'score',seats:[target],itemId:'quiz_award',label:a.label,delta:a.delta}, 'quiz408');
+    done[a.id] = true;
+  });
 }
 // 讀拍賣表失敗不影響集點同步；最多每 20 秒檢查一次，已匯入的編號靠 _manifest 去重。
 function pointImportAuction_(sheet, data) {

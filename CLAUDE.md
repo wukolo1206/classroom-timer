@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @50／全校版 v1.21
+version: GAS @52／全校版 v1.21
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 408 實際拍賣一次確認得標自動扣點；試用換角色與當週小卡
+next_action: 教室觀察測驗加點大屏效果；實際拍賣一場；試用換角色與當週小卡
 updated: 2026-10-14
 ---
 
@@ -31,7 +31,7 @@ updated: 2026-10-14
 ## 不能動的地方
 
 - **試算表只能動「上課表現紀錄」分頁**。同一份檔案裡的 9月～1月份聯絡簿是老師每天在用的資料，任何腳本都不得寫入或重排。
-- **班級集點新增授權例外（2026-10-12）**：使用者同意新增「班級集點紀錄」工作表；`gas/Points.gs` 僅可建立與追加這個新分頁，不改原有工作表。11 欄表頭固定，`_manifest` 為重送與部分寫入復原的內部保護紀錄，不可自行刪除或編輯。集點設定獨立存 `pointSettings`，與既有秩序、小組、SR 設定分開。**換角色＝扣點事件**（itemId `avatar:N`），角色由最後一筆未復原的換角色事件推導，不可改回只寫設定的免費換角色（見 DECISIONS 2026-10-14）。**拍賣得標自動扣點**：Points.gs 讀「點數拍賣系統資料」得標紀錄_408 匯入（`AUCTION_IMPORT_SINCE`、編號格式須與 `點數拍賣系統/程式碼.js` 一致），408 得標後不要再手動「拍賣扣點」。**拍賣系統也顯示角色頭像**：改 `points/avatars.js` 後要到 `點數拍賣系統` 執行 `python tools/embed_avatars.py` 並部署；`pointSettings.avatars` 若有變動，同步拍賣 `程式碼.js` 的 `AVATAR_BASE_408`。
+- **班級集點新增授權例外（2026-10-12）**：使用者同意新增「班級集點紀錄」工作表；`gas/Points.gs` 僅可建立與追加這個新分頁，不改原有工作表。11 欄表頭固定，`_manifest` 為重送與部分寫入復原的內部保護紀錄，不可自行刪除或編輯。集點設定獨立存 `pointSettings`，與既有秩序、小組、SR 設定分開。**換角色＝扣點事件**（itemId `avatar:N`），角色由最後一筆未復原的換角色事件推導，不可改回只寫設定的免費換角色（見 DECISIONS 2026-10-14）。**拍賣得標自動扣點**：Points.gs 讀「點數拍賣系統資料」得標紀錄_408 匯入（`AUCTION_IMPORT_SINCE`、編號格式須與 `點數拍賣系統/程式碼.js` 一致），408 得標後不要再手動「拍賣扣點」。**國語測驗達標自動加點**：Points.gs 讀「國語測驗平台」成績表匯入（`QUIZ_IMPORT_SINCE`、`pointQuizDelta_` 標準須與測驗平台 `quizPointAward_` 一致，`國語測驗平台/scripts/tests/points_award_sim.js` 會檢查）。**拍賣系統也顯示角色頭像**：改 `points/avatars.js` 後要到 `點數拍賣系統` 執行 `python tools/embed_avatars.py` 並部署；`pointSettings.avatars` 若有變動，同步拍賣 `程式碼.js` 的 `AVATAR_BASE_408`。
 - **「上課表現紀錄」的欄位順序固定**：`日期 | 座號 | 姓名 | 項目 | 次數 | 最後更新 | 項目代碼`。
   G 欄「項目代碼」是程式比對用的 key，改名或刪除會讓舊紀錄對不上檢查項目。
 - **部署一律帶 `--deploymentId <見 gas/weburl.txt，已 gitignore>`**，

@@ -5,7 +5,7 @@ const assert = require('assert');
 const file = path.join(__dirname, '../gas/Points.gs');
 assert.ok(fs.existsSync(file), 'Points.gs backend is not implemented yet');
 function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = false, normalizeQuotes = false) {
-  const rows = [], props = {}, touched = [], opened = [], cache = {}, auction = {sheets:null, fail:false};
+  const rows = [], props = {}, touched = [], opened = [], cache = {}, auction = {sheets:null, fail:false}, quiz = {sheets:null, fail:false};
   let failAt = 0, writes = 0, locked = false, eventBlocks = 0, flushes = 0, flushFail = false;
   const lockTrace=[];
   function acquire() {assert.ok(!locked); locked=true; lockTrace.push('acquire');}
@@ -16,7 +16,7 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
     setFrozenRows: () => {} };
   const spreadsheet={getSheetByName: name => { touched.push(name); return rows.length ? sheet : null; }, insertSheet: name => {touched.push(name); return sheet;}};
   const ctx = vm.createContext({console, Date, JSON, Object, Array, Number, String, Math, Error,
-    SpreadsheetApp: { getActiveSpreadsheet: () => activeSpreadsheetUnavailable ? null : spreadsheet, openById: id => {if (id === ctx.AUCTION_SPREADSHEET_ID) return auctionBook(); opened.push(id); return spreadsheet;}, flush: () => {assert.ok(locked,'flush must execute under held lock'); lockTrace.push('flush'); flushes++; if(flushFail) throw Error('simulated flush failure');}},
+    SpreadsheetApp: { getActiveSpreadsheet: () => activeSpreadsheetUnavailable ? null : spreadsheet, openById: id => {if (id === ctx.AUCTION_SPREADSHEET_ID) return auctionBook(); if (id === ctx.QUIZ_SPREADSHEET_ID) return quizBook(); opened.push(id); return spreadsheet;}, flush: () => {assert.ok(locked,'flush must execute under held lock'); lockTrace.push('flush'); flushes++; if(flushFail) throw Error('simulated flush failure');}},
     LockService: {getDocumentLock: () => documentLockUnavailable ? null : ({waitLock: acquire, releaseLock: release}), getScriptLock: () => ({waitLock: acquire, releaseLock: release})},
     PropertiesService: {getDocumentProperties: () => ({getProperty: k => props[k] ?? null, setProperty: (k,v) => {props[k]=v;}})},
     Utilities: {newBlob: value => ({getBytes: () => Buffer.from(value)})},
@@ -27,8 +27,15 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
     const table = rows => ({getLastRow: () => rows.length + 1, getRange: (r, c, nr, nc) => ({getValues: () => rows.slice(r-2, r-2+nr).map(x => x.slice(c-1, c-1+nc))})});
     return {getSheetByName: name => auction.sheets && auction.sheets[name] ? table(auction.sheets[name]) : null};
   }
+  function quizBook() {
+    if (quiz.fail) throw Error('simulated quiz outage');
+    const pick = (rows, r, c, nr, nc) => rows.slice(r-2, r-2+nr).map(x => x.slice(c-1, c-1+nc));
+    const shown = v => v instanceof Date ? (v.getMonth()+1)+'-'+v.getDate() : String(v);
+    const table = rows => ({getLastRow: () => rows.length + 1, getRange: (r, c, nr, nc) => ({getValues: () => pick(rows, r, c, nr, nc), getDisplayValues: () => pick(rows, r, c, nr, nc).map(x => x.map(shown))})});
+    return {getSheetByName: name => quiz.sheets && quiz.sheets[name] ? table(quiz.sheets[name]) : null};
+  }
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx);
-  return {ctx, rows, props, touched, opened, lockTrace, auction, clearCache: () => {for (const k in cache) delete cache[k];}, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
+  return {ctx, rows, props, touched, opened, lockTrace, auction, quiz, clearCache: () => {for (const k in cache) delete cache[k];}, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
 }
 function score(id, delta=1, seats=[1,2], device='A') {return {id,type:'score',seats:seats.map(seat => ({seat,name:seat===1?'游濬謙':'李晨睿'})),itemId:'focus',label:'認真上課',delta,device};}
 function total(bundle, seat) {return bundle.events.filter(e=>e.seat===seat).reduce((n,e)=>n+e.delta,0);}
@@ -278,5 +285,29 @@ test('auction wins after cutoff import once as deductions; old, unknown, ambiguo
   e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(total(out,1),30);
   assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'auction408_1_1'}),/保留字/);
   assert.equal(out.events.filter(x=>x.itemId==='auction_win').length,3);
+});
+test('quiz scores import per submission: >=20 questions, 90+ gives 2, 80+ gives 1, once each, 408 only', () => {
+  const e=env(), since=e.ctx.QUIZ_IMPORT_SINCE.getTime(), t=n=>new Date(since+n*1000);
+  const fmt=d=>{const p=x=>String(x).padStart(2,'0'), l=new Date(d.getTime()+8*3600e3);return l.getUTCFullYear()+'/'+p(l.getUTCMonth()+1)+'/'+p(l.getUTCDate())+' '+p(l.getUTCHours())+':'+p(l.getUTCMinutes())+':'+p(l.getUTCSeconds());};
+  e.quiz.sheets={
+    '綜合練習成績單':[[new Date(since-1000),'408','01','游濬謙','general','國語','L1',20,100],
+      [t(1),'408','01','游濬謙','general','國語','第1課＋第2課',20,95],
+      [fmt(t(2)),'408','02','李晨睿','general','國語','第3課',25,85],
+      [t(3),'408','02','李晨睿','general','國語','第3課',19,100],
+      [t(4),'408','01','游濬謙','general','國語','第3課',20,79.5],
+      [t(5),'402','01','別班','general','國語','第3課',20,100],
+      [t(6),'408','07','空號','general','國語','第3課',20,100]],
+    '期末考成績單':[[t(7),'408','01','游濬謙','exam','社會',new Date(2026,0,2),30,90]]};
+  e.quiz.fail=true; let out=e.ctx.getPointBundle(); assert.equal(out.events.length,0,'outage does not block');
+  e.quiz.fail=false; out=e.ctx.getPointBundle();
+  const got=out.events.filter(x=>x.itemId==='quiz_award').map(x=>[x.seat,x.delta,x.label,x.batchId]);
+  assert.deepEqual(got,[[1,2,'測驗加點：綜合練習 第1課＋第2課 95分','quiz408_general_'+t(1).getTime()+'_1'],
+    [2,1,'測驗加點：綜合練習 第3課 85分','quiz408_general_'+t(2).getTime()+'_2'],
+    [1,2,'測驗加點：測驗 1-2 90分','quiz408_exam_'+t(7).getTime()+'_1']]);
+  e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(out.events.filter(x=>x.itemId==='quiz_award').length,3,'idempotent');
+  e.quiz.sheets['綜合練習成績單'].push([t(20),'408','01','游濬謙','general','國語','第1課＋第2課',20,95]);
+  e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(total(out,1),6,'each submission counts');
+  assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'quiz408_a_1_1'}),/保留字/);
+  assert.equal(e.ctx.pointQuizDelta_(20,90),2); assert.equal(e.ctx.pointQuizDelta_(20,89.9),1); assert.equal(e.ctx.pointQuizDelta_(19,100),0); assert.equal(e.ctx.pointQuizDelta_(40,79),0);
 });
 console.log(count+' backend scenarios passed');
