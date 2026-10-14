@@ -335,6 +335,59 @@ class SrTab(unittest.TestCase):
         self.assertEqual(rec['2']['terms']['115-1']['sr'], '450-514')
         self.assertNotIn('姓名不同', p._dialogs[-1])
 
+    def demo_file(self, fr, p):
+        with p.expect_download() as d:
+            fr.evaluate("downloadDemoTemplate()")
+        path = os.path.join(self.tmp, 'demo.xlsx')
+        d.value.save_as(path)
+        return path
+
+    def test_T17b_demo_template_contents(self):
+        p = self.open()
+        fr = self.sr(p)
+        path = self.demo_file(fr, p)
+        wb = openpyxl.load_workbook(path)
+        self.assertIn('示範說明', wb.sheetnames)
+        ws = wb['SR登記（示範）']
+        self.assertIn('【示範資料】', ws['A1'].value)
+        self.assertEqual([c.value for c in ws[4]], ['座號', '學生姓名', '測驗時間', '就讀年級', 'SR(114-2)', '測驗時間', '就讀年級', 'SR(115-1)'])
+        rows = [[c.value for c in r] for r in ws.iter_rows(min_row=5)]
+        self.assertEqual(len(rows), 20)
+        self.assertEqual(rows[0][:2], ['01', '王小明'])
+        self.assertRegex(rows[3][7], r'^\d{3}-\d{3}$', '有範圍值')
+        self.assertIsNone(rows[18][4], '19 號本學期轉入，上學期沒有成績')
+        self.assertIsNone(rows[19][7], '20 號本學期尚未測驗')
+        cur = [int(str(r[7]).split('-')[0]) for r in rows if r[7]]
+        self.assertTrue(min(cur) < 395 and max(cur) > 453, '四年級常模 395～453 上下都有')
+
+    def test_T17c_demo_import_warns_and_keeps_existing_roster(self):
+        p = self.open()
+        fr = self.sr(p)
+        path = self.demo_file(fr, p)
+        fr.evaluate("() => { window.__asked = []; window.confirm = m => { window.__asked.push(m); return false; }; }")
+        fr.set_input_files('#excel-file-input', path)
+        p.wait_for_timeout(600)
+        self.assertIn('SR 示範範本', fr.evaluate("window.__asked[0] || ''"))
+        self.assertIsNone(self.records(p), '取消示範匯入不可寫入')
+        fr.evaluate("() => { window.__asked = []; window.confirm = m => { window.__asked.push(m); return true; }; }")
+        fr.set_input_files('#excel-file-input', path)
+        p.wait_for_timeout(800)
+        self.assertEqual(fr.locator('#choice-modal').count(), 0, '名冊已有學生時不提供用示範名冊取代')
+        rec = self.records(p)['bySeat']
+        self.assertTrue(rec['1']['terms']['115-1']['sr'] and rec['1']['terms']['114-2']['sr'])
+        self.assertEqual(json.loads(self.storage(p)['ctu_class'])['studentNames'], NAMES, '名冊不變')
+
+    def test_T17d_demo_import_can_build_empty_roster(self):
+        empty = {'className': '示範班', 'teacherName': '示範老師', 'studentCount': 20, 'studentNames': []}
+        p = self.open(cls_cfg=empty)
+        fr = self.sr(p)
+        path = self.demo_file(fr, p)
+        fr.evaluate("() => { window.confirm = () => true; }")
+        fr.set_input_files('#excel-file-input', path)
+        self.assertIn('名冊', self.choose(fr, 'roster'))
+        p.wait_for_timeout(1500)
+        self.assertEqual(json.loads(self.storage(p)['ctu_class'])['studentNames'][:2], ['王小明', '李小華'])
+
     def test_T18_wrong_roster_asks_before_writing(self):
         # 名冊還是 3 人測試名冊，卻匯入別班 5 人的檔案：先問，按取消就不寫
         roster = {'className': '408', 'teacherName': '示範老師', 'studentCount': 3, 'studentNames': ['王', '無', '李']}

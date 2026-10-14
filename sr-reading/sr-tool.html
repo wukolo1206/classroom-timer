@@ -257,6 +257,7 @@
           <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleFileUpload(event)">
         </label>
         <button class="btn btn-light btn-sm" onclick="downloadTemplate()" title="下載已帶入班級名冊的空白試算表，填好 SR 後用「匯入 Excel」匯回">📄 下載空白範本</button>
+        <button class="btn btn-light btn-sm" onclick="downloadDemoTemplate()" title="虛構示範班 20 人、上學期與本學期 SR 成績，匯入後可示範小卡列印與跨學期比較">🎓 下載示範範本（含成績）</button>
         <button class="btn btn-light btn-sm" onclick="exportExcel()">📥 匯出試算表（.xlsx）</button>
         <button class="btn btn-light btn-sm" id="btn-edit-roster" onclick="openClassSettings()">⚙️ 修改班級名冊</button>
       </div>
@@ -1010,12 +1011,12 @@
   }
 
   // 寫入前檢查。回傳 'merge'（依目前名冊寫入）、'roster'（先用資料裡的名冊更新班級設定）或 'cancel'
-  async function chooseMerge(records) {
+  async function chooseMerge(records, isDemo) {
     const pre = mergeRecords(records, [], true);
     const mismatch = pre.conflicts.length > 0 || pre.outside > pre.updated;
-    // 名冊由外層程式固定（例如 408 版）時，不提供用匯入資料改名冊
-    const fileRoster = (HOST && HOST.ctuRosterReadOnly) ? null : rosterFromRecords(records);
     const rosterEmpty = !students.some(s => s.full);
+    // 名冊由外層程式固定（例如 408 版）時，不提供用匯入資料改名冊；示範檔只在名冊還是空的時候才可建立名冊
+    const fileRoster = (HOST && HOST.ctuRosterReadOnly) || (isDemo && !rosterEmpty) ? null : rosterFromRecords(records);
     const fileDiffers = fileRoster && (pre.conflicts.length > 0 || pre.outside > 0 || rosterEmpty);
     if (!mismatch && !fileDiffers) return 'merge';
 
@@ -1064,8 +1065,8 @@
   }
 
   // 依使用者選擇寫入；回傳 null 表示取消
-  async function mergeWithChoice(records, errors) {
-    const choice = await chooseMerge(records);
+  async function mergeWithChoice(records, errors, isDemo) {
+    const choice = await chooseMerge(records, isDemo);
     if (choice === 'cancel') return null;
     if (choice === 'roster') applyRoster(rosterFromRecords(records));
     const result = mergeRecords(records, errors);
@@ -1160,7 +1161,9 @@
         }
         if (!parsed.records.length) { alert('檔案裡沒有找到學生資料。' + (parsed.errors.length ? '\n\n' + parsed.errors.slice(0, 10).join('\n') : '')); return; }
         const errors = parsed.errors.slice();
-        const result = await mergeWithChoice(parsed.records, errors);
+        const isDemo = wb.SheetNames.indexOf(DEMO_SHEET_GUIDE) >= 0;
+        if (isDemo && !confirm('這是「SR 示範範本」（虛構學生與示範成績）。\n\n匯入會依座號寫入目前班級「' + (getClass().className || '') + ' 班」的 SR 紀錄，同座號同學期的成績會被示範成績取代。\n建議只在示範用的班級，或還沒登記正式成績時匯入。\n\n確定要匯入示範資料嗎？')) return;
+        const result = await mergeWithChoice(parsed.records, errors, isDemo);
         if (!result) return;
         renderAll();
         reportMerge('已從「' + file.name + '」的工作表「' + used + '」寫入', result, errors);
@@ -1208,6 +1211,61 @@
     XLSX.utils.book_append_sheet(wb, guide, '填寫說明');
     const safe = String(c.className || '班級').replace(/[\\/:*?"<>|]/g, '_');
     XLSX.writeFile(wb, 'SR登記範本_' + safe + '_' + t + '.xlsx');
+  }
+
+  // 示範範本：虛構示範班 20 人，依目前學期年級的常模產生上學期與本學期成績（低於／符合／高於常模、範圍值、未測）。
+  // 檔案含「示範說明」工作表，匯入時用來辨識並提醒會寫入目前班級。
+  const DEMO_SHEET_GUIDE = '示範說明';
+  const DEMO_NAMES = ['王小明', '李小華', '陳美玲', '林志豪', '張雅婷', '黃俊傑', '吳佳穎', '劉冠廷', '蔡宜君', '楊承恩',
+    '許欣怡', '鄭宇翔', '謝佩珊', '郭品妤', '洪子軒', '邱詩涵', '曾柏宇', '廖心怡', '賴冠宇', '周采潔'];
+  const DEMO_OFFSETS = [-75, -48, -30, -20, -12, -6, 0, 4, 9, 14, 18, 22, 27, 33, 41, 55, -38, 7, -16, null];
+  function demoTermDate(t) {
+    const p = parseTerm(t);
+    return p.h === 1 ? (p.y + 1911) + '/10/05' : (p.y + 1912) + '/05/04';
+  }
+  function downloadDemoTemplate() {
+    if (typeof XLSX === 'undefined') { alert('Excel 元件沒有載入（可能沒有網路）。'); return; }
+    const cur = currentTermSel, prev = prevTerm(cur);
+    const g = gradeAt(cur) || 4;
+    const norm = NORM_TABLE[Math.max(0, Math.min(NORM_TABLE.length - 1, g - 1))];
+    const mid = Math.round((norm.min + norm.max) / 2);
+    const gl = t => defaultGradeLevel(t) || (t === cur ? CN_NUM[g] + '年級' : CN_NUM[Math.max(1, g - 1)] + '年級');
+    const rows = [
+      ['【示範資料】虛構示範班 SR 登記表（' + termName(prev) + '、' + termName(cur) + '）'],
+      ['學生姓名與成績都是虛構的，只供示範。匯入會依座號寫入目前班級，請在示範用的班級或還沒登記成績時使用。'],
+      [],
+      ['座號', '學生姓名', '測驗時間', '就讀年級', 'SR(' + prev + ')', '測驗時間', '就讀年級', 'SR(' + cur + ')']
+    ];
+    DEMO_NAMES.forEach((name, i) => {
+      const off = DEMO_OFFSETS[i];
+      let now = '', before = '';
+      if (off !== null) {
+        const v = mid + off;
+        now = i % 6 === 3 ? (v - 3) + '-' + (v + 3) : String(v);
+        if (i !== 18) before = String(v - (12 + (i * 7) % 26));   // 18 號：本學期轉入，上學期沒有成績
+      } else {
+        before = String(mid - 40);                                // 20 號：本學期還沒測
+      }
+      rows.push([String(i + 1).padStart(2, '0'), name,
+        before ? demoTermDate(prev) : '', before ? gl(prev) : '', before,
+        now ? demoTermDate(cur) : '', now ? gl(cur) : '', now]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+    Object.keys(ws).forEach(k => { if (k[0] !== '!' && ws[k].t === 's') ws[k].z = '@'; });
+    const guide = XLSX.utils.aoa_to_sheet([
+      ['SR 示範範本怎麼用'], [],
+      ['1. 這份是虛構示範班 20 人，有 ' + termName(prev) + ' 與 ' + termName(cur) + ' 兩次 SR，可示範登記、小卡列印、跨學期比較。'],
+      ['2. 到「📚 SR 閱讀小卡 → 📁 匯入 Excel」選這個檔案；系統會先提醒「這會寫入目前班級」。'],
+      ['3. 班級名冊是空的時，可以選「更新班級名冊」用示範名冊；名冊已有學生時不會改名冊，成績會依座號寫到現有學生。'],
+      ['4. 成績範圍：低於、符合、高於 ' + norm.grade + '常模（' + norm.label + '），含範圍值（例：411-417）、本學期轉入、尚未測驗的學生。'],
+      ['5. 示範完要清除：在示範班級把示範學生的 SR 刪除，或匯入自己的正式資料覆蓋。']
+    ]);
+    guide['!cols'] = [{ wch: 96 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SR登記（示範）');
+    XLSX.utils.book_append_sheet(wb, guide, DEMO_SHEET_GUIDE);
+    XLSX.writeFile(wb, 'SR示範範本_' + prev + '_' + cur + '.xlsx');
   }
 
   // 匯出：每個有成績的學期一組欄位，表頭格式可直接再匯入
