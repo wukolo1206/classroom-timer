@@ -349,12 +349,11 @@ function getSeatSettings() {
   var items = props.getProperty('seatCheckItems');
   var layout = props.getProperty('seatLayout');
   var tabs = props.getProperty('timerTabOrder');
-  var group = props.getProperty(GROUP_SETTINGS_PROPERTY);
   return {
     items: items ? JSON.parse(items) : null,
     layout: layout || null,
     tabOrder: tabs ? JSON.parse(tabs) : null,
-    groupSettings: group ? JSON.parse(group) : null
+    groupSettings: getGroupSettings()
   };
 }
 
@@ -368,15 +367,34 @@ function saveSeatSettings(items, layout, tabOrder) {
 
 /** 讀取小組討論設定（跨裝置同步） */
 function getGroupSettings() {
-  var raw = PropertiesService.getDocumentProperties().getProperty(GROUP_SETTINGS_PROPERTY);
-  if (!raw) return null;
-  try { return JSON.parse(raw) || null; } catch (e) { return null; }
+  var props = PropertiesService.getDocumentProperties();
+  var raw = props.getProperty(GROUP_SETTINGS_PROPERTY), settings = null;
+  if (raw) {
+    try { settings = JSON.parse(raw) || null; } catch (e) {}
+  }
+  // Read the saved envelope only: defaults must not replace legacy groups.
+  var pointRaw = props.getProperty('pointSettings'), point = null;
+  if (pointRaw) {
+    try { point = JSON.parse(pointRaw); } catch (e) {}
+  }
+  var groups = point && point.settings && point.settings.groups;
+  if (!Array.isArray(groups)) return settings;
+  var shared = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+  if (groups.length) {
+    var names = {};
+    groups.forEach(function (group, index) { names[index + 1] = group.name; });
+    shared.groupCount = groups.length;
+    shared.groupNames = names;
+  }
+  shared.sharedGroups = groups;
+  if (Number.isSafeInteger(point.revision) && point.revision >= 0) shared.sharedGroupsRevision = point.revision;
+  return shared;
 }
 
 /** 儲存小組討論設定（包含題目任務、加分項目、組數與組名） */
 function saveGroupSettings(settings) {
   if (!settings || typeof settings !== 'object') return false;
-  var lock = LockService.getDocumentLock();
+  var lock = LockService.getScriptLock();
   lock.waitLock(15000);
   try {
     PropertiesService.getDocumentProperties().setProperty(GROUP_SETTINGS_PROPERTY, JSON.stringify(settings));

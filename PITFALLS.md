@@ -360,3 +360,26 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **根因：** 只把「GAS 網址」當機密，沒檢查外部試算表的共用設定；ID 本身不是網址，但配合「知道連結者可編輯」就等於寫入權限。
 **修正：** ID 移到不進版控的 `gas/Private.gs`；未推送的 commit 用 `git filter-branch --tree-filter` 改寫後才 push，並以 `git log -p origin/master..HEAD | grep <ID>` 確認為 0。
 **預防：** 寫入任何外部試算表／檔案 ID 前先查 Drive 權限；push 前固定 grep 外部 ID。建議把測驗成績試算表改回「限定使用者」（GAS 以擁有者身分執行，不需要公開編輯）。
+
+## 408兩個分頁的小組不同源
+
+**現象**：集點設定好小組後，小組討論與另一台電腦仍顯示不同名稱與成員。
+**原因**：集點讀pointSettings.groups，討論讀groupSettings，前版僅轉入分數時按順序配對，不共享設定。
+**解法**：讀取合成共同小組，修改統一由集點設定入口；保留原討論內容。
+**未來避免**：共同小組資料只能有一個編輯來源。
+
+---
+
+## 討論保存不能使用Webapp的DocumentLock
+
+**現象**：模擬webapp無document lock時saveGroupSettings報錯。
+**原因**：getDocumentLock可回傳null。
+**解法**：改用ScriptLock；新增null document lock情境通過。
+**未來避免**：Webapp設定保存使用script lock。
+
+## 共用小組的快取不可阻止集點同步
+
+**現象**：討論名稱快取儲存失敗，可能中斷已保存的集點操作。
+**原因**：集點render呼叫小組鏡像時，localStorage例外未隔離。
+**解法**：鏡像快取最佳努力保存，顯示提醒，維持計分佇列與同步；補上回歸。
+**未來避免**：附加顯示的快取錯誤不能中止主要資料保存。
