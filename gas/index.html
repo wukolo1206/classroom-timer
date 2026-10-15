@@ -1555,6 +1555,10 @@
             <h3 id="seat-modal-name" class="text-slate-800 text-2xl font-bold"></h3>
         </div>
         <div id="seat-modal-duty" class="text-slate-400 text-sm mb-4"></div>
+        <div id="seat-history-error" class="text-sm text-red-700 mb-2" role="alert"></div>
+        <section id="seat-modal-history" class="mb-4"></section>
+        <details id="seat-modal-current" open>
+        <summary id="seat-modal-current-label" class="font-bold text-sky-700 mb-2 cursor-pointer">目前節次登記</summary>
         <div class="text-slate-500 text-sm mb-2">點項目增加 1 次；按右側「減 1」可修正誤按：</div>
         <div id="seat-modal-list" class="flex flex-col gap-2"></div>
         <div class="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
@@ -1566,8 +1570,9 @@
             </select>
             <div id="seat-points-error" class="mt-2 text-sm text-red-700" role="alert"></div>
         </div>
-        <div class="flex gap-3 justify-between items-center mt-5">
             <button id="seat-modal-pass" class="px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-semibold hover:bg-green-200 transition-all">清除此人本節紀錄</button>
+        </details>
+        <div class="flex gap-3 justify-between items-center mt-5">
             <button id="seat-modal-close" class="px-3 py-2 text-slate-500 rounded-lg font-semibold">關閉</button>
             <button id="seat-modal-done" class="px-6 py-2 bg-sky-600 text-white rounded-lg font-bold hover:bg-sky-700 transition-all">確定</button>
         </div>
@@ -2843,7 +2848,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     var seatSyncPaused = false;    // 遇到永久錯誤（資料格式、頁面版本）就暫停，等老師處理，不自動重試
     var seatInFlightId = null;     // 正在送出中的那一筆工作（不可被移除或取代）
-    var seatDestructiveSeq = 0;    // 每排入一次清除／匯入就 +1；之前發出的拉取回應一律丟掉
+    var seatDestructiveSeq = 0;    // 清除／匯入排入或任一寫入完成就 +1；較早的拉取回應一律丟掉
     var seatNeedPull = false;      // 清除／匯入送完後，重新拉一次試算表核對
 
     function seatNewId() { return 'j' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -2897,6 +2902,16 @@ document.addEventListener('DOMContentLoaded', () => {
         var out = JSON.parse(JSON.stringify(sheet || {}));
         q.forEach(function (op) {
             if (op.type === 'clearAll' || op.type === 'import') { out = {}; return; }
+            // 未送達的絕對次數也須遮罩：較小值／零不可被舊雲端快照的最大值合併救回。
+            if (op.type === 'count') {
+                var rec = out[op.date];
+                if (rec && rec[op.seat]) {
+                    delete rec[op.seat][op.key];
+                    if (!Object.keys(rec[op.seat]).length) delete rec[op.seat];
+                    if (!Object.keys(rec).length) delete out[op.date];
+                }
+                return;
+            }
             Object.keys(out).forEach(function (slot) {
                 var hit = op.type === 'clearSlot' ? slot === op.slot
                         : op.type === 'clearDay' ? seatSlotDate(slot) === op.date : false;
@@ -2919,7 +2934,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .withSuccessHandler(function (bundle) {
                 seatSyncBusy--;
                 seatSyncError = '';
-                // 拉取期間排入過清除或匯入：這份回應可能含已清掉的資料，整份丟掉，等清除送完再拉
+                // 拉取期間排入清除／匯入或完成寫入：快照可能過時，整份丟掉，待佇列送完再拉
                 if (seq !== seatDestructiveSeq) { seatNeedPull = true; seatFlushQueue(); return; }
                 if (bundle && bundle.records) {
                     // 試算表為主，但本機比試算表多的部分不丟掉，改成補傳上去
@@ -3122,7 +3137,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 seatInFlightId = null;
                 seatSyncBusy--;
                 seatSyncError = '';
-                if (job.type !== 'count') { seatNeedPull = true; seatDestructiveSeq++; }   // 清除完成前發出的拉取一律作廢
+                seatDestructiveSeq++;   // 次數寫入也會使先前拍下的拉取快照過時
+                if (job.type !== 'count') seatNeedPull = true;
                 saveSeatQueue(seatQueue().filter(function (j) { return j.id !== job.id; }));   // 依 id 移除
                 seatFlushQueue();
             })
@@ -3860,6 +3876,7 @@ document.addEventListener('DOMContentLoaded', () => {
     var seatActivePeriod = SEAT_PERIOD_UI ? seatPeriodAt(new Date()) : '';   // 節次代碼；''＝未分節
     var seatViewAll = false;               // 全天檢視：只看不寫
     var seatAutoPeriod = SEAT_PERIOD_UI;   // 自動跟著時間換節
+    var seatModalScope = null;            // 開窗時鎖定累計範圍與日期
     var seatModalSlot = null;              // 登記彈窗開著時鎖定的時段
 
     /** 時段鍵：'2026-10-10'＝未分節、'2026-10-10#3'＝第 3 節、'2026-10-10#?原文'＝試算表上對照表外的節次 */
@@ -4383,7 +4400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     /** 每 30 秒：自動模式且沒開登記彈窗時，跟著時間換節（跨午夜也換到新的今天） */
     function seatAutoTick() {
-        if (!SEAT_PERIOD_UI || !seatAutoPeriod || seatModalSlot !== null || seatBatchPointsDraft) return;
+        if (!SEAT_PERIOD_UI || !seatAutoPeriod || seatModalNum !== null || seatBatchPointsDraft) return;
         var today = getTodayKey(), cur = seatPeriodAt(new Date());
         if (today === seatActiveDate && cur === seatActivePeriod) return;
         var dateChanged = today !== seatActiveDate;
@@ -4402,9 +4419,10 @@ document.addEventListener('DOMContentLoaded', () => {
             else delete all[slot];
         }
         if (!seatCommitDestructive([['seatCheckRecords', JSON.stringify(all)]],
-                [{ type: 'clearSlot', slot: slot, seat: seat ? String(seat) : '' }])) { renderSeatChart(); return; }
+                [{ type: 'clearSlot', slot: slot, seat: seat ? String(seat) : '' }])) { renderSeatChart(); return false; }
         seatUndoStack = seatUndoStack.filter(function (u) { return !(u.slot === slot && (!seat || String(u.num) === String(seat))); });
         renderSeatChart();
+        return true;
     }
     /** 清除某幾天（包含全部節次與未分節，可限定座號） */
     function seatClearDays(dates, seat) {
@@ -4416,11 +4434,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         // 多天一次處理：本機與佇列都成功才算數，任一步失敗整批都不執行
         if (!seatCommitDestructive([['seatCheckRecords', JSON.stringify(all)]],
-                dates.map(function (d) { return { type: 'clearDay', date: d, seat: seat ? String(seat) : '' }; }))) { renderSeatChart(); return; }
+                dates.map(function (d) { return { type: 'clearDay', date: d, seat: seat ? String(seat) : '' }; }))) { renderSeatChart(); return false; }
         seatUndoStack = seatUndoStack.filter(function (u) {
             return !(dates.indexOf(seatSlotDate(u.slot)) >= 0 && (!seat || String(u.num) === String(seat)));
         });
         renderSeatChart();
+        return true;
     }
 
     // ── 座位表 ──
@@ -4472,6 +4491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         renderSeatSummary(today);
+        if (seatModalNum !== null) renderSeatModalList();
     }
 
     function buildSeatCell(num, today) {
@@ -4508,8 +4528,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if(window.c408PointsDecorateSeat)window.c408PointsDecorateSeat(cell);
 
         cell.addEventListener('click', function () {
-            if (seatActiveSlot() === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
             if (seatMode === null) openSeatModal(num);
+            else if (seatActiveSlot() === null) alert('目前是「全天」檢視，請先選一節再登記');
             else addSeatCount(num, seatMode, 1);
         });
         return cell;
@@ -4685,7 +4705,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function openSeatModal(num) {
         var slot = seatActiveSlot();
-        if (slot === null) { alert('目前是「全天」檢視，請先選一節再登記'); return; }
+        seatModalScope = { range: slot === null && seatSummaryRange === 'period' ? 'today' : seatSummaryRange, date: seatActiveDate };
         seatModalNum = num;
         seatPointsDraftId = 'seat_points_' + Date.now().toString(36) + Math.random().toString(36).slice(2,11);
         document.getElementById('seat-points-delta').value = '0';
@@ -4694,7 +4714,12 @@ document.addEventListener('DOMContentLoaded', () => {
         var info = seatRoster[num];
         document.getElementById('seat-modal-num').textContent = num;
         document.getElementById('seat-modal-name').textContent = info[0];
-        document.getElementById('seat-modal-duty').textContent = (info[1] ? info[1] + '｜' : '') + '登記到：' + seatSlotLabel(slot);
+        var historical = seatModalScope.range !== 'period';
+        document.getElementById('seat-history-error').textContent = '';
+        document.getElementById('seat-modal-current').open = !historical;
+        document.getElementById('seat-modal-current').hidden = slot === null;
+        document.getElementById('seat-modal-current-label').textContent = slot === null ? '' : '新增／修正登記到：' + seatSlotLabel(slot);
+        document.getElementById('seat-modal-duty').textContent = (info[1] ? info[1] + '｜' : '') + (historical ? '查看：' + ({all:'全部累計', week:'當週累計', today:'當日全部節次'}[seatModalScope.range]) : '登記到：' + seatSlotLabel(slot));
         renderSeatModalList();
         document.getElementById('seat-modal').classList.add('show');
     }
@@ -4714,12 +4739,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeSeatModal() {
         document.getElementById('seat-modal').classList.remove('show');
         seatModalNum = null;
+        seatModalScope = null;
         seatPointsDraftId = null;
         seatModalSlot = null;
         seatAutoTick();
     }
     function renderSeatModalList() {
         var list = document.getElementById('seat-modal-list');
+        renderSeatModalHistory();
+        list.innerHTML = '';
         if (seatModalSlot === null) return;
         var rec = getSlotRecord(seatModalSlot);
         var num = seatModalNum;
@@ -4743,12 +4771,86 @@ document.addEventListener('DOMContentLoaded', () => {
             minus.className = 'w-12 h-8 rounded-lg flex-shrink-0 text-sm font-bold transition-all ' +
                 (n ? 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200' : 'text-slate-200 cursor-default');
             minus.textContent = '減 1';
+            minus.disabled = !n;
             minus.title = '按錯減回一次';
             if (n) minus.addEventListener('click', function () { addSeatCount(num, it.key, -1, true, seatModalSlot); });
 
             row.appendChild(add);
             row.appendChild(minus);
             list.appendChild(row);
+        });
+    }
+
+    /** 歷史編輯永遠使用畫面列的實際 slot，不跟隨目前節次或累計下拉。 */
+    function seatHistoryEdit(action) {
+        var error = document.getElementById('seat-history-error');
+        error.textContent = '';
+        var before;
+        try {
+            before = localStorage.getItem('seatCheckRecords');
+            if (action() === false) error.textContent = '儲存失敗，這次操作沒有完成；請保留視窗並檢查同步狀態。';
+        } catch (e) {
+            // addSeatCount 先存次數再排隊；佇列寫入失敗時恢復次數，避免看似刪除成功。
+            if (before !== undefined && localStorage.getItem('seatCheckRecords') !== before) {
+                if (!seatWrite('seatCheckRecords', before || '{}')) seatRestoreFailed([['seatCheckRecords', before]]);
+            }
+            error.textContent = '儲存失敗，這次操作沒有完成；請清出瀏覽器空間後重試。';
+        }
+        renderSeatChart();
+    }
+    function renderSeatModalHistory() {
+        var host = document.getElementById('seat-modal-history');
+        host.innerHTML = '';
+        host.hidden = !seatModalScope || seatModalScope.range === 'period';
+        if (host.hidden || seatModalNum === null) return;
+        var scope = seatModalScope, num = seatModalNum, all = getSeatRecords();
+        var student = num + ' 號 ' + seatRoster[num][0];
+        var slots = Object.keys(all).filter(function (slot) {
+            var date = seatSlotDate(slot);
+            return seatTotalOf(all[slot], num) > 0 && (scope.range === 'all' ||
+                (scope.range === 'today' ? date === scope.date : date >= seatWeekStartKey(scope.date)));
+        }).sort().reverse();
+        var title = document.createElement('p');
+        title.className = 'font-bold text-slate-700 mb-2';
+        title.textContent = '實際登記紀錄（修正秩序不會退回已扣集點）';
+        host.appendChild(title);
+        if (!slots.length) { var empty = document.createElement('p'); empty.textContent = '此範圍沒有登記紀錄'; host.appendChild(empty); }
+        function button(text, action, click) {
+            var b = document.createElement('button'); b.type = 'button'; b.textContent = text;
+            b.className = 'text-sm rounded-lg border px-2 py-1 bg-white text-slate-600';
+            b.dataset.historyAction = action; b.addEventListener('click', click); return b;
+        }
+        var days = {};
+        slots.forEach(function (slot) {
+            var date = seatSlotDate(slot), label = date + ' ' + seatPeriodLabel(seatParseSlot(slot).period);
+            if (!days[date]) {
+                var day = document.createElement('div'); day.dataset.historyDate = date;
+                day.className = 'border rounded-xl p-3 mb-3'; host.appendChild(day); days[date] = day;
+                var heading = document.createElement('p'); heading.textContent = date + '｜' + student; heading.className = 'font-bold mb-2'; day.appendChild(heading);
+                day.appendChild(button('清除 ' + date + ' ' + student + ' 全天紀錄', 'day', function () {
+                    if (confirm('確定清除 ' + date + ' ' + student + ' 的全天紀錄（包含全部節次及未分節）？不會退回已扣集點。')) seatHistoryEdit(function () { return seatClearDays([date], num); });
+                }));
+            }
+            var group = document.createElement('div'); group.dataset.historySlot = slot; group.className = 'mt-3'; days[date].appendChild(group);
+            var heading = document.createElement('p'); heading.textContent = label; heading.className = 'font-bold text-sky-700'; group.appendChild(heading);
+            Object.keys(all[slot][num]).forEach(function (key) {
+                var it = findSeatItem(key), n = seatCountOf(all[slot], num, key);
+                if (!n) return;
+                var row = document.createElement('div'); row.dataset.historyKey = key; row.className = 'flex items-center gap-2 my-2';
+                var text = document.createElement('span'); text.className = 'flex-1'; text.textContent = (it ? it.label : key) + '：' + n + ' 次'; row.appendChild(text);
+                var minus = button('減 1', 'minus', function () {
+                    seatHistoryEdit(function () { if (seatCountOf(getSlotRecord(slot), num, key) > 0) addSeatCount(num, key, -1, true, slot); });
+                }); minus.disabled = n <= 0; row.appendChild(minus);
+                row.appendChild(button('清除此項目', 'item', function () {
+                    if (confirm('確定清除 ' + label + ' ' + student + ' 的「' + (it ? it.label : key) + '」紀錄？不會退回已扣集點。')) seatHistoryEdit(function () {
+                        var current = seatCountOf(getSlotRecord(slot), num, key);
+                        if (current > 0) addSeatCount(num, key, -current, true, slot);
+                    });
+                })); group.appendChild(row);
+            });
+            group.appendChild(button('清除 ' + label + ' ' + student + ' 紀錄', 'slot', function () {
+                if (confirm('確定清除 ' + label + ' ' + student + ' 的此節紀錄？不會退回已扣集點。')) seatHistoryEdit(function () { return seatClearSlot(slot, num); });
+            }));
         });
     }
 

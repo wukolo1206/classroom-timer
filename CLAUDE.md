@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: GAS @58／全校版 v1.22
+version: GAS @59／全校版 v1.22
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 兩台重新整理後試用共用小組設定；測驗成績试算表共用與原教室試用待辦保留
+next_action: 試用累計歷史減次與清除；共用小組、測驗成績試算表共用及原教室待辦保留
 updated: 2026-10-15
 ---
 
