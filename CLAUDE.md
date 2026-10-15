@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: GAS @59／全校版 v1.22
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: 試用累計歷史減次與清除；共用小組、測驗成績試算表共用及原教室待辦保留
+next_action: 重新整理後試用累計歷史刪除與跨裝置共用小組；測驗試算表共用及原待辦見handoff.md
 updated: 2026-10-15
 ---
 
