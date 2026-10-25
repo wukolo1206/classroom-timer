@@ -1,9 +1,9 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 開發中
-version: GAS @59／全校版 v1.22
-next_action: 畫板雙向點數同步本機驗收完成；待雙專案部署授權與正式匿名驗證
+status: 維護中
+version: GAS @60／全校版 v1.22
+next_action: "雙向點數同步已部署；408開新場後確認連動，真iPad與實際課堂操作另驗"
 updated: 2026-10-25
 ---
 

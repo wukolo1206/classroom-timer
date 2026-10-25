@@ -1,3 +1,28 @@
+# 交接 — 2026-10-25 雙向點數同步已部署
+
+## 目前狀態
+- 畫板main功能4488968、0.5.8映像7199e2145254；計時器master功能ec8e9b6、GAS沿用既有網址發布@60。未push。
+- 408 GAS小組討論按「連動討論畫板」，核對本場與組員後確認；教師兩邊共享畫板本場點數。408目前讀回六組、場次closed，需老師先開新場。
+
+## 本次驗證
+- 畫板部署75/75、雲端資產27檔與本機一致、容器healthy；首頁/healthz/scaffold/reading均200。
+- 實際GAS匿名六項通過：讀取、+2、相同請求重送不重複、查結果、清空、復原；學生SSE顯示2點且重整保留。既有教師+1與bridge雙向讀回亦通過。
+- 408唯讀讀回六組；正式秩序477列與個人集點841列完整比較未變，原VM資料與其他.env鍵未變。沒有試寫408。
+- 外部連線授權由使用者完成後重驗成功。發布前clasp push移除私有暫時setup/診斷；API核對六檔（忽略BOM/CRLF）一致，原部署@59→@60、部署數仍2。正式HTML HTTP200且含連動入口/controller。
+- 本機完整測試及三尺寸結果見既有審查文件；本次未以實機iPad或正式408課堂加點驗收。
+
+## 下次接續
+- 老師開啟408新討論場，重新整理GAS、進小組討論、連動並確認本場；觀察實際課堂加點及真iPad。
+- Git尚未push；Pages及全校版未發布，本次只發布408 GAS與畫板。原有待辦保留於下方歷史交接。
+
+## 注意事項
+- 不覆蓋VM .env/data、GAS Private.gs或正式試算表；專用token不進Git/HTML，不能共用診斷BOARD_SECRET。
+- GAS沿用原deploymentId；bridge只讀pointSettings_與POINT_ROSTER，不使用可能匯入寫入的getPointBundle。
+- 更新source後用embed工具，保持root/gas鏡像；共享分數不轉入個人集點。換場/組員變更須重新確認，待確認請求保留原session/cid/op_id。
+- 私有回退與驗證證據在LOCALAPPDATA/score-sync-release-20261025；VM備份在/srv/projects/release-backups/score-sync-20261025-044304。
+
+---
+
 # 交接 — 2026-10-25 畫板雙向點數同步本機完成
 
 ## 目前狀態
