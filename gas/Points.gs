@@ -73,7 +73,7 @@ function pointBatch_(batch) {
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('boardind:') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
@@ -86,6 +86,7 @@ function pointBatch_(batch) {
   }
   if (type === 'score') {
     request.itemId = pointId_(batch.itemId);
+    if (request.itemId === 'board_individual') pointError_('項目為保留字');
     request.label = pointText_(batch.label, 80, '項目名稱');
     if (request.itemId === 'auction') {
       if (typeof batch.delta !== 'number' || !Number.isInteger(batch.delta) || batch.delta >= 0 || batch.delta < -1000000) pointError_('拍賣扣點須為 1 到 1000000 的正整數');

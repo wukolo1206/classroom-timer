@@ -1,3 +1,19 @@
+# 個人畫板點數接續（2026-10-25，本機候選）
+
+## 目前狀態
+個人加點／撤回及閉場一次轉入已在隔離分支完成，正式仍GAS @60；未部署、未寫正式點數、未push。
+
+## 本次驗證
+畫板91/91；GAS新11、跨端4、既有集點30與橋接20、Python wrapper1通過。Chrome桌機/390寬、兩學生隱私、閉場停用、離線恢復、receipt重整均通過。獨立審查無Critical/High。
+
+## 下次接續
+確認部署授權後沿用原GAS部署ID，設定畫板私有INDIVIDUAL_POINTS_GAS_URL，部署並用隔離副本驗雲端。兩候選分支均codex/individual-points。
+
+## 注意事項
+不以正式408寫測試點數；只追加班級集點11欄，不改Private.gs／其他表或pointSettings。名冊改變會停止結算，已有批次需核對原場次名冊。細節見畫板docs/individual-points-review/README.md。
+
+---
+
 # 交接 — 2026-10-25 雙向點數同步已部署
 
 ## 目前狀態
