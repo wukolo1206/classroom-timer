@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: "GAS @61／全校版 v1.22"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "個人加點已上線；老師閉場預覽後首次入帳及真iPad課堂觀察"
+next_action: "已收工；老師閉場預覽後首次實際入帳，真iPad課堂觀察"
 updated: 2026-10-25
 ---
 
