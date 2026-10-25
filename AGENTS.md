@@ -1,3 +1,12 @@
+---
+project: 班級紀錄器
+category: 學科工具集
+status: 開發中
+version: GAS @59／全校版 v1.22
+next_action: 畫板雙向點數同步本機驗收完成；待雙專案部署授權與正式匿名驗證
+updated: 2026-10-25
+---
+
 # AGENTS.md — 班級計時器
 
 ## 不能動的地方

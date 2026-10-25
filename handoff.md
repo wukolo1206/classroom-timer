@@ -1,3 +1,24 @@
+# 交接 — 2026-10-25 畫板雙向點數同步本機完成
+
+## 目前狀態
+- 分支codex/board-score-sync；本機完成，未部署／未push。正式仍GAS @59／全校v1.22。
+- 新增GAS-only連動核對、共同本場分數、精確undo與clear，保留本機分數；連動暫停轉入個人集點。舊待辦未取消，見下方歷史交接。
+
+## 本次驗證
+- GAS20情境、controller與mock8項、匿名三頁串接10情境通過；原功能139項通過，SH150固定日期38項通過。實際日期SH150初跑5失敗／1錯誤與HEAD重現／固定日期重驗有保留紀錄，詳見docs/2026-10-25-board-score-sync.md及畫板docs/score-sync-review/。
+- root/gas一致，points/avatar嵌入區不變，非連動小組、秩序、SR/SH150等回歸另見驗收記錄。未連Google/VM/408、未改試算表。
+
+## 下次接續
+- 取得雙專案部署授權，先備份私有設定及正式資料；增設GAS ScriptProperties與畫板私有限班token，沿用原deploymentId。
+- 先正式匿名驗收，408唯讀核對。無匿名GAS隔離環境則保留實際教師加點驗收，不能拿408測試寫入。
+
+## 注意事項
+- 來源board-sync/board-sync.js，執行python tools/embed_board_sync.py更新嵌入及鏡像；不能改points嵌入區。
+- Bridge只讀pointSettings_與POINT_ROSTER，不可用有匯入寫入副作用的getPointBundle。Private.gs與11欄集點及月份聯絡簿保持原樣。
+- 待確認操作保留原session/cid/op_id，禁止改掛新場。離線、context改變、待確認時不回退本機計分。
+
+---
+
 # 收工交接 — 2026-10-15
 
 ## 已完成
