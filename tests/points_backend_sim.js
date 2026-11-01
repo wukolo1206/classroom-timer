@@ -5,7 +5,7 @@ const assert = require('assert');
 const file = path.join(__dirname, '../gas/Points.gs');
 assert.ok(fs.existsSync(file), 'Points.gs backend is not implemented yet');
 function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = false, normalizeQuotes = false) {
-  const rows = [], props = {}, touched = [], opened = [], cache = {}, auction = {sheets:null, fail:false}, quiz = {sheets:null, fail:false};
+  const rows = [], props = {}, touched = [], opened = [], cache = {}, auction = {sheets:null, fail:false}, quiz = {sheets:null, fail:false}, scaffold = {status:200, body:null, fail:false, calls:[]};
   let failAt = 0, writes = 0, locked = false, eventBlocks = 0, flushes = 0, flushFail = false;
   const lockTrace=[];
   function acquire() {assert.ok(!locked); locked=true; lockTrace.push('acquire');}
@@ -21,6 +21,9 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
     LockService: {getDocumentLock: () => documentLockUnavailable ? null : ({waitLock: acquire, releaseLock: release}), getScriptLock: () => ({waitLock: acquire, releaseLock: release})},
     PropertiesService: {getDocumentProperties: () => ({getProperty: k => props[k] ?? null, setProperty: (k,v) => {props[k]=v;}})},
     Utilities: {newBlob: value => ({getBytes: () => Buffer.from(value)})},
+    SCAFFOLD_POINTS_TOKEN: 'SCAFFOLD_TEST_TOKEN',
+    UrlFetchApp: {fetch: (url, opt) => { scaffold.calls.push([url, opt.headers.Authorization]); if (scaffold.fail) throw Error('simulated center outage');
+      return {getResponseCode: () => scaffold.status, getContentText: () => JSON.stringify(scaffold.body || {class_code:'408', completions:[]})}; }},
     CacheService: {getScriptCache: () => ({get: k => cache[k] ?? null, put: (k,v) => {cache[k]=v;}})}
   });
   function auctionBook() {
@@ -36,7 +39,7 @@ function env(documentLockUnavailable = false, activeSpreadsheetUnavailable = fal
     return {getSheetByName: name => quiz.sheets && quiz.sheets[name] ? table(quiz.sheets[name]) : null};
   }
   vm.runInContext(fs.readFileSync(file, 'utf8'), ctx);
-  return {ctx, rows, props, touched, opened, lockTrace, auction, quiz, clearCache: () => {for (const k in cache) delete cache[k];}, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
+  return {ctx, rows, props, touched, opened, lockTrace, auction, quiz, scaffold, clearCache: () => {for (const k in cache) delete cache[k];}, flushes: () => flushes, failFlush: value => {flushFail=value;}, eventBlocks: () => eventBlocks, fail: n => {writes=0; failAt=n;}};
 }
 function score(id, delta=1, seats=[1,2], device='A') {return {id,type:'score',seats:seats.map(seat => ({seat,name:seat===1?'游濬謙':'李晨睿'})),itemId:'focus',label:'認真上課',delta,device};}
 function total(bundle, seat) {return bundle.events.filter(e=>e.seat===seat).reduce((n,e)=>n+e.delta,0);}
@@ -321,5 +324,20 @@ test('per-student quiz thresholds from 集點加點標準 lower the bar only for
   const out=e.ctx.getPointBundle();
   assert.deepEqual(out.events.filter(x=>x.itemId==='quiz_award').map(x=>[x.seat,x.delta]),[[2,1],[2,2],[3,2],[3,2]]);
   assert.equal(e.ctx.pointQuizDelta_(20,79,{plus1:80,plus2:90}),0);
+});
+test('scaffold stage completions after cutoff add 1 point once each; old, unknown seat, bad id and outage are skipped', () => {
+  const e=env(), since=e.ctx.SCAFFOLD_IMPORT_SINCE.getTime(), t=n=>new Date(since+n*1000).toISOString();
+  const c=(seat,route,at,extra={})=>({id:'scaffold408_G4A-U05_'+route+'_s'+seat,seat,unit_id:'G4A-U05',unit_no:5,route,stage_name:'第2關',label:'公里和公尺',outcome:'passed',completed_at:at,...extra});
+  e.scaffold.body={class_code:'408',completions:[c(1,'CONV-01',new Date(since-1000).toISOString()), c(1,'ADD-01',t(1),{stage_name:'第9關',label:'公尺滿1000要進位',outcome:'needs_practice'}),
+    c(2,'CONV-01',t(2)), c(7,'CONV-01',t(3)), {...c(2,'ADD-01',t(4)),id:'scaffold408_G4A-U05_ADD-01_s1'}, {...c(2,'SUB-01',t(5)),id:'evil'}]};
+  e.scaffold.fail=true; let out=e.ctx.getPointBundle(); assert.equal(out.events.length,0,'outage does not block');
+  e.scaffold.fail=false; out=e.ctx.getPointBundle();
+  assert.equal(e.scaffold.calls[1][1],'Bearer SCAFFOLD_TEST_TOKEN');
+  assert.ok(/^https:\/\/teacherwu\.xdai\.tw\/scaffold\/api\/points\/class\/408\/stage-completions$/.test(e.scaffold.calls[1][0]));
+  const got=out.events.filter(x=>x.itemId==='scaffold_stage').map(x=>[x.seat,x.delta,x.label,x.batchId]);
+  assert.deepEqual(got,[[1,1,'關卡完成：第5單元 第9關 公尺滿1000要進位','scaffold408_G4A-U05_ADD-01_s1'],[2,1,'關卡完成：第5單元 第2關 公里和公尺','scaffold408_G4A-U05_CONV-01_s2']]);
+  e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(out.events.filter(x=>x.itemId==='scaffold_stage').length,2,'idempotent');
+  e.scaffold.status=401; e.clearCache(); out=e.ctx.getPointBundle(); assert.equal(out.events.filter(x=>x.itemId==='scaffold_stage').length,2,'refused list changes nothing');
+  assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'scaffold408_G4A-U05_X_s1'}),/保留字/);
 });
 console.log(count+' backend scenarios passed');

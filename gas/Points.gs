@@ -23,6 +23,11 @@ var QUIZ_SCORE_SHEETS = ['成語測驗成績單', '閱讀測驗成績單', '字�
 var QUIZ_SYSTEM_LABELS = {idiom:'成語', reading:'閱讀', ziyin:'字音字形', general:'綜合練習', exam:'測驗'};
 // 此時間之前交卷的成績不加點（功能上線時間）。
 var QUIZ_IMPORT_SINCE = new Date('2026-10-14T09:45:00+08:00');
+// 數學鷹架診斷系統（校內中心）：每完成一關（不論通過或需再練）+1 點，每位學生每一關只有一次。
+// SCAFFOLD_POINTS_TOKEN 定義在 gas/Private.gs（不進版控）；密碼同中心 .env 的 POINTS_EXPORT_TOKENS。
+var SCAFFOLD_POINTS_URL = 'https:/' + '/teacherwu.xdai.tw/scaffold/api/points/class/408/stage-completions';
+// 此時間之前完成的關卡不加點（使用者 2026-11-02：從今天第五單元起算）。
+var SCAFFOLD_IMPORT_SINCE = new Date('2026-11-02T00:00:00+08:00');
 
 function pointError_(message) { throw new Error('永久：' + message); }
 function pointText_(value, max, field) {
@@ -73,7 +78,7 @@ function pointBatch_(batch) {
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('boardind:') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('scaffold408_') === 0 || id.indexOf('boardind:') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
@@ -182,6 +187,7 @@ function getPointBundle() {
     pointComplete_(sheet,data);
     pointImportAuction_(sheet,data);
     pointImportQuiz_(sheet,data);
+    pointImportScaffold_(sheet,data);
     return pointBundle_(data);
   } finally {
     try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
@@ -308,6 +314,43 @@ function pointImportQuiz_(sheet, data) {
     var target;
     try { target = pointSeat_(a.seat); } catch (err) { return; }
     pointCommitLocked_(sheet, data, {id:a.id,type:'score',seats:[target],itemId:'quiz_award',label:a.label,delta:a.delta}, 'quiz408');
+    done[a.id] = true;
+  });
+}
+// 名單編號 scaffold408_<單元>_<關卡>_s<座號>，與中心 server/points-export.js 一致；不可改，否則會重複加點。
+function pointScaffoldAwards_() {
+  var token = typeof SCAFFOLD_POINTS_TOKEN === 'string' ? SCAFFOLD_POINTS_TOKEN : '';
+  if (!token) return [];
+  var res = UrlFetchApp.fetch(SCAFFOLD_POINTS_URL, {headers:{Authorization:'Bearer ' + token}, muteHttpExceptions:true, followRedirects:false});
+  if (res.getResponseCode() !== 200) throw new Error('HTTP ' + res.getResponseCode());
+  var body = JSON.parse(res.getContentText()), out = [];
+  if (!body || body.class_code !== '408' || !Array.isArray(body.completions)) throw new Error('名單格式不正確');
+  body.completions.forEach(function (c) {
+    if (!c || typeof c.id !== 'string' || !/^scaffold408_[A-Za-z0-9-]+_[A-Za-z0-9-]+_s\d{1,2}$/.test(c.id) || !Number.isInteger(c.seat)) return;
+    if (c.id.slice(-('_s' + c.seat).length) !== '_s' + c.seat) return;
+    var time = new Date(c.completed_at);
+    if (isNaN(time.getTime()) || time < SCAFFOLD_IMPORT_SINCE) return;
+    var unit = Number.isInteger(c.unit_no) ? '第' + c.unit_no + '單元 ' : '';
+    var stage = String(c.stage_name || '').replace(/[\u0000-\u001f]/g, '').slice(0, 10);
+    var name = String(c.label || '').replace(/[\u0000-\u001f]/g, '').slice(0, 30);
+    out.push({id:c.id, seat:c.seat, label:('關卡完成：' + unit + stage + (name ? ' ' + name : '')).slice(0, 80)});
+  });
+  return out;
+}
+// 中心連不上（如網路中斷）不影響集點同步；最多每 20 秒檢查一次，已匯入的編號靠 _manifest 去重。
+function pointImportScaffold_(sheet, data) {
+  var cache = CacheService.getScriptCache();
+  if (cache.get('scaffoldImportChecked')) return;
+  var awards;
+  try { awards = pointScaffoldAwards_(); } catch (err) { console.warn('關卡完成名單讀取失敗：' + err.message); return; }
+  cache.put('scaffoldImportChecked', '1', 20);
+  var done = {};
+  data.manifests.forEach(function (m) { done[m.request.id] = true; });
+  awards.forEach(function (a) {
+    if (done[a.id]) return;
+    var target;
+    try { target = pointSeat_(a.seat); } catch (err) { return; }
+    pointCommitLocked_(sheet, data, {id:a.id,type:'score',seats:[target],itemId:'scaffold_stage',label:a.label,delta:1}, 'scaffold408');
     done[a.id] = true;
   });
 }
