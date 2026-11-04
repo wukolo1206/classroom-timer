@@ -2,10 +2,10 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @62／全校版 v1.22"
+version: "GAS @64／全校版 v1.22"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "確認集點表出現 scaffold408_ 開頭的數學關卡加點列"
-updated: 2026-11-02
+next_action: "老師由畫板閉場核對名單後首次實際小組加扣入帳；真iPad另驗；勿從舊主目錄覆蓋新版本"
+updated: 2026-11-04
 ---
 
 # CLAUDE.md — 班級計時器

@@ -72,13 +72,14 @@ function pointBatch_(batch) {
   var type = batch.type;
   if (['score','undo','reset','balance'].indexOf(type) < 0) pointError_('操作類型不正確');
   var device = pointText_(batch.device, 100, '裝置');
+  if (typeof batch.itemId === 'string' && batch.itemId.trim() === 'board_group') pointError_('項目為保留字');
   if (type === 'undo') {
     var original = pointId_(batch.originalBatchId);
-    if (original.indexOf('undo:') === 0) pointError_('只能復原計分批次');
+    if (original.indexOf('undo:') === 0 || original.indexOf('boardgrp:') === 0) pointError_('只能復原計分批次');
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('scaffold408_') === 0 || id.indexOf('boardind:') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('scaffold408_') === 0 || id.indexOf('boardind:') === 0 || id.indexOf('boardgrp:') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');

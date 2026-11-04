@@ -31,6 +31,7 @@ function doPost(e) {
     var contents = (e && e.postData) ? e.postData.contents : '{}';
     var body = JSON.parse(contents);
     if (body && body.api === 'boardIndividualPoints') return boardIndividualPost_(body);
+    if (body && body.api === 'boardGroupPoints') return boardGroupPost_(body);
     if (body.api === 'sh150' || body.action === 'save_sh150' || body.records) {
       return handleSh150Post_(body);
     }

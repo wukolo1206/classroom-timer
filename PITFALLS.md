@@ -442,3 +442,32 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **未來避免**：新增GAS檔案同時檢查.claspignore，不能只憑clasp push回傳成功判斷部署完整。
 
 ---
+
+
+## 私有入帳命名也必須在一般點數接口保留
+
+**現象**：只加私有簽章接口仍可能讓一般前端先建立同名批次或偽造來源。
+**原因**：共用帳本的ordinary API原本只保護boardind，新增boardgrp時必須同步擋批次前綴、項目與undo原批次，包含空白偽裝。
+**解法**：保留boardgrp:及board_group；新GAS接口核對相同摘要、完整名冊與既有manifest／事件後才補齊；新增偽造及中斷回歸。
+**未來避免**：新增私有匯入來源時，同步審查公開計分接口的保留命名。
+
+---
+
+
+## clasp回傳成功不代表確實推送來源
+
+**現象**：clasp push在非互動環境輸出Skipping push、exit仍為0，若直接deploy會建立舊程式版本。
+**原因**：CLI略過推送，不能只檢查退出碼；指定外部project設定時也要明確指定ignore並核對檔案清單。
+**解法**：先備份原碼，指定同一project與ignore，確認8個預期檔案後force push；取回HEAD逐檔核對再更新原deploymentId。此次@63仍舊來源，@64才是8檔核對後的正式新功能版本。
+**未來避免**：push輸出Skipping push視為未發布，部署前後均做來源核對。
+
+---
+
+## Windows商店版Python在AppData的檔案重導向
+
+**現象**：Python顯示AppData/Local備份檔存在，Node／clasp卻看不到同一路徑。
+**原因**：Windows商店版Python對AppData寫入有套件重導向，跨工具看到的實體位置不同。
+**解法**：跨工具的私有部署備份改用使用者.codex/private-backups，明確絕對rootDir；原專案設定不改。
+**未來避免**：跨Python／Node工具資料放共同可見的明確目錄，不能只以Python.exists當驗證。
+
+---

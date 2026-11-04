@@ -1,3 +1,26 @@
+# 工作交接 — 2026-11-04 小組討論點數入帳
+
+## 目前狀態
+- GAS @64 已沿原deploymentId／網址更新，部署數仍2；從遠端取回8個檔案與本工作樹核對一致。Private.gs與HTML鏡像不變。
+- 獨立工作樹 C:/worktrees/group-points-ledger、分支codex/group-points-ledger；不merge/push。原D槽主目錄保留舊來源，不要從舊目錄部署而覆蓋此版。
+- BoardGroupPoints.gs僅接受簽章與固定摘要，回讀畫板已凍結場次；只追加原集點11欄及保護紀錄，支援正負、零分與排除。
+
+## 本次驗證
+- 新GAS12／個人11／集點31（含scaffold）／橋接20情境、Python橋接10測試均過；真Node與GAS VM整合3項與畫板本機瀏覽器14項通過。
+- 正式GAS僅送匿名錯誤簽章，確認在帳本前拒絕；HTML唯讀取回200，沒有執行會匯入點數的正式瀏覽器操作。
+- 11張原工作表前後指紋核對待畫板兩站驗收結束後補登；不使用408試寫。
+
+## 下次接續
+- 老師重整畫板，討論結束後核對組員、取消缺席，再確認轉入個人集點；待確認只重試原場次。
+- 既有數學關卡、個人畫板和其他匯入邏輯不變；首次真實小組結算及iPad由老師確認。
+
+## 注意事項
+- 不覆寫名冊、設定、Private.gs、其他工作表或11欄表頭；不手動刪改_manifest。普通接口保留boardgrp:/board_group，不能偽造或undo此私有來源。
+- 私有部署／原碼備份 C:/Users/wu/.codex/private-backups/group-points-release-20261104；原正式為@62，@63在CLI略過push時只建立舊來源版本，@64已核對新8檔。回退用原deploymentId指向@62，不覆蓋試算表新增資料。
+- 新的GAS檔務必加入.claspignore；跨工具備份不要放商店版Python會重導向的AppData路徑。
+
+---
+
 # 收工交接 — 2026-11-02
 
 ## 已完成
