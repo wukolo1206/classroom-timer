@@ -1,9 +1,9 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 開發中
-version: "GAS @65／全校版 v1.26"
-next_action: "8階段與PNG候選已通過77項情境，接續發布及正式唯讀驗證；真iPad待驗"
+status: 維護中
+version: "GAS @65／全校版 v1.27"
+next_action: "8階段與PNG已發布並通過77項／正式31位唯讀驗證；接續真iPad與教室麥克風試用"
 updated: 2026-11-05
 ---
 
