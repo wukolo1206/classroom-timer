@@ -1,10 +1,10 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 維護中
+status: 開發中
 version: "GAS @64／全校版 v1.22"
-next_action: "老師由畫板閉場核對名單後首次實際小組加扣入帳；真iPad另驗；勿從舊主目錄覆蓋新版本"
-updated: 2026-11-04
+next_action: "花園候選已在codex/secret-garden完成；先本機試用，經同意後發布Pages及GAS；正式仍@64，勿由舊主目錄部署"
+updated: 2026-11-05
 ---
 
 # AGENTS.md — 班級計時器

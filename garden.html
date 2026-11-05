@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f5e9">
+  <meta name="referrer" content="no-referrer">
+  <title>班級祕密花園</title>
+  <link rel="stylesheet" href="garden/garden.css">
+</head>
+<body data-phase="idle">
+  <main class="garden-shell" id="garden-shell">
+    <header class="garden-header">
+      <div class="garden-brand"><span class="brand-leaf" aria-hidden="true">❧</span><div><h1>班級祕密花園</h1><p>輕聲專注，夥伴就會慢慢出現</p></div></div>
+      <div class="garden-timer"><span id="garden-activity-label">專注時間</span><strong id="garden-clock" role="timer" aria-label="剩餘時間">10:00</strong><button id="garden-pause" class="icon-button" disabled aria-label="講解暫停">Ⅱ</button></div>
+    </header>
+    <section id="garden-scene" class="garden-scene" data-mood="idle" aria-label="班級花園">
+      <img class="garden-landscape" src="garden/scene.svg" alt="陽光下的草地、花圃、小池塘與石頭小徑">
+      <div class="garden-weather" aria-hidden="true"></div>
+      <div id="garden-blooms" class="garden-blooms" aria-hidden="true"></div>
+      <div id="garden-visitors" class="garden-visitors" aria-label="已來到花園的夥伴"></div>
+      <div id="garden-welcome" class="garden-welcome"><span class="welcome-leaf" aria-hidden="true">❧</span><h2>今天，誰會來到花園？</h2><p>選好時間，讓我們一起輕聲專注。<br>每一位同學，都是花園的夥伴。</p><button id="garden-demo" class="soft-button">先用示範夥伴看看</button></div>
+      <div id="garden-finish" class="garden-finish" hidden><span aria-hidden="true">❀</span><h2>謝謝大家一起照顧花園</h2><p id="garden-result"></p><button id="garden-again" class="primary-button">再種一座花園</button></div>
+      <div class="scene-caption"><span class="caption-dot"></span><span id="garden-caption" aria-live="polite">花園正在等大家</span></div>
+    </section>
+    <footer class="garden-footer"><div class="visitor-count"><span class="little-leaf" aria-hidden="true">❧</span>花園夥伴 <strong id="garden-count">0 / 0</strong></div><span class="garden-footnote">每一份專注，都讓花園多一點生氣。</span><button id="garden-fullscreen" class="icon-button" aria-label="全螢幕">⛶</button></footer>
+  </main>
+  <section class="teacher-panel" aria-label="老師的花園設定">
+    <div class="teacher-heading"><div><span class="eyebrow">老師的小工具</span><h2>準備好，就一起出發。</h2></div><div class="source-actions"><button id="garden-refresh" class="soft-button">↻ 更新夥伴</button><button id="garden-history-button" class="soft-button">❀ 我的花園收藏</button></div></div>
+    <div class="garden-controls">
+      <label>這次做什麼<select id="garden-activity"><option>專注時間</option><option>閱讀時間</option><option>練習時間</option><option>小組任務</option></select></label>
+      <label>活動時間<span class="number-wrap"><input id="garden-minutes" type="number" min="1" max="120" value="10" step="1"> 分鐘</span></label>
+      <label>合適的音量<select id="garden-mode"><option value="study">安靜自習</option><option value="discuss">輕聲討論</option></select></label>
+      <button id="garden-start" class="primary-button">開始照顧花園 <span aria-hidden="true">→</span></button>
+      <button id="garden-end" class="text-button" disabled>結束本次</button>
+    </div>
+    <p id="garden-source" class="source-note">尚未載入班級夥伴。請由計時器的「音量計」開啟花園。</p>
+    <p id="garden-message" role="status" class="garden-message">首次開始時，請允許使用麥克風。</p>
+    <details class="garden-settings"><summary>音量微調與使用說明</summary><div class="settings-grid"><label>自習音量目標 <input id="garden-study-threshold" type="range" min="30" max="85" value="50"><output id="garden-study-value">50</output></label><label>討論音量目標 <input id="garden-discuss-threshold" type="range" min="40" max="95" value="65"><output id="garden-discuss-value">65</output></label></div><p>數字是麥克風的約略音量參考。先試聽教室音量；一直無法成長時，把目標調高一些。短暫聲響會被略過，持續超標才暫停成長；恢復輕聲後就繼續。</p><p>老師說明時可按上方「Ⅱ」暫停，倒數與麥克風都會暫停。切到其他視窗也會自動暫停，回來再按繼續。夥伴依全班合作出現，不代表個人的表現。</p><p>只在本機計算音量，不錄音、不上傳。頭像只讀取座號與角色；花園不會自動加扣點。正式雲端頭像更新需要保留原班級頁面開啟。</p></details>
+    <div id="garden-history" class="garden-history" hidden aria-label="最近的花園收藏"></div>
+  </section>
+  <script src="points/avatars.js"></script>
+  <script src="garden/core.js"></script>
+  <script src="garden/app.js"></script>
+</body>
+</html>
