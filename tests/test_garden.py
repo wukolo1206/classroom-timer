@@ -160,6 +160,7 @@ class Garden(unittest.TestCase):
  def test_new_garden_clears_previous_visitors_before_first_arrival(self):
   p=self.open();self.begin(p,spawn=1);p.clock.run_for(60000);self.assertEqual(p.locator('.garden-visitor').count(),31)
   p.click('#garden-again');self.assertEqual(p.locator('.garden-visitor').count(),0)
+  self.assertEqual(p.locator('.garden-flower').count(),0)
   p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");self.assertEqual(p.locator('.garden-visitor').count(),0)
  def test_real_roster_welcome_shows_class_and_starts_without_demo(self):
   parent,p=self.cloud_pair();self.assertEqual(p.locator('#garden-welcome-title').count(),1)
@@ -172,5 +173,53 @@ class Garden(unittest.TestCase):
  def test_cached_welcome_never_claims_current_cloud_avatars(self):
   p=self.open();p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:[{seat:1,avatar:8}]}))");p.reload()
   self.assertIn('上次',p.inner_text('#garden-welcome-title'));self.assertIn('上次',p.inner_text('#garden-welcome-start'));self.assertFalse(p.is_visible('#garden-demo'))
+ def test_life_has_varied_props_and_actual_walk_positions(self):
+  p=self.open();self.begin(p,spawn=1);p.clock.run_for(10000)
+  self.assertGreater(p.locator('.visitor-travel').count(),0)
+  self.assertGreaterEqual(len(set(p.locator('.garden-visitor').evaluate_all('(els)=>els.map(e=>e.dataset.activity)'))),3)
+  self.assertEqual(p.locator('.activity-prop svg').count(),p.locator('.garden-visitor').count())
+  moved=False
+  for _ in range(8):
+   before=p.locator('.garden-visitor').evaluate_all('(els)=>Object.fromEntries(els.map(e=>{let r=e.querySelector(".visitor-travel").getBoundingClientRect();return [e.dataset.seat,{x:r.x,y:r.y}]}))')
+   p.clock.run_for(1000)
+   after=p.locator('.garden-visitor').evaluate_all('(els)=>Object.fromEntries(els.map(e=>{let r=e.querySelector(".visitor-travel").getBoundingClientRect();return [e.dataset.seat,{x:r.x,y:r.y}]}))')
+   moved=moved or any(k in after and abs(after[k]['x']-v['x'])>2 for k,v in before.items())
+  self.assertTrue(moved);self.assertEqual(p.errors,[])
+ def test_life_and_plants_freeze_during_teacher_pause(self):
+  p=self.open();self.begin(p,spawn=1);p.clock.run_for(18000);p.click('#garden-pause')
+  before=p.locator('.garden-visitor').evaluate_all('(els)=>els.map(e=>[e.dataset.seat,e.dataset.activity,e.style.getPropertyValue("--life-x"),e.style.getPropertyValue("--life-y")])')
+  plants=p.locator('#garden-blooms').inner_html();p.clock.run_for(12000)
+  after=p.locator('.garden-visitor').evaluate_all('(els)=>els.map(e=>[e.dataset.seat,e.dataset.activity,e.style.getPropertyValue("--life-x"),e.style.getPropertyValue("--life-y")])')
+  self.assertEqual(before,after);self.assertEqual(plants,p.locator('#garden-blooms').inner_html())
+ def test_flowers_grow_in_place_and_keep_adding(self):
+  p=self.open();self.begin(p,spawn=1);p.clock.run_for(7000)
+  self.assertEqual(p.locator('.garden-flower').count(),1);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'sprout');p.evaluate('window.firstPlant=document.querySelector(".garden-flower")')
+  p.clock.run_for(4000);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'bud')
+  p.clock.run_for(4000);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'bloom');self.assertEqual(p.locator('.garden-flower').count(),2)
+  self.assertTrue(p.evaluate('window.firstPlant===document.querySelector(".garden-flower")'))
+ def test_reduced_motion_keeps_life_positions_still(self):
+  p=self.open();p.emulate_media(reduced_motion='reduce');self.begin(p,spawn=1);p.clock.run_for(30000)
+  self.assertGreater(p.locator('.activity-prop svg').count(),0)
+  self.assertTrue(p.locator('.garden-visitor').evaluate_all('(els)=>els.every(e=>Math.abs(parseFloat(e.style.getPropertyValue("--life-x"))||0)<.01)'))
+ def test_life_travel_stays_clear_of_other_visitors_and_hud(self):
+  for width in [1366,1024,640,390]:
+   with self.subTest(width=width):
+    p=self.open(width);self.begin(p,spawn=1);p.clock.run_for(45000)
+    rects=p.locator('.visitor-travel').evaluate_all('(els)=>els.map(e=>{let r=e.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom}})')
+    obs=p.locator('.garden-meter,.garden-next,.scene-caption').evaluate_all('(els)=>els.map(e=>{let r=e.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom}})')
+    overlap=lambda a,b:min(a['right'],b['right'])-max(a['x'],b['x'])>1 and min(a['bottom'],b['bottom'])-max(a['y'],b['y'])>1
+    self.assertFalse(any(overlap(a,b) for i,a in enumerate(rects) for b in rects[i+1:]))
+    self.assertFalse(any(overlap(a,b) for a in rects for b in obs))
+    self.assertTrue(all(r['x']>=0 and r['right']<=width for r in rects));self.assertEqual(p.errors,[])
+ def test_first_upgrade_adds_a_visible_meadow(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(6000)
+  self.assertEqual(p.locator('.garden-meadow-patch').count(),0);p.clock.run_for(1500)
+  self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'1');self.assertEqual(p.locator('.garden-meadow-patch').count(),4)
+ def test_no_signal_stops_plants_and_scene_butterflies(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(24000)
+  self.assertGreater(p.locator('.garden-butterfly').count(),0);self.assertGreater(p.locator('.garden-flower[data-growth=bloom]').count(),0)
+  p.evaluate('window.micLevel=0');p.clock.run_for(500)
+  self.assertEqual(p.locator('.garden-butterfly').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
+  self.assertEqual(p.locator('.garden-flower[data-growth=bloom]>svg').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
 
 if __name__=='__main__':unittest.main()

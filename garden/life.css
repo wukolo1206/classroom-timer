@@ -1,0 +1,57 @@
+/* A quiet little life around each student's unchanged avatar. */
+.visitor-travel{position:relative;transform:translate(var(--life-x,0px),var(--life-y,0px));transition:transform .1s linear}
+.garden-visitor[data-activity=walking] .visitor-travel{will-change:transform}
+.activity-prop{position:absolute;left:0;top:0;width:100%;height:var(--visitor-size,64px);z-index:3;pointer-events:none}
+.activity-prop svg{display:block;width:100%;height:100%;overflow:visible;transform:scaleX(var(--life-facing,1));transform-origin:50% 60%}
+.visitor-body{position:relative;z-index:2}
+.garden-visitor[data-activity=picnic] .activity-prop{z-index:1}
+.garden-visitor[data-activity=flowers] .activity-prop{z-index:1}
+.visitor-travel>small{position:relative;z-index:4}
+.garden-visitor[data-activity=walking] .visitor-body{animation:life-walk-step .55s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=flowers] .visitor-body{animation:life-look-flowers 7s ease-in-out infinite;transform-origin:50% 84%}
+.garden-visitor[data-activity=picnic] .visitor-body{animation:life-picnic 6s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=watering] .visitor-body{animation:life-water-lean 5s ease-in-out infinite;transform-origin:50% 86%}
+.garden-visitor[data-activity=reading] .visitor-body{animation:life-read 8s ease-in-out infinite;transform-origin:50% 86%}
+.garden-visitor[data-activity=butterfly] .visitor-body{animation:life-follow 7s ease-in-out infinite;transform-origin:50% 86%}
+.life-water{animation:life-droplets 1.6s linear infinite;transform-origin:40px 80px}
+.life-can{animation:life-can-tip 5s ease-in-out infinite;transform-origin:74px 73px}
+.life-sniff{animation:life-sniff 4s ease-in-out infinite}
+.life-mini-butterfly{animation:life-little-flight 4s ease-in-out infinite;transform-origin:74px 20px}
+.life-footsteps{animation:life-steps .9s ease-in-out infinite}
+.life-book{animation:life-page 7s ease-in-out infinite;transform-origin:50px 78px}
+.garden-visitor[data-life-active=false] .visitor-body,.garden-visitor[data-life-active=false] .activity-prop *{animation-play-state:paused}
+.garden-visitor[data-life-active=false] .visitor-travel{transition:none}
+.garden-flower{position:absolute;display:block;width:clamp(20px,2.6vw,40px);height:clamp(32px,4.2vw,65px);transform:translate(-50%,-100%);pointer-events:none}
+.garden-flower>svg{width:100%;height:100%;overflow:visible}
+.plant-stem{transform-origin:21px 62px;transition:transform 2s ease}
+.plant-leaves{transform-origin:21px 50px;transition:transform 2s ease}
+.plant-bud{transform-origin:21px 24px;transition:opacity 1.5s,transform 2s}
+.plant-blossom{transform-origin:21px 24px;transition:opacity 1.5s,transform 2.5s}
+.garden-flower[data-growth=sprout] .plant-stem{transform:scaleY(.36)}
+.garden-flower[data-growth=sprout] .plant-leaves{transform:translateY(11px) scale(.65)}
+.garden-flower[data-growth=sprout] .plant-bud,.garden-flower[data-growth=sprout] .plant-blossom{opacity:0;transform:scale(.01)}
+.garden-flower[data-growth=bud] .plant-bud{opacity:1;transform:scale(.85)}
+.garden-flower[data-growth=bud] .plant-blossom{opacity:0;transform:scale(.1)}
+.garden-flower[data-growth=bloom] .plant-bud{opacity:0;transform:scale(.3)}
+.garden-flower[data-growth=bloom] .plant-blossom{opacity:1;transform:scale(1)}
+.garden-flower[data-growth=bloom]>svg{animation:life-plant-sway 9s ease-in-out infinite;animation-delay:var(--plant-delay,0s);transform-origin:50% 95%}
+.garden-meadow{position:absolute;inset:0;z-index:0;pointer-events:none}
+.garden-meadow-patch{position:absolute;display:block;width:clamp(72px,10vw,150px);transform:translate(-50%,-100%);animation:life-meadow-grow 4s ease-out both}
+.garden-meadow-patch svg{display:block;width:100%;height:auto;overflow:visible}
+.garden-scene[data-life-active=false] .garden-flower *,.garden-scene[data-life-active=false] .garden-wildlife *,.garden-scene[data-life-active=false] .garden-meadow *{animation-play-state:paused}
+.garden-scene[data-mood=paused] .garden-flower>svg,.garden-scene[data-mood=resting] .garden-flower>svg,body[data-phase=ended] .garden-flower>svg{animation-play-state:paused}
+@keyframes life-walk-step{0%,100%{transform:translateY(0) rotate(-3deg) scaleX(var(--life-facing,1))}50%{transform:translateY(-3px) rotate(3deg) scaleX(var(--life-facing,1))}}
+@keyframes life-look-flowers{0%,20%,100%{transform:rotate(0) scaleX(var(--life-facing,1))}45%,65%{transform:translateY(2px) rotate(11deg) scaleX(var(--life-facing,1))}}
+@keyframes life-picnic{0%,100%{transform:translateY(3px) scale(1.03,.91)}40%,60%{transform:translateY(2px) rotate(-2deg) scale(1.02,.93)}}
+@keyframes life-water-lean{0%,100%{transform:rotate(-3deg) scaleX(var(--life-facing,1))}40%,70%{transform:rotate(7deg) scaleX(var(--life-facing,1))}}
+@keyframes life-read{0%,100%{transform:translateY(2px) scale(1,.95)}30%,50%{transform:translateY(4px) rotate(-3deg) scale(1,.95)}}
+@keyframes life-follow{0%,100%{transform:rotate(-5deg) scaleX(var(--life-facing,1))}50%{transform:translateY(-2px) rotate(7deg) scaleX(var(--life-facing,1))}}
+@keyframes life-droplets{0%{opacity:0;transform:translate(1px,-4px)}30%{opacity:1}100%{opacity:0;transform:translate(-3px,6px)}}
+@keyframes life-can-tip{0%,100%{transform:rotate(0)}40%,70%{transform:rotate(-12deg)}}
+@keyframes life-sniff{0%,100%{opacity:0}45%,70%{opacity:.9;transform:translateY(-2px)}}
+@keyframes life-little-flight{0%,100%{transform:translate(74px,20px) rotate(-10deg)}50%{transform:translate(69px,14px) rotate(12deg)}}
+@keyframes life-steps{0%,100%{opacity:0}50%{opacity:.6;transform:translateX(-2px)}}
+@keyframes life-page{0%,100%{transform:rotate(-2deg)}45%,60%{transform:rotate(2deg)}}
+@keyframes life-plant-sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes life-meadow-grow{from{opacity:.35;scale:.55;transform:translate(-50%,-100%)}to{opacity:1;scale:1;transform:translate(-50%,-100%)}}
+@media(prefers-reduced-motion:reduce){.visitor-travel{transform:none!important;transition:none!important}.visitor-body,.activity-prop *,.garden-flower *{animation:none!important;transition:none!important}}
