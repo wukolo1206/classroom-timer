@@ -3,7 +3,7 @@ project: 班級紀錄器
 category: 學科工具集
 status: 維護中
 version: "GAS @65／全校版 v1.26"
-next_action: "站位修正完成後開始8階段設計草案；正式關卡暫維持4階段，真iPad待驗"
+next_action: "8階段設計稿與可切換預覽已完成，待檢視後實作；正式仍4階段，真iPad待驗"
 updated: 2026-11-05
 ---
 
