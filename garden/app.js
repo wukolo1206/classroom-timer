@@ -19,6 +19,7 @@
         var promise=new Promise(function(a,b){resolve=a;reject=b;});
         var timer=setTimeout(function(){if(pending&&pending.id===id){pending=null;reject(Error('更新逾時，請確認原班級頁面仍開啟，再試一次。'));}},15000);
         pending={id:id,promise:promise,resolve:resolve,reject:reject,timer:timer};
+        renderWelcome();
         window.opener.postMessage({type:'garden:request',channel:channel,requestId:id},parentOrigin);
         return promise;
     }
@@ -27,7 +28,15 @@
         var p=pending;pending=null;clearTimeout(p.timer);
         try{if(d.error)throw Error(d.error);var list=engine.cleanRoster(d.roster);fresh=true;roster=list;if(model)model.refresh(list);write('roster',{roster:list,readAt:d.readAt});$('garden-source').textContent=(source==='universal'?'本機班級':'目前計分頭像')+' · 已更新 '+new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})+' · '+list.length+' 位夥伴';renderKey=null;render();p.resolve(list);}catch(err){fresh=false;p.reject(err);}
     });
-    function setPhase(next){phase=next;document.body.dataset.phase=phase;var busy=phase==='opening'||phase==='running'||phase==='paused';$('garden-start').disabled=busy;$('garden-demo').disabled=busy;$('garden-end').disabled=!busy||phase==='opening';$('garden-pause').disabled=phase!=='running'&&phase!=='paused';$('garden-pause').textContent=phase==='paused'?'▶':'Ⅱ';$('garden-pause').setAttribute('aria-label',phase==='paused'?'繼續活動':'講解暫停');['minutes','activity','mode','session-mode','spawn-seconds','loud-seconds','upgrade-seconds'].forEach(function(k){$('garden-'+k).disabled=busy;});}
+    function setPhase(next){phase=next;document.body.dataset.phase=phase;var busy=phase==='opening'||phase==='running'||phase==='paused';$('garden-start').disabled=busy;$('garden-welcome-start').disabled=busy;$('garden-class-retry').disabled=busy||!!pending;$('garden-demo').disabled=busy;$('garden-end').disabled=!busy||phase==='opening';$('garden-pause').disabled=phase!=='running'&&phase!=='paused';$('garden-pause').textContent=phase==='paused'?'▶':'Ⅱ';$('garden-pause').setAttribute('aria-label',phase==='paused'?'繼續活動':'講解暫停');['minutes','activity','mode','session-mode','spawn-seconds','loud-seconds','upgrade-seconds'].forEach(function(k){$('garden-'+k).disabled=busy;});}
+    function renderWelcome(){
+        var ready=roster.length>0,busy=phase==='opening'||phase==='running'||phase==='paused';
+        $('garden-demo').hidden=ready;$('garden-welcome-start').hidden=!ready;$('garden-welcome-start').disabled=busy;$('garden-class-retry').hidden=!hasParent()||fresh;$('garden-class-retry').disabled=busy||!!pending;
+        $('garden-class-retry').textContent=demo?'改用班級夥伴':'重新讀取班級頭像';$('garden-count-label').textContent=demo?'示範夥伴':fresh?'班級夥伴':ready?'上次夥伴':'班級夥伴';
+        if(demo){$('garden-welcome-title').textContent='目前是試玩模式';$('garden-welcome-detail').textContent='這31位是模擬角色，不是學生目前的配對。要使用班級頭像，請由原班級頁面的音量計開啟。';$('garden-welcome-start').textContent='開始試玩';}
+        else if(ready){$('garden-welcome-title').textContent=fresh?'已載入 '+roster.length+' 位班級夥伴':'上次載入的 '+roster.length+' 位夥伴';$('garden-welcome-detail').textContent=fresh?'已帶入班級目前的頭像。可直接開始，或先調整下方的時間與音量設定。':'這是上次保存的頭像，尚未確認最新配對。要更新，請保留原班級頁面並按「更新夥伴」。';$('garden-welcome-start').textContent=fresh?'開始照顧花園':'使用上次頭像開始';}
+        else{$('garden-welcome-title').textContent=pending?'正在讀取班級頭像…':'請先載入班級夥伴';$('garden-welcome-detail').textContent=pending?'正在連接原班級頁面，讀取學生目前的計分頭像。請稍候。':'請從原班級頁面「音量計 → 開啟班級祕密花園」進入，才能帶入學生目前的計分頭像。下方試玩只使用模擬角色。';}
+    }
     function stopMedia(){
         clearInterval(tickTimer);tickTimer=null;lastLevel=null;
         var old=media||openingMedia;media=null;openingMedia=null;if(old){old.stream.getTracks().forEach(function(t){t.stop();});try{if(old.ctx)old.ctx.close();}catch(e){}}
@@ -58,7 +67,7 @@
         var mood=phase==='running'?(model&&model.resting?'resting':'growing'):phase==='paused'?'paused':'idle';
         $('garden-scene').dataset.mood=mood;
         $('garden-caption').textContent=phase==='ended'?'今天的專注，已成為花園的一部分':phase==='paused'?'老師說明中，夥伴休息一下':phase==='running'?(silentMs>=3000?'花園正在等麥克風的聲音':model.resting?'放輕聲音，倒數就會繼續':model.full()?'全員到齊，一起讓花園升級':'花園正在慢慢成長'):'花園正在等大家';
-        layoutVisitors();renderVisitors();renderBlooms();renderUpgrades();renderFeedback();
+        layoutVisitors();renderVisitors();renderBlooms();renderUpgrades();renderFeedback();renderWelcome();
     }
     function archive(){
         if(archived||!model)return;archived=true;
@@ -102,8 +111,10 @@
         list.slice(0,12).forEach(function(h){if(!h||!Array.isArray(h.visitors)||typeof h.at!=='string')return;var card=document.createElement('article'),title=document.createElement('strong'),text=document.createElement('p'),icons=document.createElement('div');title.textContent=new Date(h.at).toLocaleDateString('zh-TW',{month:'long',day:'numeric'})+(h.demo?' · 示範':' · 班級花園');text.textContent=h.visitors.length+' 位夥伴 · 合宜音量 '+Math.floor((Number(h.quietMs)||0)/60000)+' 分鐘';icons.className='history-avatars';h.visitors.filter(function(r){return r&&Number.isInteger(r.avatar)&&r.avatar>=0&&r.avatar<24;}).slice(0,31).forEach(function(r){icons.insertAdjacentHTML('beforeend',window.c408PointAvatars.svg(r.avatar));});card.append(title,text,icons);box.appendChild(card);});
     }
     $('garden-demo').onclick=function(){if(pending){var p=pending;pending=null;clearTimeout(p.timer);p.reject({cancelled:true,message:'已切換示範夥伴'});}demo=true;fresh=false;roster=engine.cleanRoster(Array.from({length:31},function(_,i){return {seat:i+1,avatar:(i+8)%24};}));$('garden-source').textContent='示範模式 · 31 位示範夥伴，與真實班級配對無關';$('garden-demo').textContent='示範夥伴已就緒';message('選好時間後，按「開始照顧花園」。');render();};
-    $('garden-refresh').onclick=async function(){this.disabled=true;try{await requestRoster();message(demo?'目前使用示範夥伴。':'已更新目前頭像，花園進度保留。');}catch(e){if(!e.cancelled){fresh=false;message(e.message+' 已載入的夥伴與進度都保留。',true);}}finally{this.disabled=false;}};
+    $('garden-refresh').onclick=async function(){this.disabled=true;var wasDemo=demo,oldRoster=roster;if(demo&&hasParent())demo=false;try{await requestRoster();message(demo?'目前使用示範夥伴。':'已更新目前頭像，花園進度保留。');}catch(e){if(!e.cancelled){if(wasDemo){demo=true;roster=oldRoster;}fresh=false;message(e.message+' 已載入的夥伴與進度都保留。',true);}}finally{this.disabled=false;render();}};
     $('garden-start').onclick=function(){var n=Number($('garden-minutes').value);if($('garden-session-mode').value==='timed'&&(!Number.isInteger(n)||n<1||n>120)){message('活動時間請填 1～120 的整數分鐘。',true);return;}var bounds={spawn:[1,300],loud:[3,60],upgrade:[5,300]};for(var k in bounds){var v=Number($('garden-'+k+'-seconds').value);if(!Number.isInteger(v)||v<bounds[k][0]||v>bounds[k][1]){message('秒數設定請填欄位範圍內的整數。',true);return;}cfg[k]=v;}write('settings',cfg);acquire(false);};
+    $('garden-welcome-start').onclick=function(){$('garden-start').click();};
+    $('garden-class-retry').onclick=function(){$('garden-refresh').click();};
     $('garden-pause').onclick=function(){if(phase==='paused')acquire(true);else pause();};
     $('garden-end').onclick=function(){if(model&&window.confirm('結束這次活動並收藏目前的花園嗎？'))finish();};
     $('garden-again').onclick=function(){model=null;renderKey=null;bloomCount=-1;setPhase('idle');$('garden-finish').hidden=true;$('garden-welcome').hidden=false;render();$('garden-start').focus();};
@@ -121,6 +132,6 @@
     $('garden-minutes').value=cfg.minutes;['study','discuss'].forEach(function(k){$('garden-'+k+'-threshold').value=cfg[k];$('garden-'+k+'-value').textContent=cfg[k];});
     $('garden-session-mode').value=cfg.session;['spawn','loud','upgrade'].forEach(function(k){$('garden-'+k+'-seconds').value=cfg[k];});
     var cached=read('roster',null);if(cached)try{roster=engine.cleanRoster(cached.roster);$('garden-source').textContent='上次載入的夥伴 · '+roster.length+' 位。開始前請更新以取得目前頭像。';}catch(e){}
-    if(hasParent())requestRoster().catch(function(e){if(!e.cancelled)message(e.message,true);});
+    if(hasParent())requestRoster().catch(function(e){if(!e.cancelled)message(e.message,true);render();});
     setPhase('idle');render();showHistory();
 }());

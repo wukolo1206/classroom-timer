@@ -62,12 +62,12 @@ class Garden(unittest.TestCase):
     scene=p.locator('#garden-scene').bounding_box()
     self.assertTrue(all(b['x']>=scene['x']-1 and b['right']<=scene['x']+scene['width']+1 for b in boxes))
     self.assertEqual(p.errors,[])
- def cloud_pair(self):
+ def cloud_pair(self,delay=0):
   ctx=self.browser.new_context(viewport={'width':1366,'height':768});self.addCleanup(ctx.close);ctx.add_init_script(FAKE)
   launcher=(ROOT/'garden/launcher.js').read_text(encoding='utf-8')
   harness='''<button data-garden-launch="c408">open</button><script>
-   window.calls=0;window.currentAvatar=8;
-   window.google={script:{run:{withSuccessHandler(fn){this.success=fn;return this;},withFailureHandler(fn){this.failure=fn;return this;},getGardenRoster(){window.calls++;if(window.failRoster)this.failure({message:'offline'});else this.success({roster:[{seat:1,avatar:window.currentAvatar},{seat:3,avatar:9}],readAt:'2026-11-05T00:00:00Z'});}}}};
+   window.calls=0;window.currentAvatar=8;window.rosterDelay=DELAY;
+   window.google={script:{run:{withSuccessHandler(fn){this.success=fn;return this;},withFailureHandler(fn){this.failure=fn;return this;},getGardenRoster(){window.calls++;let ok=this.success,bad=this.failure;setTimeout(()=>{if(window.failRoster)bad({message:'offline'});else ok({roster:[{seat:1,avatar:window.currentAvatar},{seat:3,avatar:9}],readAt:'2026-11-05T00:00:00Z'});},window.rosterDelay);}}}};
    </script><script>'''+launcher+'</script>'
   def serve(route):
    from urllib.parse import urlparse
@@ -77,10 +77,12 @@ class Garden(unittest.TestCase):
    file=(ROOT/rel).resolve()
    if file.is_relative_to(ROOT) and file.is_file():route.fulfill(path=str(file));return
    route.abort()
-  ctx.route('**/*',serve)
+  harness=harness.replace('DELAY',str(delay));ctx.route('**/*',serve)
   parent=ctx.new_page();parent.goto('https://script.google.com/garden-launch-test')
   with parent.expect_popup() as pop:parent.click('button')
-  child=pop.value;child.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')");child.select_option('#garden-session-mode','timed')
+  child=pop.value;child.wait_for_load_state('domcontentloaded')
+  if not delay:child.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')")
+  child.select_option('#garden-session-mode','timed')
   return parent,child
  def test_cloud_refresh_changes_avatar_without_resetting_garden(self):
   parent,p=self.cloud_pair();p.fill('#garden-minutes','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(16000)
@@ -106,10 +108,11 @@ class Garden(unittest.TestCase):
   p.evaluate("Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))")
   self.assertGreater(p.evaluate('window.stoppedTracks'),0)
  def test_pending_roster_response_cannot_replace_demo_choice(self):
-  parent,p=self.cloud_pair()
-  parent.evaluate("() => {google.script.run.getGardenRoster=function(){let fn=this.success;setTimeout(()=>fn({roster:[{seat:1,avatar:23}],readAt:'now'}),400)}}")
-  p.click('#garden-refresh');p.click('#garden-demo');p.wait_for_timeout(600)
+  parent,p=self.cloud_pair(delay=2000)
+  p.click('#garden-demo');p.wait_for_timeout(2200)
   self.assertIn('示範模式',p.inner_text('#garden-source'));self.assertIn('31',p.inner_text('#garden-count'))
+  parent.evaluate('window.rosterDelay=0');p.click('#garden-class-retry');p.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')")
+  self.assertIn('2',p.inner_text('#garden-welcome-title'));self.assertFalse(p.is_visible('#garden-demo'))
  def test_interrupted_second_start_never_resumes_completed_session(self):
   p=self.open();self.begin(p);p.clock.run_for(60000)
   p.evaluate('() => {AudioContext.prototype.resume=()=>new Promise(()=>{});}');p.click('#garden-start');p.wait_for_function('window.micRequests>=2')
@@ -158,5 +161,16 @@ class Garden(unittest.TestCase):
   p=self.open();self.begin(p,spawn=1);p.clock.run_for(60000);self.assertEqual(p.locator('.garden-visitor').count(),31)
   p.click('#garden-again');self.assertEqual(p.locator('.garden-visitor').count(),0)
   p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");self.assertEqual(p.locator('.garden-visitor').count(),0)
+ def test_real_roster_welcome_shows_class_and_starts_without_demo(self):
+  parent,p=self.cloud_pair();self.assertEqual(p.locator('#garden-welcome-title').count(),1)
+  self.assertIn('2',p.inner_text('#garden-welcome-title'));self.assertFalse(p.is_visible('#garden-demo'))
+  self.assertTrue(p.is_visible('#garden-welcome-start'));p.click('#garden-welcome-start');p.wait_for_function("document.body.dataset.phase==='running'")
+  self.assertNotIn('示範',p.inner_text('#garden-source'));self.assertEqual(p.inner_text('#garden-count-label'),'班級夥伴')
+ def test_direct_welcome_explains_missing_class_connection(self):
+  p=self.open(direct=True);self.assertEqual(p.locator('#garden-welcome-title').count(),1)
+  self.assertIn('班級',p.inner_text('#garden-welcome-detail'));self.assertFalse(p.is_visible('#garden-welcome-start'));self.assertIn('模擬',p.inner_text('#garden-demo'))
+ def test_cached_welcome_never_claims_current_cloud_avatars(self):
+  p=self.open();p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:[{seat:1,avatar:8}]}))");p.reload()
+  self.assertIn('上次',p.inner_text('#garden-welcome-title'));self.assertIn('上次',p.inner_text('#garden-welcome-start'));self.assertFalse(p.is_visible('#garden-demo'))
 
 if __name__=='__main__':unittest.main()

@@ -10,3 +10,5 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 @media(min-width:761px){.meter-heading strong{font-size:36px}.garden-meter p{font-size:13px}}
+
+.garden-welcome button{margin:4px;max-width:100%}.garden-welcome #garden-welcome-start{display:block;margin:14px auto 7px}.garden-welcome #garden-demo{font-size:12px;background:transparent;border-color:#dce4ce;color:#7d896a}
