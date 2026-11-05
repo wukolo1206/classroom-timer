@@ -1,0 +1,21 @@
+/* One picture, built in eight quiet layers. */
+.garden-art{position:absolute;inset:0;width:100%;height:100%;z-index:-3;pointer-events:none}
+.garden-art [data-layer]{transition:opacity 6s ease}
+.garden-art path,.garden-art circle,.garden-art .grass-fill{transition:fill 6s ease}
+.garden-art .sky-stop{transition:stop-color 6s ease}
+.painting-bridge-rail{stroke:#a17d58;stroke-width:4;fill:none;stroke-linecap:round}
+.garden-art .moon{opacity:0;transition:opacity 6s ease}
+.garden-art .sun{opacity:1;transition:opacity 6s ease,transform 6s ease}
+.garden-scene[data-stage="6"] .garden-art .sun{transform:translateY(65px)}
+.garden-scene[data-stage="7"] .garden-art .sun{opacity:0}
+.garden-scene[data-stage="7"] .garden-art .moon{opacity:1}
+.garden-firefly{animation:painting-firefly 6s ease-in-out infinite}
+.garden-scene[data-life-active=false] .garden-art *{animation-play-state:paused}
+.garden-save-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0 8px;font-size:13px;color:#637653}
+.garden-save-tools label{display:flex;align-items:center;gap:6px}.garden-save-tools input{accent-color:#436c49}
+#garden-save-status{flex-basis:100%;font-size:12px;line-height:1.7;margin:0;color:#718264}
+.garden-finish{top:35%}.garden-finish .save-hint{font-size:12px;margin-bottom:12px}
+@keyframes painting-firefly{0%,100%{opacity:.25}50%{opacity:.9}}
+@media(prefers-reduced-motion:reduce){.garden-art *{transition:none!important;animation:none!important}}
+
+@media(max-width:760px){.garden-art .painting-sky-lights{transform:translateY(65px)}}

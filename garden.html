@@ -8,6 +8,7 @@
   <title>班級祕密花園</title>
   <link rel="stylesheet" href="garden/garden.css">
   <link rel="stylesheet" href="garden/life.css">
+  <link rel="stylesheet" href="garden/painting.css">
 </head>
 <body data-phase="idle">
   <main class="garden-shell" id="garden-shell">
@@ -16,10 +17,7 @@
       <div class="garden-timer"><span><span id="garden-activity-label">專注時間</span><small id="garden-clock-label">已偵測</small></span><strong id="garden-clock" role="timer" aria-label="已偵測時間">00:00</strong><button id="garden-pause" class="icon-button" disabled aria-label="講解暫停">Ⅱ</button></div>
     </header>
     <section id="garden-scene" class="garden-scene" data-mood="idle" aria-label="班級花園">
-      <img class="garden-landscape" src="garden/scene.svg" alt="陽光下的草地、花圃、小池塘與石頭小徑">
-      <img class="garden-ground" src="garden/ground.svg" alt="夥伴活動的草地、步道與池塘">
-      <div class="garden-weather" aria-hidden="true"></div>
-      <div class="garden-night" aria-hidden="true"></div>
+
       <div id="garden-meadow" class="garden-meadow" aria-hidden="true"></div>
       <div id="garden-wildlife" class="garden-wildlife" aria-hidden="true"></div>
       <div class="garden-hud">
@@ -29,13 +27,13 @@
       <div id="garden-blooms" class="garden-blooms" aria-hidden="true"></div>
       <div id="garden-visitors" class="garden-visitors" aria-label="已來到花園的夥伴"></div>
       <div id="garden-welcome" class="garden-welcome"><span class="welcome-leaf" aria-hidden="true">❧</span><h2 id="garden-welcome-title">請先載入班級夥伴</h2><p id="garden-welcome-detail">請從原班級頁面「音量計 → 開啟班級祕密花園」進入，才能帶入學生目前的計分頭像。</p><button id="garden-welcome-start" class="primary-button" hidden>開始照顧花園</button><button id="garden-class-retry" class="soft-button" hidden>重新讀取班級頭像</button><button id="garden-demo" class="soft-button">只試玩（使用模擬角色）</button></div>
-      <div id="garden-finish" class="garden-finish" hidden><span aria-hidden="true">❀</span><h2>謝謝大家一起照顧花園</h2><p id="garden-result"></p><button id="garden-again" class="primary-button">再種一座花園</button></div>
+      <div id="garden-finish" class="garden-finish" hidden><span aria-hidden="true">❀</span><h2>謝謝大家一起照顧花園</h2><p id="garden-result"></p><p class="save-hint">需要保留這幅畫，可先按「保存花園畫」。開始新活動後，舊紀錄只保留摘要。</p><button id="garden-finish-save" class="soft-button">保存花園畫（PNG）</button><p id="garden-finish-save-status" class="save-hint" role="status"></p><button id="garden-again" class="primary-button">再種一座花園</button></div>
       <div class="scene-caption"><span class="caption-dot"></span><span id="garden-caption" aria-live="polite">花園正在等大家</span></div>
     </section>
     <footer class="garden-footer"><div class="visitor-count"><span class="little-leaf" aria-hidden="true">❧</span><span id="garden-count-label">班級夥伴</span> <strong id="garden-count">0 / 0</strong></div><span id="garden-stage-label" class="garden-stage-label">一起迎接花園夥伴</span><button id="garden-fullscreen" class="icon-button" aria-label="全螢幕">⛶</button></footer>
   </main>
   <section class="teacher-panel" aria-label="老師的花園設定">
-    <div class="teacher-heading"><div><span class="eyebrow">老師的小工具</span><h2>準備好，就一起出發。</h2></div><div class="source-actions"><button id="garden-refresh" class="soft-button">↻ 更新夥伴</button><button id="garden-history-button" class="soft-button">❀ 我的花園收藏</button></div></div>
+    <div class="teacher-heading"><div><span class="eyebrow">老師的小工具</span><h2>準備好，就一起出發。</h2></div><div class="source-actions"><button id="garden-refresh" class="soft-button">↻ 更新夥伴</button><button id="garden-history-button" class="soft-button">❀ 活動紀錄</button></div></div>
     <div class="garden-controls">
       <label>進行方式<select id="garden-session-mode"><option value="direct">直接偵測・不限時</option><option value="timed">活動倒數</option></select></label>
       <label>這次做什麼<select id="garden-activity"><option>專注時間</option><option>閱讀時間</option><option>練習時間</option><option>小組任務</option></select></label>
@@ -45,14 +43,16 @@
       <button id="garden-end" class="text-button" disabled>結束本次</button>
     </div>
     <div class="garden-rules"><label>合宜音量累積 <input id="garden-spawn-seconds" type="number" min="1" max="300" step="1" value="15"> 秒，迎來一位</label><label>持續超標 <input id="garden-loud-seconds" type="number" min="3" max="60" step="1" value="8"> 秒，休息一位</label><label>全員到齊後，每 <input id="garden-upgrade-seconds" type="number" min="5" max="300" step="1" value="30"> 秒合宜音量升級一次</label></div>
+    <div class="garden-save-tools"><button id="garden-save" class="soft-button" disabled>保存花園畫（PNG）</button><label><input type="checkbox" id="garden-save-seats">畫作包含座號</label><p id="garden-save-status" role="status">可保存任何完成程度的花園；圖片下載到這台裝置，活動紀錄只保存摘要。</p></div>
     <p id="garden-source" class="source-note">尚未載入班級夥伴。請由計時器的「音量計」開啟花園。</p>
     <p id="garden-message" role="status" class="garden-message">首次開始時，請允許使用麥克風。</p>
-    <details class="garden-settings"><summary>音量微調與使用說明</summary><div class="settings-grid"><label>自習音量目標 <input id="garden-study-threshold" type="range" min="30" max="85" value="50"><output id="garden-study-value">50</output></label><label>討論音量目標 <input id="garden-discuss-threshold" type="range" min="40" max="95" value="65"><output id="garden-discuss-value">65</output></label></div><p>音量超過目標，小倒數立即暫停；短暫聲響不會讓夥伴離開。持續超標達設定秒數，就讓一位夥伴休息；繼續超標，每隔同樣秒數再減少一位。恢復合宜音量後接著倒數，休息的夥伴仍可再次回來。</p><p>全員到齊後，依序解鎖「花朵盛開 → 蝴蝶來訪 → 星光花園」，之後繼續累積星光祝福。已解鎖景色保留；有夥伴離開時，先迎回夥伴，再從頭累積這次尚未完成的升級倒數。</p><p>數字是麥克風的約略音量參考。先試聽教室音量；一直無法前進時，把目標調高一些。老師說明時按上方「Ⅱ」，計時與麥克風都會暫停。切到其他視窗也會暫停，回來再按繼續。</p><p>夥伴隨機出現，代表全班合作，不代表個人表現。只在本機計算音量，不錄音、不上傳，不自動加扣點。正式雲端頭像更新需要保留原班級頁面開啟。</p></details>
+    <details class="garden-settings"><summary>音量微調與使用說明</summary><div class="settings-grid"><label>自習音量目標 <input id="garden-study-threshold" type="range" min="30" max="85" value="50"><output id="garden-study-value">50</output></label><label>討論音量目標 <input id="garden-discuss-threshold" type="range" min="40" max="95" value="65"><output id="garden-discuss-value">65</output></label></div><p>音量超過目標，小倒數立即暫停；短暫聲響不會讓夥伴離開。持續超標達設定秒數，就讓一位夥伴休息；繼續超標，每隔同樣秒數再減少一位。恢復合宜音量後接著倒數，休息的夥伴仍可再次回來。</p><p>全員到齊後，依序解鎖「花圃甦醒 → 綠意成蔭 → 蝴蝶來訪 → 池塘映光 → 祕密花園木橋 → 晚霞時光 → 月光成畫」，之後繼續累積祝福；不再增加裝飾。已解鎖景色保留；有夥伴離開時，先迎回夥伴，再從頭累積這次尚未完成的升級倒數。</p><p>數字是麥克風的約略音量參考。先試聽教室音量；一直無法前進時，把目標調高一些。老師說明時按上方「Ⅱ」，計時與麥克風都會暫停。切到其他視窗也會暫停，回來再按繼續。</p><p>夥伴隨機出現，代表全班合作，不代表個人表現。只在本機計算音量，不錄音、不上傳，不自動加扣點。正式雲端頭像更新需要保留原班級頁面開啟。</p></details>
     <div id="garden-history" class="garden-history" hidden aria-label="最近的花園收藏"></div>
   </section>
   <script src="points/avatars.js"></script>
   <script src="garden/core.js"></script>
   <script src="garden/life.js"></script>
+  <script src="garden/painting.js"></script>
   <script src="garden/app.js"></script>
 </body>
 </html>

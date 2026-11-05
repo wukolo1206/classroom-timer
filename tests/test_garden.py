@@ -80,7 +80,7 @@ class Garden(unittest.TestCase):
   harness=harness.replace('DELAY',str(delay));ctx.route('**/*',serve)
   parent=ctx.new_page();parent.goto('https://script.google.com/garden-launch-test')
   with parent.expect_popup() as pop:parent.click('button')
-  child=pop.value;child.wait_for_load_state('domcontentloaded')
+  child=pop.value;child.errors=[];child.on('pageerror',lambda e:child.errors.append(str(e)));child.wait_for_load_state('domcontentloaded')
   if not delay:child.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')")
   child.select_option('#garden-session-mode','timed')
   return parent,child
@@ -148,9 +148,9 @@ class Garden(unittest.TestCase):
   p=self.open(direct=True);p.click('#garden-demo');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(125000)
   self.assertEqual(p.locator('body').get_attribute('data-phase'),'running');self.assertEqual(p.inner_text('#garden-clock'),'02:05');self.assertIn('已偵測',p.inner_text('#garden-clock-label'))
  def test_full_class_unlocks_animated_garden_changes(self):
-  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(18000)
-  self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'3');self.assertGreater(p.locator('.garden-butterfly').count(),0);self.assertGreater(p.locator('.garden-star').count(),0)
-  self.assertIn('星光',p.inner_text('#garden-stage-label'));self.assertNotEqual(p.locator('.visitor-body').first.evaluate('(e)=>getComputedStyle(e).animationName'),'visitor-breathe')
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(38000)
+  self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'7');self.assertGreater(p.locator('.garden-butterfly').count(),0);self.assertGreater(p.locator('.garden-star').count(),0)
+  self.assertIn('月光',p.inner_text('#garden-stage-label'));self.assertNotEqual(p.locator('.visitor-body').first.evaluate('(e)=>getComputedStyle(e).animationName'),'visitor-breathe')
  def test_manual_end_cannot_resume_as_a_new_direct_session(self):
   p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000)
   p.on('dialog',lambda d:d.accept());p.click('#garden-end');self.assertEqual(p.locator('body').get_attribute('data-phase'),'ended')
@@ -195,7 +195,7 @@ class Garden(unittest.TestCase):
   p=self.open();self.begin(p,spawn=1);p.clock.run_for(7000)
   self.assertEqual(p.locator('.garden-flower').count(),1);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'sprout');p.evaluate('window.firstPlant=document.querySelector(".garden-flower")')
   p.clock.run_for(4000);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'bud')
-  p.clock.run_for(4000);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'bloom');self.assertEqual(p.locator('.garden-flower').count(),2)
+  p.clock.run_for(4000);self.assertEqual(p.locator('.garden-flower').first.get_attribute('data-growth'),'bud');self.assertEqual(p.locator('.garden-flower').count(),2)
   self.assertTrue(p.evaluate('window.firstPlant===document.querySelector(".garden-flower")'))
  def test_reduced_motion_keeps_life_positions_still(self):
   p=self.open();p.emulate_media(reduced_motion='reduce');self.begin(p,spawn=1);p.clock.run_for(30000)
@@ -228,5 +228,92 @@ class Garden(unittest.TestCase):
     self.assertEqual(p.locator('.ground-shadow').count(),31)
     data=p.locator('.ground-shadow').evaluate_all('(els)=>{let s=document.getElementById("garden-scene").getBoundingClientRect();return els.map(e=>{let r=e.getBoundingClientRect();return {x:(r.x+r.width/2-s.x)/s.width,y:(r.y+r.height/2-s.y)/s.height}})}')
     self.assertTrue(all(d['y']>=.44 and d['y']<=.9 for d in data));self.assertTrue(all(not(d['x']>.69 and d['y']<.61) for d in data))
+
+ def test_eight_stage_painting_has_seven_unlocks_and_bounded_night(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'")
+  self.assertTrue(p.evaluate('!!window.GardenPainting'), 'new painting renderer must be loaded')
+  p.clock.run_for(2500)
+  for stage in range(8):
+   self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),str(stage))
+   self.assertIn(str(stage+1)+'/8',p.inner_text('#garden-stage-label'))
+   if stage<7:p.clock.run_for(5000)
+  self.assertEqual(p.locator('.garden-butterfly').count(),3);self.assertEqual(p.locator('.garden-star').count(),12);self.assertEqual(p.locator('.garden-firefly').count(),5)
+  plants=p.locator('.garden-flower').count();p.clock.run_for(60000)
+  self.assertEqual(p.locator('.garden-flower').count(),plants);self.assertEqual(p.locator('.garden-star').count(),12);self.assertIn('祝福',p.inner_text('#garden-stage-label'));self.assertEqual(p.errors,[])
+ def test_history_labels_legacy_four_stages_without_remapping(self):
+  p=self.open();p.evaluate("localStorage.setItem('c408_garden_history',JSON.stringify([{at:'2026-11-01',visitors:[],stage:3},{at:'2026-11-02',visitors:[]},{at:'2026-11-03',visitors:[],schema:2,stageScheme:'garden-painting-8-v1',stageIndex:7,stageTotal:8,stageName:'月光成畫'}]))")
+  p.reload();p.click('#garden-history-button');cards=p.locator('#garden-history article')
+  self.assertIn('星光',cards.nth(0).inner_text());self.assertIn('4/4',cards.nth(0).inner_text());self.assertIn('未記錄階段',cards.nth(1).inner_text());self.assertIn('月光成畫',cards.nth(2).inner_text());self.assertIn('8/8',cards.nth(2).inner_text())
+ def test_painting_png_download_has_no_hud_and_optional_seat_labels(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(5000)
+  self.assertTrue(p.evaluate('!!window.GardenPainting'), 'PNG renderer must be loaded')
+  no=p.evaluate('GardenPainting.capture(document.getElementById("garden-scene"),false)');yes=p.evaluate('GardenPainting.capture(document.getElementById("garden-scene"),true)')
+  self.assertNotIn('教室音量',no);self.assertNotIn('foreignObject',no);self.assertNotIn('http://127.0.0.1',no);self.assertNotIn('<text',no);self.assertIn('<text',yes)
+  with p.expect_download() as download:p.click('#garden-save')
+  d=download.value;self.assertTrue(d.suggested_filename.endswith('.png'));self.assertIsNone(d.failure());self.assertIn('下載',p.inner_text('#garden-save-status'))
+  from PIL import Image
+  with Image.open(d.path()) as image:self.assertEqual(image.format,'PNG');self.assertGreater(image.width,300);self.assertGreater(image.height,300);self.assertGreater(sum(image.convert('RGB').getpixel((10,10))),150,'exported sky gradient must retain its colors')
+ def test_finished_painting_retries_download_even_when_history_storage_full(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(5000)
+  self.assertTrue(p.evaluate('!!window.GardenPainting'), 'PNG renderer must be loaded')
+  p.evaluate("() => {window.goodPng=GardenPainting.toPng;GardenPainting.toPng=async()=>{throw Error('test canvas failure')};Storage.prototype.setItem=function(){throw Error('QuotaExceededError')}}")
+  p.on('dialog',lambda d:d.accept());p.click('#garden-end');self.assertEqual(p.locator('body').get_attribute('data-phase'),'ended');self.assertTrue(p.is_enabled('#garden-save'))
+  p.click('#garden-save');p.wait_for_function("document.getElementById('garden-save-status').textContent.includes('重試')");self.assertEqual(p.locator('body').get_attribute('data-phase'),'ended')
+  p.evaluate('() => {GardenPainting.toPng=window.goodPng}')
+  with p.expect_download() as download:p.click('#garden-save')
+  self.assertIsNone(download.value.failure());self.assertEqual(p.locator('body').get_attribute('data-phase'),'ended')
+ def test_ended_record_marks_eight_stage_scheme_and_new_garden_clears_art(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(5000);p.on('dialog',lambda d:d.accept());p.click('#garden-end')
+  h=p.evaluate("JSON.parse(localStorage.getItem('c408_garden_history'))[0]")
+  self.assertEqual(h.get('schema'),2);self.assertEqual(h.get('stageScheme'),'garden-painting-8-v1');self.assertEqual(h.get('stageIndex'),0);self.assertEqual(h.get('stageTotal'),8);self.assertEqual(h.get('stageName'),'夥伴入園')
+  self.assertIn('保存',p.inner_text('#garden-finish'));p.click('#garden-again');self.assertTrue(p.is_disabled('#garden-save'));self.assertEqual(p.locator('.garden-visitor').count(),0)
+
+ def test_ended_painting_remains_frozen_after_roster_refresh(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.on('dialog',lambda d:d.accept());p.click('#garden-end')
+  before=p.locator('#garden-visitors').inner_html();parent.evaluate('window.currentAvatar=23')
+  self.assertTrue(p.is_disabled('#garden-refresh'),'ended artwork must stay frozen until next activity')
+  p.clock.run_for(20000);self.assertEqual(p.locator('#garden-visitors').inner_html(),before)
+
+ def test_scene_color_transitions_freeze_and_resume_with_life(self):
+  p=self.open(direct=True)
+  self.assertTrue(p.evaluate("typeof GardenPainting.setActive==='function'"),'stage transitions need the shared pause control')
+  p.evaluate("() => {let s=document.getElementById('garden-scene');GardenPainting.update(s,6);GardenPainting.setActive(s,true)}")
+  p.wait_for_timeout(180)
+  p.evaluate("GardenPainting.setActive(document.getElementById('garden-scene'),false)");p.wait_for_timeout(60)
+  color=p.locator('.sky-stop').first.evaluate('(e)=>getComputedStyle(e).stopColor');p.wait_for_timeout(350)
+  self.assertEqual(p.locator('.sky-stop').first.evaluate('(e)=>getComputedStyle(e).stopColor'),color)
+  p.evaluate("GardenPainting.setActive(document.getElementById('garden-scene'),true)");p.wait_for_timeout(250)
+  self.assertNotEqual(p.locator('.sky-stop').first.evaluate('(e)=>getComputedStyle(e).stopColor'),color)
+
+ def test_new_garden_resets_night_immediately_while_idle(self):
+  p=self.open(direct=True);p.evaluate("() => {let s=document.getElementById('garden-scene');GardenPainting.update(s,7);GardenPainting.setActive(s,true);s.getAnimations({subtree:true}).filter(a=>a instanceof CSSTransition).forEach(a=>a.finish());}")
+  p.click('#garden-demo')
+  self.assertEqual(p.locator('.moon').evaluate('(e)=>getComputedStyle(e).opacity'),'0')
+  self.assertEqual(p.locator('[data-layer="pond"]').evaluate('(e)=>getComputedStyle(e).opacity'),'0')
+
+ def test_moon_is_visible_clear_of_volume_and_countdown_panels(self):
+  for width in [1366,390]:
+   with self.subTest(width=width):
+    p=self.open(width,direct=True);p.evaluate("GardenPainting.update(document.getElementById('garden-scene'),7,true)")
+    moon=p.locator('.moon').bounding_box();panels=p.locator('.garden-meter,.garden-next').all()
+    for panel in panels:
+     b=panel.bounding_box();self.assertFalse(min(moon['x']+moon['width'],b['x']+b['width'])>max(moon['x'],b['x']) and min(moon['y']+moon['height'],b['y']+b['height'])>max(moon['y'],b['y']),'moon should remain visible beside the HUD')
+
+ def test_finished_art_can_be_saved_without_leaving_fullscreen(self):
+  p=self.open();self.begin(p,spawn=1);p.click('#garden-fullscreen');p.wait_for_function('!!document.fullscreenElement');p.clock.run_for(60000)
+  self.assertEqual(p.locator('#garden-finish-save').count(),1,'fullscreen finish card needs its own save shortcut');self.assertTrue(p.is_visible('#garden-finish-save'))
+  with p.expect_download() as download:p.click('#garden-finish-save')
+  self.assertIsNone(download.value.failure());self.assertIn('下載',p.inner_text('#garden-finish-save-status'))
+
+ def test_saved_vector_preserves_reflected_props_and_swaying_plant_geometry(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(17000);p.click('#garden-pause')
+  errors=p.evaluate("""() => {
+   let scene=document.getElementById('garden-scene'),bounds=scene.getBoundingClientRect(),prop=scene.querySelector('.activity-prop svg'),plant=scene.querySelector('.garden-flower svg');
+   prop.style.transform='scaleX(-1)';plant.style.transform='rotate(9deg)';let propShape=prop.querySelector('path,ellipse,circle'),plantShape=plant.querySelector('path');propShape.id='geometry-prop';plantShape.id='geometry-plant';
+   let originals=[propShape,plantShape].map(e=>{let r=e.getBoundingClientRect();return {x:r.x-bounds.x,y:r.y-bounds.y,w:r.width,h:r.height}});
+   let holder=document.createElement('div');holder.style.cssText='position:fixed;left:0;top:0;width:'+scene.clientWidth+'px;height:'+scene.clientHeight+'px;z-index:1000';holder.innerHTML=GardenPainting.capture(scene,false);document.body.appendChild(holder);
+   let differences=['geometry-prop','geometry-plant'].map((id,i)=>{let r=holder.querySelector('#'+id).getBoundingClientRect(),a=originals[i];return Math.max(Math.abs(r.x-a.x),Math.abs(r.y-a.y),Math.abs(r.width-a.w),Math.abs(r.height-a.h))});holder.remove();return differences;
+  }""")
+  self.assertTrue(all(e<1 for e in errors),f'PNG vector geometry diverged from scene: {errors}')
 
 if __name__=='__main__':unittest.main()

@@ -9415,6 +9415,19 @@ document.addEventListener('DOMContentLoaded', () => {
     else root.SecretGarden = factory();
 }(typeof window === 'object' ? window : this, function () {
     'use strict';
+    var STAGE_SCHEME='garden-painting-8-v1';
+    var stageNames=Object.freeze(['夥伴入園','花圃甦醒','綠意成蔭','蝴蝶來訪','池塘映光','祕密花園','晚霞時光','月光成畫']);
+    var legacyStageNames=['迎接夥伴','花朵盛開','蝴蝶來訪','星光花園'];
+    function stageMetadata(index){
+        if(!Number.isInteger(index)||index<0||index>=stageNames.length)throw Error('花園階段不正確');
+        return {schema:2,stageScheme:STAGE_SCHEME,stageIndex:index,stageTotal:stageNames.length,stageName:stageNames[index]};
+    }
+    function recordStage(record){
+        record=record||{};
+        if(record.stageScheme===STAGE_SCHEME&&Number.isInteger(record.stageIndex)&&record.stageIndex>=0&&record.stageIndex<stageNames.length){var meta=stageMetadata(record.stageIndex);if(typeof record.stageName==='string'&&record.stageName.trim())meta.stageName=record.stageName;return meta;}
+        if(!record.stageScheme&&Number.isInteger(record.stage)&&record.stage>=0&&record.stage<legacyStageNames.length)return {stageScheme:'legacy-4',stageIndex:record.stage,stageTotal:4,stageName:legacyStageNames[record.stage]};
+        return {stageScheme:null,stageIndex:null,stageTotal:null,stageName:'未記錄階段'};
+    }
     function cleanRoster(list) {
         if (!Array.isArray(list) || !list.length || list.length > 100) throw Error('沒有可用的班級夥伴');
         var seen = {};
@@ -9442,6 +9455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
         this.spawnProgressMs=0;this.upgradeProgressMs=0;this.stage=0;this.celebrations=0;this.departures=0;
     }
+    Object.defineProperty(Model.prototype,'stageIndex',{get:function(){return this.stage;}});
     Model.prototype.shuffle=function(list){for(var i=list.length-1;i>0;i--){var j=Math.min(i,Math.max(0,Math.floor(this.random()*(i+1)))),v=list[i];list[i]=list[j];list[j]=v;}return list;};
     Model.prototype.visible=function(){var self=this;return this.present.map(function(seat){return self.roster.find(function(r){return r.seat===seat;});}).filter(Boolean);};
     Model.prototype.full=function(){return this.count===this.roster.length;};
@@ -9457,12 +9471,12 @@ document.addEventListener('DOMContentLoaded', () => {
             else {
                 this.noisyMs=0;this.resting=false;this.quietMs+=dt;var remaining=dt;
                 if(!this.full()){this.spawnProgressMs+=remaining;remaining=0;while(this.spawnProgressMs>=this.spawnMs&&this.queue.length){this.spawnProgressMs-=this.spawnMs;this.present.push(this.queue.shift());this.count=this.present.length;}if(this.full()){remaining=this.spawnProgressMs;this.spawnProgressMs=0;}}
-                if(this.full()){this.upgradeProgressMs+=remaining;while(this.upgradeProgressMs>=this.upgradeMs){this.upgradeProgressMs-=this.upgradeMs;if(this.stage<3)this.stage++;else this.celebrations++;}}
+                if(this.full()){this.upgradeProgressMs+=remaining;while(this.upgradeProgressMs>=this.upgradeMs){this.upgradeProgressMs-=this.upgradeMs;if(this.stage<stageNames.length-1)this.stage++;else this.celebrations++;}}
             }
         }else{this.noisyMs=0;this.resting=false;}
         if(this.durationMs!==null&&this.elapsedMs>=this.durationMs)this.ended=true;
     };
-    return {Model:Model,avatarRoster:avatarRoster,cleanRoster:cleanRoster};
+    return {Model:Model,avatarRoster:avatarRoster,cleanRoster:cleanRoster,stageNames:stageNames,STAGE_SCHEME:STAGE_SCHEME,stageMetadata:stageMetadata,recordStage:recordStage};
 }));
 </script>
 <!-- GARDEN_CORE_END -->

@@ -544,3 +544,21 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **未來避免**：對腳點而非人物中心驗證地面，另驗證水域、縮放與最大人數。
 
 ---
+
+## SVG下載遺失漸層與CSS transition假暫停（2026-11-05）
+
+**現象**：網頁畫面正確，PNG天空卻是黑色；超標時人物停止，但樹木／光線仍持續淡入，老師暫停反而瞬間跳到終點。
+**原因**：序列化SVG移除頁面CSS與變數後沒有保存stop-color；animation-play-state只能暫停animation，不能暫停transition，transition:none則會直接套用終值。
+**解法**：SVG副本逐節點固化包含stop-color的向量樣式並把url參照還原為片段；共同有效狀態以Web Animations API暫停／繼續CSSTransition，PNG像素與中途暫停各有失敗→通過測試。
+**未來避免**：存圖須檢查實際PNG色彩；所有場景動態與漸變都要走同一個停止狀態，不以取消transition冒充暫停。
+
+---
+
+## SVG轉PNG不可重複套用鏡像／旋轉（2026-11-05）
+
+**現象**：人物朝左時，下載圖裡的道具可能被移到畫布左側之外；晃動花朵的形狀與原位置也會偏差。
+**原因**：以getBoundingClientRect取得已變形的外框，再保留根SVG的transform，等於重做鏡像；父層人物轉身也只被當成外框尺寸，沒有保留原變換。
+**解法**：以getScreenCTM一次將原SVG使用者座標映到場景，外層g承接矩陣，內層SVG根transform清除。以道具實際路徑和花莖的螢幕幾何對照驗證，不能拿HTML根SVG的viewport外框與巢狀SVG內容外框互相比較。
+**未來避免**：向量存圖以同一座標矩陣保存姿勢與位置，測試至少含朝左道具與旋轉植物。
+
+---
