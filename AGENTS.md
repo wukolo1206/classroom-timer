@@ -2,8 +2,8 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @65／全校版 v1.25"
-next_action: "教室試用花園散步／看花／野餐與漸進花朵，真iPad待驗；原畫板首次結算待驗"
+version: "GAS @65／全校版 v1.26"
+next_action: "站位修正完成後開始8階段設計草案；正式關卡暫維持4階段，真iPad待驗"
 updated: 2026-11-05
 ---
 

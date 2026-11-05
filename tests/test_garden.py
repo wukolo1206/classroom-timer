@@ -221,5 +221,12 @@ class Garden(unittest.TestCase):
   p.evaluate('window.micLevel=0');p.clock.run_for(500)
   self.assertEqual(p.locator('.garden-butterfly').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
   self.assertEqual(p.locator('.garden-flower[data-growth=bloom]>svg').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
+ def test_avatars_are_grounded_and_never_stand_in_the_pond(self):
+  for width in [1366,1024,640,390]:
+   with self.subTest(width=width):
+    p=self.open(width);self.begin(p,spawn=1);p.clock.run_for(45000)
+    self.assertEqual(p.locator('.ground-shadow').count(),31)
+    data=p.locator('.ground-shadow').evaluate_all('(els)=>{let s=document.getElementById("garden-scene").getBoundingClientRect();return els.map(e=>{let r=e.getBoundingClientRect();return {x:(r.x+r.width/2-s.x)/s.width,y:(r.y+r.height/2-s.y)/s.height}})}')
+    self.assertTrue(all(d['y']>=.44 and d['y']<=.9 for d in data));self.assertTrue(all(not(d['x']>.69 and d['y']<.61) for d in data))
 
 if __name__=='__main__':unittest.main()

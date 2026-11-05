@@ -11,7 +11,8 @@
         var self=this,seen={},walkers=0,limit=Math.max(1,Math.floor(list.length/8));
         var step=active&&!reduced&&Number.isFinite(dt)&&dt>0&&dt<=1500?dt:0;
         var rx=Math.max(0,Math.min(48,(bounds.width/(bounds.columns||8)-bounds.size-18)/2));
-        var ry=Math.max(0,Math.min(6,(bounds.height*.65/Math.max(1,bounds.rows)-bounds.size-24)/2));
+        var rowPitch=Number.isFinite(bounds.rowPitch)?bounds.rowPitch:bounds.height*.65/Math.max(1,bounds.rows);
+        var ry=Math.max(0,Math.min(6,(rowPitch-bounds.size-24-16)/2));
         list.forEach(function(r){seen[r.seat]=true;});
         Object.keys(this.records).forEach(function(n){if(!seen[n])delete self.records[n];});
         list.forEach(function(r){
@@ -24,7 +25,7 @@
             var s=self.records[r.seat];
             if(step){
                 if(s.walking){s.elapsed+=step;var t=Math.min(1,s.elapsed/s.duration),ease=t*t*(3-2*t);s.x=Math.max(-rx,Math.min(rx,s.fromX+(s.toX-s.fromX)*ease));s.y=Math.max(-ry,Math.min(ry,s.fromY+(s.toY-s.fromY)*ease));if(t===1){s.walking=false;walkers--;s.index=(s.index+1+Math.floor(self.random()*4))%5;s.wait=7000+self.random()*6500;s.cycle++;}}
-                else{s.wait-=step;if(s.wait<=0&&walkers<limit&&(rx>0||ry>0)){s.walking=true;walkers++;s.elapsed=0;s.duration=2200+self.random()*1800;s.fromX=s.x;s.fromY=s.y;s.toX=(s.x>=0?-1:1)*rx*(.55+self.random()*.4);s.toY=(self.random()>.5?1:-1)*ry*.7;s.facing=s.toX<s.x?-1:1;}}
+                else{s.wait-=step;if(s.wait<=0&&rx===0&&ry===0){s.index=(s.index+1+Math.floor(self.random()*4))%5;s.wait=7000+self.random()*6500;s.cycle++;}else if(s.wait<=0&&walkers<limit&&(rx>0||ry>0)){s.walking=true;walkers++;s.elapsed=0;s.duration=2200+self.random()*1800;s.fromX=s.x;s.fromY=s.y;s.toX=(s.x>=0?-1:1)*rx*(.55+self.random()*.4);s.toY=(self.random()>.5?1:-1)*ry*.7;s.facing=s.toX<s.x?-1:1;}}
             }
             return {seat:r.seat,activity:s.walking&&!reduced?'walking':activities[s.index],x:reduced?0:s.x,y:reduced?0:s.y,facing:s.facing,cycle:s.cycle};
         });
@@ -34,6 +35,17 @@
         var count=Math.min(72,Math.floor(ms/6000)),list=[];
         for(var i=0;i<count;i++){var age=ms-(i+1)*6000;list.push({id:i,growth:age<3500?'sprout':age<7500?'bud':'bloom',color:['#f3c2ad','#fff3d0','#e8d1ed','#f4d887','#d7e8bd'][i%5]});}
         return list;
+    }
+    function groundLayout(width,height,count){
+        count=Math.max(1,Math.min(100,Math.floor(count)||1));
+        var columns=Math.min(width>=1000?12:width>=600?10:8,Math.max(3,count)),rows=Math.max(1,Math.ceil(count/columns)),cells=[];
+        while(cells.length<count){cells=[];for(var r=0;r<rows;r++)for(var c=0;c<columns;c++){var x=(c+.5)/columns,foot=.46+(r+.5)*.42/rows;if(.03+.94*x>.65&&foot<.64)continue;cells.push({x:x,footY:foot});}if(cells.length<count)rows++;}
+        var requiredHeight=Math.max(400,Math.ceil(rows*62/.42)),h=Math.max(requiredHeight,height||0),rowPitch=h*.42/rows;
+        var size=Math.max(24,Math.min(68,width*.94/columns*.72,rowPitch-30)),stride=13;
+        function gcd(a,b){while(b){var t=b;b=a%b;a=t;}return a;}
+        while(gcd(stride,cells.length)!==1)stride+=2;
+        var positions=[];for(var i=0;i<count;i++){var p=cells[i*stride%cells.length];positions.push({x:p.x,footY:p.footY,left:p.x*100,top:(p.footY*h-size*.88+(size+24)/2)/(h*.91)*100});}
+        return {columns:columns,rows:rows,size:size,requiredHeight:requiredHeight,rowPitch:rowPitch,positions:positions};
     }
     var tinyFlower='<path d="M72 85V62M72 77Q57 65 59 75Q63 84 72 80M72 80Q87 68 86 78Q82 85 72 84" stroke="#7ca65d" stroke-width="3" fill="#98bd70"/><g fill="#f6cf9f"><ellipse cx="72" cy="53" rx="6" ry="10"/><ellipse cx="82" cy="62" rx="10" ry="6"/><ellipse cx="76" cy="70" rx="6" ry="10"/><ellipse cx="63" cy="62" rx="10" ry="6"/></g><circle cx="72" cy="62" r="5" fill="#dfb35c"/>';
     var props={
@@ -57,5 +69,5 @@
         var nodes=this.plants.children;while(nodes.length>flowers.length)this.plants.lastElementChild.remove();
         flowers.forEach(function(f){var node=self.plants.querySelector('[data-plant="'+f.id+'"]');if(!node){node=self.plants.ownerDocument.createElement('span');node.className='garden-flower';node.dataset.plant=f.id;node.innerHTML=plantSvg(f.color);var group=f.id%5,ring=Math.floor(f.id/5),anchor=[[19,84],[72,82],[31,63],[91,73],[48,91]][group];node.style.left=Math.max(6,Math.min(95,anchor[0]+Math.sin(ring*2.4+group)*Math.min(11,3+ring*.7)))+'%';node.style.top=Math.max(54,Math.min(94,anchor[1]+Math.cos(ring*2.4+group)*Math.min(7,2+ring*.5)))+'%';node.style.setProperty('--plant-delay',(-f.id*.8)+'s');self.plants.appendChild(node);}node.dataset.growth=f.growth;});
     };
-    return {Life:Life,flowersAt:flowersAt,activities:activities,labels:labels,View:View};
+    return {Life:Life,flowersAt:flowersAt,activities:activities,labels:labels,View:View,groundLayout:groundLayout};
 }));
