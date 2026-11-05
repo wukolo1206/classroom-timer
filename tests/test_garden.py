@@ -22,12 +22,14 @@ class Garden(unittest.TestCase):
  @classmethod
  def tearDownClass(cls):
   cls.browser.close();cls.pw.stop();cls.server.shutdown();cls.server.server_close()
- def open(self,width=1366):
+ def open(self,width=1366,direct=False):
   ctx=self.browser.new_context(viewport={'width':width,'height':768});self.addCleanup(ctx.close)
   ctx.add_init_script(FAKE);page=ctx.new_page();page.errors=[];page.on('pageerror',lambda e:page.errors.append(str(e)))
-  page.goto(self.url+'garden.html');self.assertEqual(page.title(),'班級祕密花園');return page
- def begin(self,p):
-  p.click('#garden-demo');p.fill('#garden-minutes','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase === 'running'")
+  page.goto(self.url+'garden.html');self.assertEqual(page.title(),'班級祕密花園')
+  if not direct:page.select_option('#garden-session-mode','timed')
+  return page
+ def begin(self,p,spawn=15):
+  p.click('#garden-demo');p.fill('#garden-minutes','1');p.fill('#garden-spawn-seconds',str(spawn));p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase === 'running'")
  def test_quiet_noise_recovery_and_collection(self):
   p=self.open();self.begin(p);p.clock.run_for(16000)
   self.assertEqual(p.locator('.garden-visitor').count(),1)
@@ -53,7 +55,7 @@ class Garden(unittest.TestCase):
  def test_responsive_and_31_visitors(self):
   for width in [1366,1024,640,390]:
    with self.subTest(width=width):
-    p=self.open(width);self.begin(p);p.clock.run_for(60000)
+    p=self.open(width);self.begin(p,spawn=1);p.clock.run_for(60000)
     self.assertEqual(p.locator('.garden-visitor').count(),31)
     self.assertFalse(p.evaluate('document.documentElement.scrollWidth>innerWidth'))
     boxes=p.locator('.garden-visitor').evaluate_all('(els)=>els.map(e=>{let r=e.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom}})')
@@ -78,13 +80,14 @@ class Garden(unittest.TestCase):
   ctx.route('**/*',serve)
   parent=ctx.new_page();parent.goto('https://script.google.com/garden-launch-test')
   with parent.expect_popup() as pop:parent.click('button')
-  child=pop.value;child.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')")
+  child=pop.value;child.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')");child.select_option('#garden-session-mode','timed')
   return parent,child
  def test_cloud_refresh_changes_avatar_without_resetting_garden(self):
   parent,p=self.cloud_pair();p.fill('#garden-minutes','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(16000)
-  self.assertEqual(p.locator('.garden-visitor').get_attribute('data-avatar'),'8')
-  parent.evaluate('window.currentAvatar=23');p.click('#garden-refresh');p.wait_for_function("document.querySelector('.garden-visitor').dataset.avatar==='23'")
-  self.assertEqual(p.locator('.garden-visitor').count(),1);self.assertEqual(p.inner_text('#garden-clock'),'00:44');self.assertGreaterEqual(parent.evaluate('window.calls'),3)
+  seat=p.locator('.garden-visitor').get_attribute('data-seat');parent.evaluate('s=>window.currentAvatar=23',seat)
+  if seat!='1':p.clock.run_for(15000)
+  parent.evaluate('window.currentAvatar=23');p.click('#garden-refresh');p.wait_for_function("document.querySelector('[data-seat=\"1\"]').dataset.avatar==='23'")
+  self.assertGreater(p.locator('.garden-visitor').count(),0);self.assertGreaterEqual(parent.evaluate('window.calls'),3)
  def test_cloud_refresh_failure_retains_previous_avatar(self):
   parent,p=self.cloud_pair();parent.evaluate('window.failRoster=true');p.click('#garden-refresh');p.wait_for_function("document.getElementById('garden-message').textContent.includes('offline')")
   self.assertIn('保留',p.inner_text('#garden-message'));p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='idle'");self.assertEqual(p.inner_text('#garden-clock'),'10:00')
@@ -92,7 +95,7 @@ class Garden(unittest.TestCase):
   parent,p=self.cloud_pair();p.evaluate("window.dispatchEvent(new MessageEvent('message',{origin:'https://evil.example',source:window.opener,data:{type:'garden:roster',roster:[{seat:99,avatar:23}]}}))")
   self.assertIn('2 位',p.inner_text('#garden-source'))
  def test_100_visitors_fit_inside_garden_without_overlap(self):
-  p=self.open(390);p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:Array.from({length:100},(_,i)=>({seat:i+1,avatar:i%24}))}))");p.reload();p.fill('#garden-minutes','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(60000)
+  p=self.open(390);p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:Array.from({length:100},(_,i)=>({seat:i+1,avatar:i%24}))}))");p.reload();p.fill('#garden-minutes','2');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(120000)
   self.assertEqual(p.locator('.garden-visitor').count(),100)
   data=p.locator('.garden-visitor').evaluate_all('(els)=>els.map(e=>{let r=e.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom}})')
   s=p.locator('#garden-scene').bounding_box()
@@ -122,13 +125,38 @@ class Garden(unittest.TestCase):
   parent=ctx.new_page();parent.goto(self.url+'garden-local-test')
   with parent.expect_popup() as pop:parent.click('button')
   p=pop.value;p.wait_for_function("document.getElementById('garden-source').textContent.includes('已更新')")
-  p.fill('#garden-minutes','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(16000)
-  self.assertEqual(p.locator('.garden-visitor').get_attribute('data-avatar'),'8')
+  p.select_option('#garden-session-mode','timed');p.fill('#garden-minutes','1');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000)
+  self.assertEqual(p.locator('[data-seat="1"]').get_attribute('data-avatar'),'8')
   parent.evaluate("() => {let s=JSON.parse(localStorage.getItem('c408_points_local/state'));s.bundle.events.push({seat:1,type:'score',batchId:'change',itemId:'avatar:23'});localStorage.setItem('c408_points_local/state',JSON.stringify(s));}")
-  p.click('#garden-refresh');p.wait_for_function("document.querySelector('.garden-visitor').dataset.avatar==='23'")
+  p.click('#garden-refresh');p.wait_for_function("document.querySelector('[data-seat=\"1\"]').dataset.avatar==='23'")
   parent.evaluate("() => {let s=JSON.parse(localStorage.getItem('c408_points_local/state'));s.bundle.events.push({type:'undo',originalBatchId:'change'});localStorage.setItem('c408_points_local/state',JSON.stringify(s));}")
-  before=parent.evaluate("localStorage.getItem('c408_points_local/state')");p.click('#garden-refresh');p.wait_for_function("document.querySelector('.garden-visitor').dataset.avatar==='8'")
+  before=parent.evaluate("localStorage.getItem('c408_points_local/state')");p.click('#garden-refresh');p.wait_for_function("document.querySelector('[data-seat=\"1\"]').dataset.avatar==='8'")
   self.assertEqual(parent.evaluate("localStorage.getItem('c408_points_local/state')"),before)
-  self.assertEqual(p.inner_text('#garden-count'),'1 / 3')
+  self.assertEqual(p.inner_text('#garden-count'),'3 / 3')
+ def test_meter_and_next_visitor_countdown_pause_and_retreat(self):
+  p=self.open(direct=True);self.assertEqual(p.locator('#garden-level').count(),1)
+  p.click('#garden-demo');p.fill('#garden-spawn-seconds','2');p.fill('#garden-loud-seconds','3');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(3000)
+  self.assertEqual(p.locator('.garden-visitor').count(),1);before=p.inner_text('#garden-next-seconds')
+  p.evaluate('window.micLevel=.1');p.clock.run_for(500);self.assertIn('暫停',p.inner_text('#garden-meter-status'));p.clock.run_for(1000);self.assertEqual(p.inner_text('#garden-next-seconds'),before)
+  self.assertEqual(p.locator('.visitor-body').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
+  p.clock.run_for(2000);self.assertEqual(p.locator('.garden-visitor').count(),0)
+  p.evaluate('window.micLevel=.001');p.clock.run_for(1500);self.assertEqual(p.locator('.garden-visitor').count(),1)
+ def test_direct_detection_keeps_running_and_has_visible_elapsed_time(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(125000)
+  self.assertEqual(p.locator('body').get_attribute('data-phase'),'running');self.assertEqual(p.inner_text('#garden-clock'),'02:05');self.assertIn('已偵測',p.inner_text('#garden-clock-label'))
+ def test_full_class_unlocks_animated_garden_changes(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(18000)
+  self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'3');self.assertGreater(p.locator('.garden-butterfly').count(),0);self.assertGreater(p.locator('.garden-star').count(),0)
+  self.assertIn('星光',p.inner_text('#garden-stage-label'));self.assertNotEqual(p.locator('.visitor-body').first.evaluate('(e)=>getComputedStyle(e).animationName'),'visitor-breathe')
+ def test_manual_end_cannot_resume_as_a_new_direct_session(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000)
+  p.on('dialog',lambda d:d.accept());p.click('#garden-end');self.assertEqual(p.locator('body').get_attribute('data-phase'),'ended')
+  p.evaluate('() => {AudioContext.prototype.resume=()=>new Promise(()=>{});}');p.click('#garden-start');p.wait_for_function('window.micRequests>=2')
+  p.evaluate("Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))")
+  self.assertEqual(p.locator('body').get_attribute('data-phase'),'idle')
+ def test_new_garden_clears_previous_visitors_before_first_arrival(self):
+  p=self.open();self.begin(p,spawn=1);p.clock.run_for(60000);self.assertEqual(p.locator('.garden-visitor').count(),31)
+  p.click('#garden-again');self.assertEqual(p.locator('.garden-visitor').count(),0)
+  p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");self.assertEqual(p.locator('.garden-visitor').count(),0)
 
 if __name__=='__main__':unittest.main()

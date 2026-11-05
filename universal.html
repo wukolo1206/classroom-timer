@@ -11030,28 +11030,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function Model(options) {
         this.roster=cleanRoster(options.roster);
-        this.durationMs=Math.max(60000,Math.min(7200000,Number(options.durationMs)||600000));
+        this.durationMs=options.durationMs===null?null:Math.max(60000,Math.min(7200000,Number(options.durationMs)||600000));
         this.threshold=Number(options.threshold)||50;
-        this.cursor=Math.max(0,Math.floor(Number(options.cursor)||0))%this.roster.length;
-        this.order=this.roster.slice(this.cursor).concat(this.roster.slice(0,this.cursor)).map(function(r){return r.seat;});
-        this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.recoveryMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
-        this.firstMs=15000;
-        this.stepMs=this.roster.length>1?(this.durationMs*.85-this.firstMs)/(this.roster.length-1):this.durationMs;
+        this.random=typeof options.random==='function'?options.random:Math.random;
+        this.spawnMs=Math.max(1000,Math.min(300000,Number(options.spawnMs)||15000));
+        this.loudGraceMs=Math.max(3000,Math.min(60000,Number(options.loudGraceMs)||8000));
+        this.upgradeMs=Math.max(5000,Math.min(300000,Number(options.upgradeMs)||30000));
+        this.present=[];this.queue=this.shuffle(this.roster.map(function(r){return r.seat;}));
+        this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
+        this.spawnProgressMs=0;this.upgradeProgressMs=0;this.stage=0;this.celebrations=0;this.departures=0;
     }
-    Model.prototype.visible=function(){var self=this;return this.order.slice(0,this.count).map(function(seat){return self.roster.find(function(r){return r.seat===seat;});}).filter(Boolean);};
-    Model.prototype.refresh=function(list){var next=cleanRoster(list), kept=this.order.filter(function(n){return next.some(function(r){return r.seat===n;});});next.forEach(function(r){if(kept.indexOf(r.seat)<0)kept.push(r.seat);});var visible=this.visible().filter(function(r){return next.some(function(n){return n.seat===r.seat;});}).map(function(r){return r.seat;});this.roster=next;this.order=visible.concat(kept.filter(function(n){return visible.indexOf(n)<0;}));this.count=visible.length;};
-    Model.prototype.pause=function(){this.paused=true;this.noisyMs=0;this.recoveryMs=0;};
-    Model.prototype.nextCursor=function(){var advance=this.count%this.roster.length;return (this.cursor+Math.max(1,advance))%this.roster.length;};
+    Model.prototype.shuffle=function(list){for(var i=list.length-1;i>0;i--){var j=Math.min(i,Math.max(0,Math.floor(this.random()*(i+1)))),v=list[i];list[i]=list[j];list[j]=v;}return list;};
+    Model.prototype.visible=function(){var self=this;return this.present.map(function(seat){return self.roster.find(function(r){return r.seat===seat;});}).filter(Boolean);};
+    Model.prototype.full=function(){return this.count===this.roster.length;};
+    Model.prototype.nextMs=function(){return this.full()?this.upgradeMs-this.upgradeProgressMs:this.spawnMs-this.spawnProgressMs;};
+    Model.prototype.refresh=function(list){var next=cleanRoster(list),has=function(n){return next.some(function(r){return r.seat===n;});};this.present=this.present.filter(has);this.queue=this.queue.filter(has);var self=this;next.forEach(function(r){if(self.present.indexOf(r.seat)<0&&self.queue.indexOf(r.seat)<0)self.queue.push(r.seat);});this.roster=next;this.count=this.present.length;};
+    Model.prototype.pause=function(){this.paused=true;this.noisyMs=0;this.resting=false;};
     Model.prototype.resume=function(){if(!this.ended)this.paused=false;};
     Model.prototype.tick=function(ms,level){
         if(this.paused||this.ended||!Number.isFinite(ms)||ms<=0)return;
-        var dt=Math.min(ms,this.durationMs-this.elapsedMs);this.elapsedMs+=dt;
+        var dt=this.durationMs===null?ms:Math.min(ms,this.durationMs-this.elapsedMs);this.elapsedMs+=dt;
         if(ms<=1500&&Number.isFinite(level)){
-            if(level>this.threshold){this.noisyMs+=dt;this.recoveryMs=0;if(this.noisyMs>=3000)this.resting=true;}
-            else {this.noisyMs=0;if(this.resting){if(level<=this.threshold-2)this.recoveryMs+=dt;else this.recoveryMs=0;if(this.recoveryMs>=2000){this.resting=false;this.recoveryMs=0;}}else this.quietMs+=dt;}
-            if(!this.resting&&this.quietMs>=this.firstMs)this.count=Math.max(this.count,Math.min(this.roster.length,1+Math.floor((this.quietMs-this.firstMs)/Math.max(1,this.stepMs))));
-        }else{this.noisyMs=0;this.recoveryMs=0;}
-        if(this.elapsedMs>=this.durationMs)this.ended=true;
+            if(level>this.threshold){this.resting=true;this.noisyMs+=dt;while(this.noisyMs>=this.loudGraceMs){this.noisyMs-=this.loudGraceMs;this.upgradeProgressMs=0;if(this.present.length){var seat=this.present.pop();this.queue.splice(Math.floor(this.random()*(this.queue.length+1)),0,seat);this.departures++;}this.count=this.present.length;}}
+            else {
+                this.noisyMs=0;this.resting=false;this.quietMs+=dt;var remaining=dt;
+                if(!this.full()){this.spawnProgressMs+=remaining;remaining=0;while(this.spawnProgressMs>=this.spawnMs&&this.queue.length){this.spawnProgressMs-=this.spawnMs;this.present.push(this.queue.shift());this.count=this.present.length;}if(this.full()){remaining=this.spawnProgressMs;this.spawnProgressMs=0;}}
+                if(this.full()){this.upgradeProgressMs+=remaining;while(this.upgradeProgressMs>=this.upgradeMs){this.upgradeProgressMs-=this.upgradeMs;if(this.stage<3)this.stage++;else this.celebrations++;}}
+            }
+        }else{this.noisyMs=0;this.resting=false;}
+        if(this.durationMs!==null&&this.elapsedMs>=this.durationMs)this.ended=true;
     };
     return {Model:Model,avatarRoster:avatarRoster,cleanRoster:cleanRoster};
 }));

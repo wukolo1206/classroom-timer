@@ -3,7 +3,7 @@ project: 班級紀錄器
 category: 學科工具集
 status: 開發中
 version: "GAS @64／全校版 v1.22"
-next_action: "花園候選已在codex/secret-garden完成；先本機試用，經同意後發布Pages及GAS；正式仍@64，勿由舊主目錄部署"
+next_action: "花園已依預覽回饋加入不限時、音量尺、隨機與退場升級；先試本機再決定發布，正式仍@64"
 updated: 2026-11-05
 ---
 
