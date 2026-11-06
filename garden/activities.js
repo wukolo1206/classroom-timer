@@ -22,7 +22,8 @@
             else art+='<g class="life-seedling"><path d="M77 77V54M77 65Q62 49 65 61Q70 70 77 68M77 62Q92 46 88 59Q83 66 77 65" fill="'+e+'" stroke="#7f9f62" stroke-width="2"/><ellipse cx="77" cy="78" rx="6" ry="3" fill="#755f4c"/></g><path class="life-pat" d="M60 76Q68 72 71 77L68 81L60 80Z" fill="'+d+'"/>';
         }
         if(id==='watering')art='<g class="life-can"><path d="M64 65H81L85 82H67Z" fill="'+d+'"/><path d="M81 67Q96 59 92 74L84 78M65 73L54 68L51 72L67 81" stroke="'+c+'" fill="none" stroke-width="4"/></g>';
-        return '<svg viewBox="0 0 100 100" xmlns="http:/'+'/www.w3.org/2000/svg"><g class="life-'+id+'" data-palette="'+(variant||0)+'">'+art+'</g></svg>';
+        var scale=['basketball','soccer','volleyball'].indexOf(id)>=0?1.4:1.3;
+        return '<svg viewBox="0 0 100 100" xmlns="http:/'+'/www.w3.org/2000/svg"><g class="life-'+id+'" data-palette="'+(variant||0)+'" transform="translate(3 0) translate(77 90) scale('+scale+') translate(-77 -90)">'+art+'</g></svg>';
     }
     return {labels:labels,palettes:palettes,propSvg:propSvg};
 }));

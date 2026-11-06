@@ -362,4 +362,11 @@ class Garden(unittest.TestCase):
     error=p.evaluate("""selector => {let scene=document.getElementById('garden-scene'),shape=scene.querySelector(selector),moving=shape.parentElement;moving.style.rotate='21deg';moving.style.translate='2px -3px';shape.id='fixture-export-geometry';let b=scene.getBoundingClientRect(),a=shape.getBoundingClientRect(),holder=document.createElement('div');holder.style.cssText='position:fixed;top:0;left:0';holder.innerHTML=GardenPainting.capture(scene,false);document.body.appendChild(holder);let r=holder.querySelector('#fixture-export-geometry').getBoundingClientRect(),error=Math.max(Math.abs(r.x-(a.x-b.x)),Math.abs(r.y-(a.y-b.y)),Math.abs(r.width-a.width),Math.abs(r.height-a.height));holder.remove();shape.removeAttribute('id');return error;}""",selector)
     self.assertLess(error,1)
 
+ def test_handheld_balls_are_large_enough_to_recognize(self):
+  p=self.open(direct=True);p.emulate_media(reduced_motion='reduce');p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.click('#garden-pause')
+  for activity,minimum in [('basketball',.22),('soccer',.19),('volleyball',.22)]:
+   with self.subTest(activity=activity):
+    ratio=p.evaluate("""activity => {let n=document.querySelector('.garden-visitor');n.dataset.activity=activity;n.querySelector('.activity-prop').innerHTML=GardenActivities.propSvg(activity,0);return n.querySelector('.activity-prop circle').getBoundingClientRect().width/n.querySelector('.visitor-body svg').getBoundingClientRect().width;}""",activity)
+    self.assertGreater(ratio,minimum,'held balls should be recognizable at classroom projection size')
+
 if __name__=='__main__':unittest.main()
