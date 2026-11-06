@@ -3,8 +3,8 @@ project: 班級紀錄器
 category: 學科工具集
 status: 維護中
 version: "GAS @65／全校版 v1.27"
-next_action: "8階段與PNG已發布並通過77項／正式31位唯讀驗證；接續真iPad與教室麥克風試用"
-updated: 2026-11-05
+next_action: "已確認8階段後持續變化方向；核對11/06新發現／6主景／8新活動規格後實作"
+updated: 2026-11-06
 ---
 
 # AGENTS.md — 班級計時器
