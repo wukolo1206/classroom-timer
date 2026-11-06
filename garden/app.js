@@ -5,7 +5,7 @@
     var source=new URLSearchParams(location.search).get('source')==='universal'?'universal':'c408';
     var prefix=source==='universal'?'ctu_garden_':'c408_garden_';
     var roster=[], model=null, media=null, openingMedia=null, phase='idle', demo=false, fresh=false, pending=null, requestSeq=0, operation=0, tickTimer=null, lastTick=0, silentMs=0, archived=false, renderKey=null;
-    var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,loud:8,upgrade:30},lastLevel=null,wildlifeKey='';
+    var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,loud:8,upgrade:30},lastLevel=null,wildlifeKey='',discoveries=new window.GardenDiscoveries.Session(),discovery=null;
     var lifeView=new window.GardenLife.View($('garden-visitors'),$('garden-blooms'),$('garden-meadow')),reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)'),grounded=null,finishedArt=null,saving=false,archiveSaved=false;
     window.GardenPainting.mount($('garden-scene'));
     function read(key,fallback){try{var v=JSON.parse(localStorage.getItem(prefix+key));return v===null?fallback:v;}catch(e){return fallback;}}
@@ -52,11 +52,11 @@
         Array.from(box.children).forEach(function(node){if(!list.some(function(r){return Number(node.dataset.seat)===r.seat;}))node.remove();});
         list.forEach(function(r,i){var node=box.querySelector('[data-seat="'+r.seat+'"]');if(!node){node=document.createElement('div');node.className='garden-visitor';node.dataset.seat=r.seat;node.dataset.motion=['sway','hop','turn','float'][r.seat%4];node.innerHTML='<div class="visitor-travel"><span class="ground-shadow" aria-hidden="true"></span><span class="activity-prop" aria-hidden="true"></span><div class="visitor-body"></div><small></small></div>';box.appendChild(node);}if(node.dataset.avatar!==String(r.avatar)){node.querySelector('.visitor-body').innerHTML=window.c408PointAvatars.svg(r.avatar);node.dataset.avatar=r.avatar;}node.querySelector('small').textContent=String(r.seat).padStart(2,'0')+'號';node.setAttribute('aria-label',r.seat+'號 '+window.c408PointAvatars.labels[r.avatar]);var p=grounded.positions[i];node.style.left=p.left+'%';node.style.top=p.top+'%';node.style.zIndex=Math.floor(p.footY*1000);node.style.setProperty('--delay',(-i*.7)+'s');});
     }
-    function renderLife(dt){var box=$('garden-visitors'),active=phase==='running'&&!!model&&!model.resting&&Number.isFinite(lastLevel);$('garden-scene').dataset.lifeActive=active?'true':'false';lifeView.render(model?model.visible():[],Number.isFinite(dt)?dt:0,{width:box.clientWidth,height:box.clientHeight,rows:grounded.rows,columns:grounded.columns,rowPitch:grounded.rowPitch,size:grounded.size},active,reducedMotion.matches,model?model.quietMs:0,model?model.stage:0);}
-    function renderUpgrades(){
+    function renderLife(dt){var box=$('garden-visitors'),active=phase==='running'&&!!model&&!model.resting&&Number.isFinite(lastLevel);$('garden-scene').dataset.lifeActive=active?'true':'false';lifeView.render(model?model.visible():[],Number.isFinite(dt)?dt:0,{width:box.clientWidth,height:box.clientHeight,rows:grounded.rows,columns:grounded.columns,rowPitch:grounded.rowPitch,size:grounded.size},active,reducedMotion.matches,model?model.quietMs:0,model?model.stage:0,discovery);}
+    function renderUpgrades(dt){
         var stage=model?model.stage:0,rewards=model?model.celebrations:0;
-        window.GardenPainting.update($('garden-scene'),stage,!model);
-        $('garden-stage-label').textContent=engine.stageNames[stage]+' · '+(stage+1)+'/8'+(rewards?' · '+rewards+' 次祝福':'');
+        window.GardenPainting.update($('garden-scene'),stage,!model,{discovery:discovery,dt:dt,active:$('garden-scene').dataset.lifeActive==='true',reduced:reducedMotion.matches});
+        $('garden-stage-label').textContent=engine.stageNames[stage]+' · '+(stage+1)+'/8'+(rewards?' · 新發現 '+rewards+' · '+discovery.themeName:'');
         $('garden-save').disabled=!model||saving;$('garden-finish-save').disabled=!model||saving;
         if(stage===wildlifeKey)return;wildlifeKey=stage;var box=$('garden-wildlife');box.textContent='';
         if(stage>=3)for(var i=0;i<3;i++){var butterfly=document.createElement('span');butterfly.className='garden-butterfly';butterfly.style.left=[20,68,85][i]+'%';butterfly.style.top=[55,62,43][i]+'%';butterfly.style.setProperty('--delay',(-i*1.7)+'s');butterfly.innerHTML='<svg viewBox="0 0 50 40"><g fill="'+['#e9ba78','#ceb3df','#efc1b5'][i]+'"><ellipse cx="15" cy="12" rx="11" ry="13"/><ellipse cx="35" cy="12" rx="11" ry="13"/><circle cx="17" cy="28" r="8"/><circle cx="33" cy="28" r="8"/></g><path d="M25 8V34" stroke="#77634d" stroke-width="2"/></svg>';box.appendChild(butterfly);}
@@ -66,20 +66,21 @@
         $('garden-target').textContent=target;$('garden-level').textContent=valid?Math.round(lastLevel):'--';$('garden-meter-fill').style.width=(valid?Math.max(0,Math.min(100,(lastLevel-20)/80*100)):0)+'%';$('garden-meter-limit').style.left=((target-20)/80*100)+'%';var track=$('garden-meter').querySelector('[role=meter]');if(valid)track.setAttribute('aria-valuenow',Math.max(20,Math.min(100,Math.round(lastLevel))));else track.removeAttribute('aria-valuenow');$('garden-meter').dataset.state=over?'over':valid?'good':'idle';
         $('garden-meter-status').textContent=phase==='paused'?'老師暫停，麥克風已關閉':!active?'等候開始偵測':!valid?'等待麥克風訊號':over?'超過範圍，倒數暫停'+(model.count?' · 再 '+Math.ceil((model.loudGraceMs-model.noisyMs)/1000)+' 秒休息一位':''):'音量合宜，倒數前進中';
         var full=model&&model.full(),total=full?model.upgradeMs:model?model.spawnMs:cfg.spawn*1000,next=model?model.nextMs():total;
-        $('garden-next-label').textContent=full?(model.stage<7?engine.stageNames[model.stage+1]:'下一次祝福'):'下一位夥伴';$('garden-next-seconds').textContent=Math.ceil(next/1000);$('garden-next-state').textContent=phase==='paused'?'老師暫停':over?'倒數暫停':phase==='ended'?'本次活動已結束':valid?'累積合宜音量':'合宜音量就會前進';$('garden-next').dataset.paused=(!valid||over)?'true':'false';$('garden-next-fill').style.width=Math.max(0,Math.min(100,(1-next/total)*100))+'%';
+        $('garden-next-label').textContent=full?(model.stage<7?engine.stageNames[model.stage+1]:'下一次新發現'):'下一位夥伴';$('garden-next-seconds').textContent=Math.ceil(next/1000);$('garden-next-state').textContent=phase==='paused'?'老師暫停':over?'倒數暫停':phase==='ended'?'本次活動已結束':valid?'累積合宜音量':'合宜音量就會前進';$('garden-next').dataset.paused=(!valid||over)?'true':'false';$('garden-next-fill').style.width=Math.max(0,Math.min(100,(1-next/total)*100))+'%';
     }
     function render(dt){
+        discovery=discoveries.sync(model?model.discoveryCount:0,model?model.visible().map(function(r){return r.seat;}):[]);
         $('garden-count').textContent=(model?model.visible().length:0)+' / '+roster.length;
         var timed=model?model.durationMs!==null:$('garden-session-mode').value==='timed';$('garden-minutes-wrap').hidden=$('garden-session-mode').value!=='timed';$('garden-clock-label').textContent=timed?'剩餘時間':'已偵測';$('garden-clock').setAttribute('aria-label',timed?'剩餘時間':'已偵測時間');$('garden-clock').textContent=format(model?(timed?model.durationMs-model.elapsedMs:model.elapsedMs):timed?Number($('garden-minutes').value)*60000:0,!timed);
         $('garden-activity-label').textContent=$('garden-activity').value;
         var mood=phase==='running'?(model&&model.resting?'resting':'growing'):phase==='paused'?'paused':'idle';
         $('garden-scene').dataset.mood=mood;
-        $('garden-caption').textContent=phase==='ended'?'今天的專注，已成為花園的一部分':phase==='paused'?'老師說明中，夥伴休息一下':phase==='running'?(silentMs>=3000?'花園正在等麥克風的聲音':model.resting?'放輕聲音，倒數就會繼續':model.full()?(model.stage===7?'月光花園完成，一起累積祝福':'全員到齊，一起讓花園升級'):'花園正在慢慢成長'):'花園正在等大家';
-        layoutVisitors();renderVisitors();renderLife(dt);renderUpgrades();window.GardenPainting.setActive($('garden-scene'),$('garden-scene').dataset.lifeActive==='true');renderFeedback();renderWelcome();
+        $('garden-caption').textContent=phase==='ended'?'今天的專注，已成為花園的一部分':phase==='paused'?'老師說明中，夥伴休息一下':phase==='running'?(silentMs>=3000?'花園正在等麥克風的聲音':model.resting?'放輕聲音，倒數就會繼續':model.full()?(model.stage===7?discovery.count?'新發現 '+discovery.count+'：'+discovery.activityName:'月光花園完成，新的日常即將開始':'全員到齊，一起讓花園升級'):'花園正在慢慢成長'):'花園正在等大家';
+        layoutVisitors();renderVisitors();renderLife(dt);renderUpgrades(dt);window.GardenPainting.setActive($('garden-scene'),$('garden-scene').dataset.lifeActive==='true');renderFeedback();renderWelcome();
     }
     function archive(){
         if(archived||!model)return;archived=true;
-        var entry={at:new Date().toISOString(),durationMs:model.elapsedMs,quietMs:model.quietMs,visitors:model.visible(),total:model.roster.length,demo:demo,stage:model.stage,celebrations:model.celebrations};Object.assign(entry,engine.stageMetadata(model.stage));
+        var entry={at:new Date().toISOString(),durationMs:model.elapsedMs,quietMs:model.quietMs,visitors:model.visible(),total:model.roster.length,demo:demo,stage:model.stage,celebrations:model.celebrations};Object.assign(entry,engine.stageMetadata(model.stage));entry.discovery={count:discovery.count,themeId:discovery.themeId,themeName:discovery.themeName,unlockedIds:discovery.unlockedIds.slice()};
         // Current records carry their own stage scheme.
         var list=read('history',[]);if(!Array.isArray(list))list=[];archiveSaved=write('history',[entry].concat(list).slice(0,12));
         showHistory();
@@ -99,7 +100,7 @@
             openingMedia={stream:stream,ctx:null};var AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();openingMedia.ctx=ctx;await ctx.resume();
             if(token!==operation){stream.getTracks().forEach(function(t){t.stop();});ctx.close();return;}
             var src=ctx.createMediaStreamSource(stream),hp=ctx.createBiquadFilter(),an=ctx.createAnalyser();hp.type='highpass';hp.frequency.value=100;an.fftSize=4096;src.connect(hp);hp.connect(an);
-            if(!resuming){var min=Number($('garden-minutes').value);model=new engine.Model({roster:roster,durationMs:$('garden-session-mode').value==='direct'?null:min*60000,threshold:cfg[$('garden-mode').value],spawnMs:cfg.spawn*1000,loudGraceMs:cfg.loud*1000,upgradeMs:cfg.upgrade*1000});archived=false;archiveSaved=false;finishedArt=null;renderKey=null;window.GardenPainting.update($('garden-scene'),0,true);lifeView.reset();wildlifeKey='';}else model.resume();
+            if(!resuming){var min=Number($('garden-minutes').value);model=new engine.Model({roster:roster,durationMs:$('garden-session-mode').value==='direct'?null:min*60000,threshold:cfg[$('garden-mode').value],spawnMs:cfg.spawn*1000,loudGraceMs:cfg.loud*1000,upgradeMs:cfg.upgrade*1000});archived=false;archiveSaved=false;finishedArt=null;renderKey=null;discoveries.reset();window.GardenPainting.update($('garden-scene'),0,true);lifeView.reset();wildlifeKey='';}else model.resume();
             media={stream:stream,ctx:ctx,an:an,buf:new Float32Array(an.fftSize)};openingMedia=null;silentMs=0;
             stream.getTracks().forEach(function(t){t.addEventListener('ended',function(){if(media)pause('麥克風已中斷，活動已暫停。確認連線後按繼續。');});});
             $('garden-welcome').hidden=true;$('garden-finish').hidden=true;setPhase('running');lastTick=performance.now();
@@ -117,7 +118,7 @@
     function showHistory(){
         var box=$('garden-history'),list=read('history',[]);box.textContent='';
         if(!Array.isArray(list)||!list.length){box.textContent='還沒有活動紀錄。結束一次活動後會留下摘要；想保留畫面，請按「保存花園畫」。';return;}
-        list.slice(0,12).forEach(function(h){if(!h||!Array.isArray(h.visitors)||typeof h.at!=='string')return;var card=document.createElement('article'),title=document.createElement('strong'),text=document.createElement('p'),icons=document.createElement('div');title.textContent=new Date(h.at).toLocaleDateString('zh-TW',{month:'long',day:'numeric'})+(h.demo?' · 示範':' · 班級花園');text.textContent=h.visitors.length+' 位夥伴 · 合宜音量 '+Math.floor((Number(h.quietMs)||0)/60000)+' 分鐘 · '+engine.recordStage(h).stageName+(engine.recordStage(h).stageTotal?' · '+(engine.recordStage(h).stageIndex+1)+'/'+engine.recordStage(h).stageTotal:'')+(h.celebrations?' · '+h.celebrations+' 次祝福':'');icons.className='history-avatars';h.visitors.filter(function(r){return r&&Number.isInteger(r.avatar)&&r.avatar>=0&&r.avatar<24;}).slice(0,31).forEach(function(r){icons.insertAdjacentHTML('beforeend',window.c408PointAvatars.svg(r.avatar));});card.append(title,text,icons);box.appendChild(card);});
+        list.slice(0,12).forEach(function(h){if(!h||!Array.isArray(h.visitors)||typeof h.at!=='string')return;var card=document.createElement('article'),title=document.createElement('strong'),text=document.createElement('p'),icons=document.createElement('div');title.textContent=new Date(h.at).toLocaleDateString('zh-TW',{month:'long',day:'numeric'})+(h.demo?' · 示範':' · 班級花園');text.textContent=h.visitors.length+' 位夥伴 · 合宜音量 '+Math.floor((Number(h.quietMs)||0)/60000)+' 分鐘 · '+engine.recordStage(h).stageName+(engine.recordStage(h).stageTotal?' · '+(engine.recordStage(h).stageIndex+1)+'/'+engine.recordStage(h).stageTotal:'')+(h.schema===3&&h.discovery&&Number.isInteger(h.discovery.count)?' · 新發現 '+h.discovery.count+(h.discovery.themeName?' · '+h.discovery.themeName:''):(h.celebrations?' · '+h.celebrations+' 次祝福':''));icons.className='history-avatars';h.visitors.filter(function(r){return r&&Number.isInteger(r.avatar)&&r.avatar>=0&&r.avatar<24;}).slice(0,31).forEach(function(r){icons.insertAdjacentHTML('beforeend',window.c408PointAvatars.svg(r.avatar));});card.append(title,text,icons);box.appendChild(card);});
     }
     $('garden-demo').onclick=function(){if(pending){var p=pending;pending=null;clearTimeout(p.timer);p.reject({cancelled:true,message:'已切換示範夥伴'});}demo=true;fresh=false;roster=engine.cleanRoster(Array.from({length:31},function(_,i){return {seat:i+1,avatar:(i+8)%24};}));$('garden-source').textContent='示範模式 · 31 位示範夥伴，與真實班級配對無關';$('garden-demo').textContent='示範夥伴已就緒';message('選好時間後，按「開始照顧花園」。');render();};
     $('garden-refresh').onclick=async function(){this.disabled=true;var wasDemo=demo,oldRoster=roster;if(demo&&hasParent())demo=false;try{await requestRoster();message(demo?'目前使用示範夥伴。':'已更新目前頭像，花園進度保留。');}catch(e){if(!e.cancelled){if(wasDemo){demo=true;roster=oldRoster;}fresh=false;message(e.message+' 已載入的夥伴與進度都保留。',true);}}finally{this.disabled=phase==='ended';render();}};
@@ -125,8 +126,8 @@
     $('garden-welcome-start').onclick=function(){$('garden-start').click();};
     $('garden-class-retry').onclick=function(){$('garden-refresh').click();};
     $('garden-pause').onclick=function(){if(phase==='paused')acquire(true);else pause();};
-    $('garden-end').onclick=function(){if(model&&window.confirm('結束這次活動並收藏目前的花園嗎？'))finish();};
-    $('garden-again').onclick=function(){model=null;finishedArt=null;renderKey=null;lifeView.reset();setPhase('idle');$('garden-finish').hidden=true;$('garden-welcome').hidden=false;render();$('garden-start').focus();};
+    $('garden-end').onclick=function(){if(model&&window.confirm('結束這次活動並保留活動摘要嗎？'))finish();};
+    $('garden-again').onclick=function(){model=null;finishedArt=null;renderKey=null;discoveries.reset();lifeView.reset();setPhase('idle');$('garden-finish').hidden=true;$('garden-welcome').hidden=false;render();$('garden-start').focus();};
     function saveStatus(text){$('garden-save-status').textContent=text;$('garden-finish-save-status').textContent=text;}
     $('garden-finish-save').onclick=function(){$('garden-save').click();};
     $('garden-save').onclick=async function(){

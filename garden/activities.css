@@ -1,0 +1,43 @@
+/* All animated props stay inside their 100 x 100 action cell. */
+.life-dribble{animation:activity-dribble 1.4s ease-in infinite}
+.life-foot-ball{animation:activity-foot-ball 4s ease-in-out infinite;transform-origin:75px 85px}
+.life-toss{animation:activity-toss 3.5s ease-in-out infinite}
+.life-racket{animation:activity-racket 3s ease-in-out infinite;transform-origin:69px 80px}
+.life-tennis-ball{animation:activity-tennis-ball 3s ease-in-out infinite}
+.life-shuttle{animation:activity-shuttle 4s ease-in-out infinite;transform-origin:76px 32px}
+.life-glove{animation:activity-glove 4s ease-in-out infinite;transform-origin:75px 78px}
+.life-catch-ball{animation:activity-catch-ball 4s ease-in-out infinite}
+.life-seed-bag{animation:activity-seed-bag 4.5s ease-in-out infinite;transform-origin:70px 66px}
+.life-seeds{animation:activity-seeds 4.5s ease-in infinite}
+.life-seedling{animation:activity-seedling 5s ease-in-out infinite}
+.life-pat{animation:activity-pat 5s ease-in-out infinite}
+.garden-visitor[data-activity=basketball] .visitor-body{animation:activity-dribble-body 1.4s ease-in infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=soccer] .visitor-body{animation:activity-kick 4s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=volleyball] .visitor-body{animation:activity-reach 3.5s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=tennis] .visitor-body,.garden-visitor[data-activity=badminton] .visitor-body{animation:activity-racket-body 4s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=baseball] .visitor-body{animation:activity-brace 4s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=sowing] .visitor-body{animation:activity-sow-body 4.5s ease-in-out infinite;transform-origin:50% 88%}
+.garden-visitor[data-activity=planting] .visitor-body{animation:activity-plant-body 5s ease-in-out infinite;transform-origin:50% 88%}
+@keyframes activity-dribble{0%,100%{transform:translateY(-8px)}55%{transform:translateY(8px)}}
+@keyframes activity-foot-ball{0%,100%{transform:translateX(-6px) rotate(-20deg)}40%,60%{transform:translateX(6px) rotate(20deg)}}
+@keyframes activity-toss{0%,100%{transform:translateY(0)}45%{transform:translateY(-19px)}}
+@keyframes activity-racket{0%,100%{transform:rotate(0)}50%{transform:rotate(-9deg)}}
+@keyframes activity-tennis-ball{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes activity-shuttle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-9px) rotate(12deg)}}
+@keyframes activity-glove{0%,100%{transform:rotate(0)}45%,60%{transform:rotate(-6deg)}}
+@keyframes activity-catch-ball{0%,100%{transform:translate(0,0)}45%{transform:translate(3px,-15px)}}
+@keyframes activity-seed-bag{0%,100%{transform:rotate(0)}30%,65%{transform:rotate(14deg)}}
+@keyframes activity-seeds{0%,20%,100%{opacity:0;transform:translateY(0)}35%{opacity:1}65%{opacity:0;transform:translateY(7px)}}
+@keyframes activity-seedling{0%,100%{transform:translateY(-7px)}40%,70%{transform:translateY(0)}}
+@keyframes activity-pat{0%,35%,100%{transform:translateY(-3px)}50%,65%{transform:translateY(2px)}}
+@keyframes activity-dribble-body{0%,100%{transform:scaleY(1)}55%{transform:scaleY(.97)}}
+@keyframes activity-kick{0%,100%{transform:rotate(-2deg)}40%{transform:rotate(4deg)}}
+@keyframes activity-reach{0%,100%{transform:scaleY(.98)}45%{transform:scaleY(1.02)}}
+@keyframes activity-racket-body{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg)}}
+@keyframes activity-brace{0%,100%{transform:scale(1)}45%,60%{transform:scale(1.02,.97)}}
+@keyframes activity-sow-body{0%,100%{transform:rotate(0)}30%,65%{transform:rotate(5deg)}}
+@keyframes activity-plant-body{0%,100%{transform:scaleY(1)}40%,70%{transform:scaleY(.94)}}
+/* Small cells hold the props; reduced motion also keeps a readable static pose. */
+.garden-visitor[data-life-compact=true] .activity-prop *,.garden-visitor[data-life-compact=true] .visitor-body{animation:none!important}
+.garden-visitor[data-life-active=false] .visitor-body,.garden-visitor[data-life-active=false] .activity-prop *{animation-play-state:paused}
+@media(prefers-reduced-motion:reduce){.garden-visitor .visitor-body,.garden-visitor .activity-prop *{animation:none!important;transition:none!important}}

@@ -9415,16 +9415,16 @@ document.addEventListener('DOMContentLoaded', () => {
     else root.SecretGarden = factory();
 }(typeof window === 'object' ? window : this, function () {
     'use strict';
-    var STAGE_SCHEME='garden-painting-8-v1';
+    var STAGE_SCHEME='garden-living-8-v1';
     var stageNames=Object.freeze(['夥伴入園','花圃甦醒','綠意成蔭','蝴蝶來訪','池塘映光','祕密花園','晚霞時光','月光成畫']);
     var legacyStageNames=['迎接夥伴','花朵盛開','蝴蝶來訪','星光花園'];
     function stageMetadata(index){
         if(!Number.isInteger(index)||index<0||index>=stageNames.length)throw Error('花園階段不正確');
-        return {schema:2,stageScheme:STAGE_SCHEME,stageIndex:index,stageTotal:stageNames.length,stageName:stageNames[index]};
+        return {schema:3,stageScheme:STAGE_SCHEME,stageIndex:index,stageTotal:stageNames.length,stageName:stageNames[index]};
     }
     function recordStage(record){
         record=record||{};
-        if(record.stageScheme===STAGE_SCHEME&&Number.isInteger(record.stageIndex)&&record.stageIndex>=0&&record.stageIndex<stageNames.length){var meta=stageMetadata(record.stageIndex);if(typeof record.stageName==='string'&&record.stageName.trim())meta.stageName=record.stageName;return meta;}
+        if((record.stageScheme===STAGE_SCHEME||record.stageScheme==='garden-painting-8-v1')&&Number.isInteger(record.stageIndex)&&record.stageIndex>=0&&record.stageIndex<stageNames.length){var meta=stageMetadata(record.stageIndex);if(record.stageScheme!==STAGE_SCHEME){meta.schema=2;meta.stageScheme=record.stageScheme;}if(typeof record.stageName==='string'&&record.stageName.trim())meta.stageName=record.stageName;return meta;}
         if(!record.stageScheme&&Number.isInteger(record.stage)&&record.stage>=0&&record.stage<legacyStageNames.length)return {stageScheme:'legacy-4',stageIndex:record.stage,stageTotal:4,stageName:legacyStageNames[record.stage]};
         return {stageScheme:null,stageIndex:null,stageTotal:null,stageName:'未記錄階段'};
     }
@@ -9455,6 +9455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
         this.spawnProgressMs=0;this.upgradeProgressMs=0;this.stage=0;this.celebrations=0;this.departures=0;
     }
+    Object.defineProperty(Model.prototype,'discoveryCount',{get:function(){return this.celebrations;}});
     Object.defineProperty(Model.prototype,'stageIndex',{get:function(){return this.stage;}});
     Model.prototype.shuffle=function(list){for(var i=list.length-1;i>0;i--){var j=Math.min(i,Math.max(0,Math.floor(this.random()*(i+1)))),v=list[i];list[i]=list[j];list[j]=v;}return list;};
     Model.prototype.visible=function(){var self=this;return this.present.map(function(seat){return self.roster.find(function(r){return r.seat===seat;});}).filter(Boolean);};

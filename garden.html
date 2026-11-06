@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="garden/garden.css">
   <link rel="stylesheet" href="garden/life.css">
   <link rel="stylesheet" href="garden/painting.css">
+  <link rel="stylesheet" href="garden/fixtures.css">
+  <link rel="stylesheet" href="garden/activities.css">
 </head>
 <body data-phase="idle">
   <main class="garden-shell" id="garden-shell">
@@ -46,12 +48,15 @@
     <div class="garden-save-tools"><button id="garden-save" class="soft-button" disabled>保存花園畫（PNG）</button><label><input type="checkbox" id="garden-save-seats">畫作包含座號</label><p id="garden-save-status" role="status">可保存任何完成程度的花園；圖片下載到這台裝置，活動紀錄只保存摘要。</p></div>
     <p id="garden-source" class="source-note">尚未載入班級夥伴。請由計時器的「音量計」開啟花園。</p>
     <p id="garden-message" role="status" class="garden-message">首次開始時，請允許使用麥克風。</p>
-    <details class="garden-settings"><summary>音量微調與使用說明</summary><div class="settings-grid"><label>自習音量目標 <input id="garden-study-threshold" type="range" min="30" max="85" value="50"><output id="garden-study-value">50</output></label><label>討論音量目標 <input id="garden-discuss-threshold" type="range" min="40" max="95" value="65"><output id="garden-discuss-value">65</output></label></div><p>音量超過目標，小倒數立即暫停；短暫聲響不會讓夥伴離開。持續超標達設定秒數，就讓一位夥伴休息；繼續超標，每隔同樣秒數再減少一位。恢復合宜音量後接著倒數，休息的夥伴仍可再次回來。</p><p>全員到齊後，依序解鎖「花圃甦醒 → 綠意成蔭 → 蝴蝶來訪 → 池塘映光 → 祕密花園木橋 → 晚霞時光 → 月光成畫」，之後繼續累積祝福；不再增加裝飾。已解鎖景色保留；有夥伴離開時，先迎回夥伴，再從頭累積這次尚未完成的升級倒數。</p><p>數字是麥克風的約略音量參考。先試聽教室音量；一直無法前進時，把目標調高一些。老師說明時按上方「Ⅱ」，計時與麥克風都會暫停。切到其他視窗也會暫停，回來再按繼續。</p><p>夥伴隨機出現，代表全班合作，不代表個人表現。只在本機計算音量，不錄音、不上傳，不自動加扣點。正式雲端頭像更新需要保留原班級頁面開啟。</p></details>
+    <details class="garden-settings"><summary>音量微調與使用說明</summary><div class="settings-grid"><label>自習音量目標 <input id="garden-study-threshold" type="range" min="30" max="85" value="50"><output id="garden-study-value">50</output></label><label>討論音量目標 <input id="garden-discuss-threshold" type="range" min="40" max="95" value="65"><output id="garden-discuss-value">65</output></label></div><p>音量超過目標，小倒數立即暫停；短暫聲響不會讓夥伴離開。持續超標達設定秒數，就讓一位夥伴休息；繼續超標，每隔同樣秒數再減少一位。恢復合宜音量後接著倒數，休息的夥伴仍可再次回來。</p><p>全員到齊後，依序解鎖「花圃甦醒 → 綠意成蔭 → 蝴蝶來訪 → 池塘映光 → 祕密花園木橋 → 晚霞時光 → 月光成畫」，月光完成後，每段合宜音量都會有新發現，輪替噴水池、兔子石像、小鳥飲水台、花藤拱門、小風車與木橋，並逐步解鎖球類、播種及移苗種花；主景會替換，不持續堆滿畫面。已解鎖景色保留；有夥伴離開時，先迎回夥伴，再從頭累積這次尚未完成的升級倒數。</p><p>數字是麥克風的約略音量參考。先試聽教室音量；一直無法前進時，把目標調高一些。老師說明時按上方「Ⅱ」，計時與麥克風都會暫停。切到其他視窗也會暫停，回來再按繼續。</p><p>夥伴隨機出現，代表全班合作，不代表個人表現。只在本機計算音量，不錄音、不上傳，不自動加扣點。正式雲端頭像更新需要保留原班級頁面開啟。</p></details>
     <div id="garden-history" class="garden-history" hidden aria-label="最近的花園收藏"></div>
   </section>
   <script src="points/avatars.js"></script>
   <script src="garden/core.js"></script>
+  <script src="garden/discoveries.js"></script>
+  <script src="garden/activities.js"></script>
   <script src="garden/life.js"></script>
+  <script src="garden/fixtures.js"></script>
   <script src="garden/painting.js"></script>
   <script src="garden/app.js"></script>
 </body>

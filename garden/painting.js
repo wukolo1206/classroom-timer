@@ -9,10 +9,13 @@
         var stars=scene.querySelector('#painting-stars');
         for(var j=0;j<12;j++){var star=document.createElementNS(NS,'path'),x=60+j*71%890,y=32+j*37%156;star.classList.add('garden-star');star.setAttribute('d','M'+x+' '+(y-4)+'L'+(x+1)+' '+(y-1)+'L'+(x+4)+' '+y+'L'+(x+1)+' '+(y+1)+'L'+x+' '+(y+4)+'L'+(x-1)+' '+(y+1)+'L'+(x-4)+' '+y+'L'+(x-1)+' '+(y-1)+'Z');star.style.animationDelay=(-j*.6)+'s';stars.appendChild(star);}
         scene.querySelectorAll('[data-layer="fireflies"] circle').forEach(function(f,i){f.classList.add('garden-firefly');f.style.animationDelay=(-i*.8)+'s';});
-        update(scene,0);
+        scene._fixtureView=new window.GardenFixtures.View(scene.querySelector('.garden-art'));
+        update(scene,0,true);
     }
-    function update(scene,stage,immediate){
-        if(scene._paintingStage===stage)return;scene._paintingStage=stage;scene._paintingChanged=true;
+    function update(scene,stage,immediate,presentation){
+        var state=presentation||{},theme=state.discovery&&state.discovery.themeId||'bridge';
+        var changed=scene._fixtureView.render(theme,state.dt||0,!!state.active,!!state.reduced,!!immediate);
+        if(scene._paintingStage===stage&&!changed)return;scene._paintingStage=stage;scene._paintingChanged=true;
         scene.dataset.stage=stage;
         var palette=palettes[stage>=7?2:stage>=6?1:0];
         ['--sky-top','--sky-bottom','--grass','--grass-far','--leaf','--hill','--water'].forEach(function(k,i){scene.style.setProperty(k,palette[i]);});
@@ -31,7 +34,7 @@
     // foreignObject, network resource or private page URL.
     function vectorCopy(svg){
         var copy=svg.cloneNode(true),original=[svg].concat(Array.from(svg.querySelectorAll('*'))),clones=[copy].concat(Array.from(copy.querySelectorAll('*')));
-        original.forEach(function(node,i){var style=getComputedStyle(node),out=clones[i];out.removeAttribute('class');out.removeAttribute('style');['stop-color','stop-opacity','fill','fill-opacity','stroke','stroke-width','stroke-linecap','stroke-linejoin','stroke-opacity','opacity','visibility','transform','transform-origin','font-family','font-size','font-weight','text-anchor'].forEach(function(key){var value=style.getPropertyValue(key);if(value){value=value.replace(/url\(["']?[^)"']*#([^)'" ]+)["']?\)/g,'url(#$1)');out.style.setProperty(key,value);}});});
+        original.forEach(function(node,i){var style=getComputedStyle(node),out=clones[i];out.removeAttribute('class');out.removeAttribute('style');['stop-color','stop-opacity','fill','fill-opacity','stroke','stroke-width','stroke-linecap','stroke-linejoin','stroke-opacity','opacity','visibility','transform','translate','rotate','scale','transform-origin','transform-box','font-family','font-size','font-weight','text-anchor'].forEach(function(key){var value=style.getPropertyValue(key);if(value){value=value.replace(/url\(["']?[^)"']*#([^)'" ]+)["']?\)/g,'url(#$1)');out.style.setProperty(key,value);}});});
         copy.removeAttribute('aria-hidden');copy.removeAttribute('role');copy.removeAttribute('aria-label');return copy;
     }
     function capture(scene,includeSeats){
@@ -44,7 +47,7 @@
             // One matrix maps original SVG coordinates to the scene. Never apply
             // a reflected bounding box and the reflection a second time.
             group.setAttribute('transform','matrix('+[matrix.a,matrix.b,matrix.c,matrix.d,matrix.e-box.left,matrix.f-box.top].join(' ')+')');
-            c.style.transform='none';c.style.transformOrigin='0 0';c.style.overflow='visible';c.setAttribute('x',view.x);c.setAttribute('y',view.y);c.setAttribute('width',view.width);c.setAttribute('height',view.height);group.appendChild(c);art.appendChild(group);
+            c.style.transform='none';c.style.translate='none';c.style.rotate='none';c.style.scale='none';c.style.transformOrigin='0 0';c.style.overflow='visible';c.setAttribute('x',view.x);c.setAttribute('y',view.y);c.setAttribute('width',view.width);c.setAttribute('height',view.height);group.appendChild(c);art.appendChild(group);
         }
         scene.querySelectorAll('.garden-meadow-patch>svg,.garden-flower>svg,.garden-butterfly>svg').forEach(function(svg){place(svg);});
         Array.from(scene.querySelectorAll('.garden-visitor')).sort(function(a,b){return Number(a.style.zIndex)-Number(b.style.zIndex);}).forEach(function(person){

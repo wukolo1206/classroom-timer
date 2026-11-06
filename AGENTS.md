@@ -1,9 +1,9 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 維護中
+status: 開發中
 version: "GAS @65／全校版 v1.27"
-next_action: "已確認8階段後持續變化方向；核對11/06新發現／6主景／8新活動規格後實作"
+next_action: "持續新發現v1.28候選已完成，接續完整回歸與正式唯讀發布驗證"
 updated: 2026-11-06
 ---
 

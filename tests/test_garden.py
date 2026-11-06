@@ -239,7 +239,7 @@ class Garden(unittest.TestCase):
    if stage<7:p.clock.run_for(5000)
   self.assertEqual(p.locator('.garden-butterfly').count(),3);self.assertEqual(p.locator('.garden-star').count(),12);self.assertEqual(p.locator('.garden-firefly').count(),5)
   plants=p.locator('.garden-flower').count();p.clock.run_for(60000)
-  self.assertEqual(p.locator('.garden-flower').count(),plants);self.assertEqual(p.locator('.garden-star').count(),12);self.assertIn('祝福',p.inner_text('#garden-stage-label'));self.assertEqual(p.errors,[])
+  self.assertEqual(p.locator('.garden-flower').count(),plants);self.assertEqual(p.locator('.garden-star').count(),12);self.assertIn('新發現',p.inner_text('#garden-stage-label'));self.assertEqual(p.errors,[])
  def test_history_labels_legacy_four_stages_without_remapping(self):
   p=self.open();p.evaluate("localStorage.setItem('c408_garden_history',JSON.stringify([{at:'2026-11-01',visitors:[],stage:3},{at:'2026-11-02',visitors:[]},{at:'2026-11-03',visitors:[],schema:2,stageScheme:'garden-painting-8-v1',stageIndex:7,stageTotal:8,stageName:'月光成畫'}]))")
   p.reload();p.click('#garden-history-button');cards=p.locator('#garden-history article')
@@ -265,7 +265,7 @@ class Garden(unittest.TestCase):
  def test_ended_record_marks_eight_stage_scheme_and_new_garden_clears_art(self):
   p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(5000);p.on('dialog',lambda d:d.accept());p.click('#garden-end')
   h=p.evaluate("JSON.parse(localStorage.getItem('c408_garden_history'))[0]")
-  self.assertEqual(h.get('schema'),2);self.assertEqual(h.get('stageScheme'),'garden-painting-8-v1');self.assertEqual(h.get('stageIndex'),0);self.assertEqual(h.get('stageTotal'),8);self.assertEqual(h.get('stageName'),'夥伴入園')
+  self.assertEqual(h.get('schema'),3);self.assertEqual(h.get('stageScheme'),'garden-living-8-v1');self.assertEqual(h.get('stageIndex'),0);self.assertEqual(h.get('stageTotal'),8);self.assertEqual(h.get('stageName'),'夥伴入園')
   self.assertIn('保存',p.inner_text('#garden-finish'));p.click('#garden-again');self.assertTrue(p.is_disabled('#garden-save'));self.assertEqual(p.locator('.garden-visitor').count(),0)
 
  def test_ended_painting_remains_frozen_after_roster_refresh(self):
@@ -315,5 +315,51 @@ class Garden(unittest.TestCase):
    let differences=['geometry-prop','geometry-plant'].map((id,i)=>{let r=holder.querySelector('#'+id).getBoundingClientRect(),a=originals[i];return Math.max(Math.abs(r.x-a.x),Math.abs(r.y-a.y),Math.abs(r.width-a.w),Math.abs(r.height-a.h))});holder.remove();return differences;
   }""")
   self.assertTrue(all(e<1 for e in errors),f'PNG vector geometry diverged from scene: {errors}')
+
+ def test_continuing_scene_renderer_is_available(self):
+  p=self.open(direct=True);self.assertTrue(p.evaluate("!!window.GardenFixtures"),"continuing scenery must be loaded")
+
+ def test_first_discovery_adds_fountain_and_basketball_after_eight_stages(self):
+  parent,p=self.cloud_pair();p.emulate_media(reduced_motion='reduce');p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'")
+  self.assertTrue(p.evaluate('!!window.GardenFixtures'),'continuing scenery must be loaded')
+  p.clock.run_for(38000);self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'7');self.assertEqual(p.locator('[data-fixture="bridge"]').count(),1)
+  p.clock.run_for(5000);self.assertEqual(p.locator('[data-fixture="fountain"]').count(),1);self.assertIn('新發現 1',p.inner_text('#garden-stage-label'));self.assertIn('噴水池',p.inner_text('#garden-stage-label'))
+  self.assertGreater(p.locator('[data-activity="basketball"]').count(),0);self.assertLessEqual(p.locator('[data-life-presenting="true"]').count(),2)
+  p.clock.run_for(20000);self.assertNotEqual(p.locator('.garden-fixture').last.get_attribute('data-fixture'),'fountain');self.assertEqual(p.errors,[])
+ def test_fixture_fade_freezes_on_noise_and_teacher_pause(self):
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.fill('#garden-loud-seconds','3');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(44000)
+  self.assertTrue(p.evaluate('!!window.GardenFixtures'))
+  self.assertEqual(p.locator('.garden-fixture').count(),2);p.evaluate('window.micLevel=.1');p.clock.run_for(500)
+  before=p.locator('.garden-fixture').evaluate_all('(els)=>els.map(e=>[e.dataset.fixture,e.style.opacity])');p.clock.run_for(1000);self.assertEqual(p.locator('.garden-fixture').evaluate_all('(els)=>els.map(e=>[e.dataset.fixture,e.style.opacity])'),before)
+  p.click('#garden-pause');p.clock.run_for(12000);self.assertEqual(p.locator('.garden-fixture').evaluate_all('(els)=>els.map(e=>[e.dataset.fixture,e.style.opacity])'),before)
+  p.evaluate('window.micLevel=.001');p.click('#garden-pause');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(5000);self.assertEqual(p.locator('.garden-fixture').count(),1)
+ def test_two_hundred_discoveries_keep_one_primary_scene_and_fixed_decorations(self):
+  p=self.open(direct=True);self.assertTrue(p.evaluate('!!window.GardenDiscoveries'))
+  results=p.evaluate("""() => {let s=document.getElementById('garden-scene'),d=new GardenDiscoveries.Session({random:()=>.37}),seen=new Set(),maximum=0;for(let i=1;i<=200;i++){let state=d.sync(i,[1,2,3]);GardenPainting.update(s,7,true,{discovery:state,dt:0,active:false,reduced:true});let groups=s.querySelectorAll('.garden-fixture');maximum=Math.max(maximum,groups.length);groups.forEach(g=>seen.add(g.dataset.fixture));}return {maximum,themes:[...seen],stars:s.querySelectorAll('.garden-star').length,flies:s.querySelectorAll('.garden-firefly').length,jets:s.querySelectorAll('.fixture-jet').length,birds:s.querySelectorAll('.fixture-bird').length};}""")
+  self.assertEqual(results['maximum'],1);self.assertEqual(len(results['themes']),6);self.assertEqual(results['stars'],12);self.assertEqual(results['flies'],5);self.assertLessEqual(results['jets'],3);self.assertLessEqual(results['birds'],2)
+ def test_all_primary_scenes_and_new_props_can_be_saved_to_png(self):
+  p=self.open(direct=True);self.assertTrue(p.evaluate('!!window.GardenFixtures'))
+  result=p.evaluate("""async () => {let s=document.getElementById('garden-scene'),sizes=[];for(let theme of GardenDiscoveries.themes){GardenPainting.update(s,7,true,{discovery:{themeId:theme.id},active:false,reduced:true,dt:0});let svg=GardenPainting.capture(s,false);let blob=await GardenPainting.toPng(svg);sizes.push(blob.size);if(!svg.includes('data-fixture="'+theme.id+'"'))throw Error('missing theme');}for(let a of GardenDiscoveries.activities){let host=document.createElement('div');host.className='garden-visitor';host.style.cssText='left:30%;top:65%;width:52px';host.innerHTML='<div class="visitor-travel"><span class="ground-shadow"></span><span class="activity-prop">'+GardenActivities.propSvg(a.id,2)+'</span><div class="visitor-body">'+c408PointAvatars.svg(8)+'</div><small>01號</small></div>';document.getElementById('garden-visitors').appendChild(host);let blob=await GardenPainting.toPng(GardenPainting.capture(s,true));sizes.push(blob.size);host.remove();}return sizes;}""")
+  self.assertEqual(len(result),14);self.assertTrue(all(size>1000 for size in result))
+ def test_new_discovery_summary_does_not_relabel_old_blessings(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(73000);p.on('dialog',lambda d:d.accept());p.click('#garden-end')
+  record=p.evaluate("JSON.parse(localStorage.getItem('c408_garden_history'))[0]");self.assertEqual(record.get('schema'),3);self.assertEqual(record.get('discovery',{}).get('count'),1);self.assertEqual(record['discovery']['themeId'],'fountain')
+  p.evaluate("() => {let list=JSON.parse(localStorage.getItem('c408_garden_history'));list.push({at:'2026-11-05',visitors:[],schema:2,stageScheme:'garden-painting-8-v1',stageIndex:7,stageName:'月光成畫',celebrations:4});localStorage.setItem('c408_garden_history',JSON.stringify(list));}")
+  p.click('#garden-history-button');cards=p.locator('#garden-history article');self.assertIn('新發現 1',cards.first.inner_text());self.assertIn('噴水池',cards.first.inner_text());self.assertIn('4 次祝福',cards.last.inner_text());self.assertNotIn('新發現',cards.last.inner_text())
+
+ def test_unlocked_props_fit_full_class_and_100_students_at_four_widths(self):
+  for width in [1366,1024,640,390]:
+   with self.subTest(width=width):
+    p=self.open(width,direct=True);p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:Array.from({length:100},(_,i)=>({seat:i+1,avatar:i%24}))}))");p.reload();p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(178000)
+    self.assertEqual(p.locator('.garden-visitor').count(),100);self.assertEqual(p.locator('#garden-scene').get_attribute('data-stage'),'7');self.assertLessEqual(p.locator('.garden-fixture').count(),2)
+    issues=p.evaluate("""() => {let scene=document.getElementById('garden-scene').getBoundingClientRect(),labels=[...document.querySelectorAll('.visitor-travel>small')].map(e=>e.getBoundingClientRect()),hud=[...document.querySelectorAll('.garden-hud,.scene-caption')].map(e=>e.getBoundingClientRect()),errors=[];let overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;document.querySelectorAll('.activity-prop svg').forEach(svg=>{svg.querySelectorAll('path,circle,ellipse,rect,polygon,line,polyline').forEach(e=>{let r=e.getBoundingClientRect();if(r.width<.1||r.height<.1)return;if(r.left<scene.left-1||r.right>scene.right+1||r.top<scene.top-1||r.bottom>scene.bottom+1||hud.some(b=>overlap(r,b))||labels.some(b=>overlap(r,b)))errors.push({activity:svg.closest('.garden-visitor').dataset.activity,x:r.x,y:r.y,w:r.width,h:r.height});});});return errors.slice(0,5);}""")
+    self.assertEqual(issues,[]);self.assertEqual(p.errors,[])
+ def test_fixture_individual_rotation_and_translation_survive_vector_export(self):
+  p=self.open(direct=True)
+  for theme,selector in [('windmill','.fixture-blades path'),('birdbath','.fixture-bird ellipse')]:
+   with self.subTest(theme=theme):
+    p.evaluate("theme=>GardenPainting.update(document.getElementById('garden-scene'),7,true,{discovery:{themeId:theme},active:false,reduced:true,dt:0})",theme)
+    error=p.evaluate("""selector => {let scene=document.getElementById('garden-scene'),shape=scene.querySelector(selector),moving=shape.parentElement;moving.style.rotate='21deg';moving.style.translate='2px -3px';shape.id='fixture-export-geometry';let b=scene.getBoundingClientRect(),a=shape.getBoundingClientRect(),holder=document.createElement('div');holder.style.cssText='position:fixed;top:0;left:0';holder.innerHTML=GardenPainting.capture(scene,false);document.body.appendChild(holder);let r=holder.querySelector('#fixture-export-geometry').getBoundingClientRect(),error=Math.max(Math.abs(r.x-(a.x-b.x)),Math.abs(r.y-(a.y-b.y)),Math.abs(r.width-a.width),Math.abs(r.height-a.height));holder.remove();shape.removeAttribute('id');return error;}""",selector)
+    self.assertLess(error,1)
 
 if __name__=='__main__':unittest.main()
