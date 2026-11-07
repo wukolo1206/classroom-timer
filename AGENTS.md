@@ -2,8 +2,8 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @65／全校版 v1.31"
-next_action: "v1.31中央提示文字固定、保留倒數與固定寬度；接續老師實際投影確認"
+version: "GAS @65／全校版 v1.32"
+next_action: "v1.32安靜才消耗恢復倒數，新增本輪超標次數；接續老師實際投影確認"
 updated: 2026-11-07
 ---
 

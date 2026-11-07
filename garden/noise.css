@@ -3,6 +3,9 @@
 
 .garden-scene[data-life-active=false] *,.garden-scene[data-life-active=false] *::before,.garden-scene[data-life-active=false] *::after{animation-play-state:paused!important}
 
-/* Reserve the same space for ②, ① and … so the fixed message never shifts. */
+/* Reserve the same space for ② and ① so the fixed message never shifts. */
 .noise-count{width:54px;min-width:54px;flex:0 0 54px;text-align:center;font-variant-numeric:tabular-nums}.noise-banner.compact .noise-count{width:44px;min-width:44px;flex-basis:44px}
 @media(max-width:760px){.noise-count{width:44px;min-width:44px;flex-basis:44px}}
+
+.meter-target-info{display:flex;flex-direction:column;align-items:flex-end;gap:2px;line-height:1.15;white-space:nowrap}.meter-noise-total{font-size:12px}.meter-noise-total b{display:inline-block;min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.meter-noise-total{font-size:9px}}

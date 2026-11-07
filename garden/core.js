@@ -40,7 +40,7 @@
         this.spawnMs=Math.max(1000,Math.min(300000,Number(options.spawnMs)||15000));
         this.upgradeMs=Math.max(5000,Math.min(300000,Number(options.upgradeMs)||30000));
         this.present=[];this.queue=this.shuffle(this.roster.map(function(r){return r.seat;}));
-        this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.holdRemainingMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
+        this.noiseCount=0;this.wasOver=false;this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.holdRemainingMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
         this.spawnProgressMs=0;this.upgradeProgressMs=0;this.stage=0;this.celebrations=0;this.departures=0;
     }
     Object.defineProperty(Model.prototype,'discoveryCount',{get:function(){return this.celebrations;}});
@@ -58,12 +58,12 @@
         if(ms<=1500&&Number.isFinite(level)){
             var remaining=dt;
             if(level>this.threshold){
+                if(!this.wasOver)this.noiseCount++;this.wasOver=true;
                 this.noisyMs+=dt;
                 if(!this.resting){this.resting=true;this.holdRemainingMs=2000;}
-                else this.holdRemainingMs=Math.max(0,this.holdRemainingMs-dt);
             }else {
-                this.noisyMs=0;
-                // Only sampled time beyond the minimum stop may advance the garden.
+                this.wasOver=false;this.noisyMs=0;
+                // Only suitable sampled time consumes recovery; noise freezes what remains.
                 remaining=Math.max(0,dt-this.holdRemainingMs);
                 this.holdRemainingMs=Math.max(0,this.holdRemainingMs-dt);
                 this.resting=this.holdRemainingMs>0;
