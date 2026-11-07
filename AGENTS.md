@@ -1,10 +1,10 @@
 ---
 project: 班級紀錄器
 category: 學科工具集
-status: 維護中
+status: 開發中
 version: "GAS @65／全校版 v1.29"
-next_action: "v1.29手持道具已放大並通過四尺寸100位／PNG檢查；接續老師投影與手機試看"
-updated: 2026-11-06
+next_action: "v1.30兩秒停止提醒候選完成；完整回歸後發布與正式唯讀驗證"
+updated: 2026-11-07
 ---
 
 # AGENTS.md — 班級計時器

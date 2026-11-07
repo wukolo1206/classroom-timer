@@ -136,14 +136,14 @@ class Garden(unittest.TestCase):
   before=parent.evaluate("localStorage.getItem('c408_points_local/state')");p.click('#garden-refresh');p.wait_for_function("document.querySelector('[data-seat=\"1\"]').dataset.avatar==='8'")
   self.assertEqual(parent.evaluate("localStorage.getItem('c408_points_local/state')"),before)
   self.assertEqual(p.inner_text('#garden-count'),'3 / 3')
- def test_meter_and_next_visitor_countdown_pause_and_retreat(self):
+ def test_meter_and_next_visitor_countdown_hold_without_retreat(self):
   p=self.open(direct=True);self.assertEqual(p.locator('#garden-level').count(),1)
-  p.click('#garden-demo');p.fill('#garden-spawn-seconds','2');p.fill('#garden-loud-seconds','3');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(3000)
+  p.click('#garden-demo');p.fill('#garden-spawn-seconds','2');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(3000)
   self.assertEqual(p.locator('.garden-visitor').count(),1);before=p.inner_text('#garden-next-seconds')
   p.evaluate('window.micLevel=.1');p.clock.run_for(500);self.assertIn('暫停',p.inner_text('#garden-meter-status'));p.clock.run_for(1000);self.assertEqual(p.inner_text('#garden-next-seconds'),before)
   self.assertEqual(p.locator('.visitor-body').first.evaluate('(e)=>getComputedStyle(e).animationPlayState'),'paused')
-  p.clock.run_for(2000);self.assertEqual(p.locator('.garden-visitor').count(),0)
-  p.evaluate('window.micLevel=.001');p.clock.run_for(1500);self.assertEqual(p.locator('.garden-visitor').count(),1)
+  p.clock.run_for(2000);self.assertEqual(p.locator('.garden-visitor').count(),1)
+  p.evaluate('window.micLevel=.001');p.clock.run_for(1500);self.assertEqual(p.locator('.garden-visitor').count(),2)
  def test_direct_detection_keeps_running_and_has_visible_elapsed_time(self):
   p=self.open(direct=True);p.click('#garden-demo');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(125000)
   self.assertEqual(p.locator('body').get_attribute('data-phase'),'running');self.assertEqual(p.inner_text('#garden-clock'),'02:05');self.assertIn('已偵測',p.inner_text('#garden-clock-label'))
@@ -327,7 +327,7 @@ class Garden(unittest.TestCase):
   self.assertGreater(p.locator('[data-activity="basketball"]').count(),0);self.assertLessEqual(p.locator('[data-life-presenting="true"]').count(),2)
   p.clock.run_for(20000);self.assertNotEqual(p.locator('.garden-fixture').last.get_attribute('data-fixture'),'fountain');self.assertEqual(p.errors,[])
  def test_fixture_fade_freezes_on_noise_and_teacher_pause(self):
-  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.fill('#garden-loud-seconds','3');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(44000)
+  parent,p=self.cloud_pair();p.select_option('#garden-session-mode','direct');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(44000)
   self.assertTrue(p.evaluate('!!window.GardenFixtures'))
   self.assertEqual(p.locator('.garden-fixture').count(),2);p.evaluate('window.micLevel=.1');p.clock.run_for(500)
   before=p.locator('.garden-fixture').evaluate_all('(els)=>els.map(e=>[e.dataset.fixture,e.style.opacity])');p.clock.run_for(1000);self.assertEqual(p.locator('.garden-fixture').evaluate_all('(els)=>els.map(e=>[e.dataset.fixture,e.style.opacity])'),before)
@@ -368,5 +368,38 @@ class Garden(unittest.TestCase):
    with self.subTest(activity=activity):
     ratio=p.evaluate("""activity => {let n=document.querySelector('.garden-visitor');n.dataset.activity=activity;n.querySelector('.activity-prop').innerHTML=GardenActivities.propSvg(activity,0);return n.querySelector('.activity-prop circle').getBoundingClientRect().width/n.querySelector('.visitor-body svg').getBoundingClientRect().width;}""",activity)
     self.assertGreater(ratio,minimum,'held balls should be recognizable at classroom projection size')
+
+ def test_noise_feedback_is_immediate_and_quiet_cannot_end_two_second_hold_early(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000)
+  self.assertEqual(p.locator('#garden-noise-feedback').count(),1,'visible two-second feedback must be available')
+  count=p.locator('.garden-visitor').count();p.evaluate('window.micLevel=.1');p.clock.run_for(100);self.assertTrue(p.is_visible('#garden-noise-feedback'));self.assertEqual(p.inner_text('#garden-noise-count'),'②')
+  p.evaluate('window.micLevel=.001');p.clock.run_for(1000);self.assertTrue(p.is_visible('#garden-noise-feedback'));self.assertEqual(p.inner_text('#garden-noise-count'),'①');self.assertEqual(p.locator('.garden-visitor').count(),count);self.assertEqual(p.locator('#garden-scene').get_attribute('data-life-active'),'false')
+  p.clock.run_for(1100);self.assertFalse(p.is_visible('#garden-noise-feedback'));self.assertEqual(p.locator('#garden-scene').get_attribute('data-life-active'),'true');self.assertGreater(p.evaluate('window.micRequests'),0)
+ def test_long_noise_never_removes_companions_or_loses_discoveries(self):
+  p=self.open(direct=True);p.emulate_media(reduced_motion='reduce');p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.fill('#garden-upgrade-seconds','5');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(73000)
+  self.assertEqual(p.locator('#garden-loud-seconds').count(),0);before=p.inner_text('#garden-stage-label');p.evaluate('window.micLevel=.1');p.clock.run_for(3000)
+  self.assertTrue(p.is_visible('#garden-noise-feedback'));self.assertIn('放輕聲音',p.inner_text('#garden-noise-title'));p.clock.run_for(30000);self.assertEqual(p.locator('.garden-visitor').count(),31);self.assertEqual(p.inner_text('#garden-stage-label'),before);self.assertEqual(p.evaluate('window.stoppedTracks'),0)
+  level=p.inner_text('#garden-level');p.evaluate('window.micLevel=.2');p.clock.run_for(500);self.assertNotEqual(p.inner_text('#garden-level'),level)
+  p.evaluate('window.micLevel=.001');p.clock.run_for(100);self.assertFalse(p.is_visible('#garden-noise-feedback'));self.assertEqual(p.locator('.garden-visitor').count(),31)
+ def test_noise_banner_fits_between_hud_and_people_at_four_widths(self):
+  for width in [1366,1024,640,390]:
+   with self.subTest(width=width):
+    p=self.open(width,direct=True);p.set_viewport_size({'width':width,'height':600});p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(32000);p.evaluate('window.micLevel=.1');p.clock.run_for(200)
+    self.assertTrue(p.is_visible('#garden-noise-feedback'))
+    data=p.evaluate("""() => {let a=document.querySelector('.noise-banner').getBoundingClientRect(),items=[...document.querySelectorAll('.garden-meter,.garden-next,.visitor-body,.scene-caption')].map(e=>e.getBoundingClientRect()),overlap=b=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;return {inside:a.left>=0&&a.right<=innerWidth,overlap:items.some(overlap)};}""");self.assertTrue(data['inside']);self.assertFalse(data['overlap']);self.assertEqual(p.errors,[])
+ def test_teacher_pause_preserves_hold_and_png_excludes_feedback(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.evaluate('window.micLevel=.1');p.clock.run_for(100);p.evaluate('window.micLevel=.001');p.clock.run_for(500);p.click('#garden-pause')
+  self.assertFalse(p.is_visible('#garden-noise-feedback'));p.clock.run_for(10000);p.click('#garden-pause');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(1000);self.assertTrue(p.is_visible('#garden-noise-feedback'))
+  svg=p.evaluate('GardenPainting.capture(document.getElementById("garden-scene"),false)');self.assertNotIn('音量超標',svg);self.assertNotIn('noise-banner',svg)
+  with p.expect_download() as download:p.click('#garden-save')
+  self.assertIsNone(download.value.failure());p.clock.run_for(600);self.assertFalse(p.is_visible('#garden-noise-feedback'))
+
+ def test_noise_feedback_keeps_100_people_and_clears_on_new_session(self):
+  p=self.open(390,direct=True);p.set_viewport_size({'width':390,'height':600});p.evaluate("localStorage.setItem('c408_garden_roster',JSON.stringify({roster:Array.from({length:100},(_,i)=>({seat:i+1,avatar:i%24}))}))");p.reload();p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(102000);p.evaluate('window.micLevel=.1');p.clock.run_for(3000)
+  self.assertEqual(p.locator('.garden-visitor').count(),100);self.assertTrue(p.is_visible('#garden-noise-feedback'))
+  overlap=p.evaluate("""() => {let a=document.querySelector('.noise-banner').getBoundingClientRect();return [...document.querySelectorAll('.visitor-body,.garden-meter,.garden-next')].some(e=>{let b=e.getBoundingClientRect();return Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1;});}""");self.assertFalse(overlap)
+  p.on('dialog',lambda d:d.accept());p.click('#garden-end');self.assertFalse(p.is_visible('#garden-noise-feedback'));p.click('#garden-again');self.assertFalse(p.is_visible('#garden-noise-feedback'));self.assertEqual(p.locator('.garden-visitor').count(),0);self.assertEqual(p.locator('#garden-scene').get_attribute('data-noise-stopped'),'false')
+ def test_old_loud_seconds_setting_cannot_change_fixed_two_second_policy(self):
+  p=self.open(direct=True);p.evaluate("localStorage.setItem('c408_garden_settings',JSON.stringify({loud:60,spawn:1,upgrade:5}))");p.reload();p.click('#garden-demo');self.assertEqual(p.locator('#garden-loud-seconds').count(),0);p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.evaluate('window.micLevel=.1');p.clock.run_for(100);p.evaluate('window.micLevel=.001');p.clock.run_for(2100);self.assertFalse(p.is_visible('#garden-noise-feedback'));self.assertNotIn('loud',p.evaluate("JSON.parse(localStorage.getItem('c408_garden_settings'))"))
 
 if __name__=='__main__':unittest.main()

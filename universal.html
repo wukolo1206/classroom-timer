@@ -4849,7 +4849,7 @@
     };
 
     // 工具版本：下載原始碼視窗會顯示，方便對照自己改的是哪一版
-    window.CTU_VERSION = 'v1.29（2026-11-06）';
+    window.CTU_VERSION = 'v1.30（2026-11-07）';
 
     // 插入 HTML 前一律跳脫，避免名稱、備份檔內容被當成程式執行
     window.ctuEsc = function (v) {
@@ -11047,10 +11047,9 @@ document.addEventListener('DOMContentLoaded', () => {
         this.threshold=Number(options.threshold)||50;
         this.random=typeof options.random==='function'?options.random:Math.random;
         this.spawnMs=Math.max(1000,Math.min(300000,Number(options.spawnMs)||15000));
-        this.loudGraceMs=Math.max(3000,Math.min(60000,Number(options.loudGraceMs)||8000));
         this.upgradeMs=Math.max(5000,Math.min(300000,Number(options.upgradeMs)||30000));
         this.present=[];this.queue=this.shuffle(this.roster.map(function(r){return r.seat;}));
-        this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
+        this.elapsedMs=0;this.quietMs=0;this.noisyMs=0;this.holdRemainingMs=0;this.resting=false;this.paused=false;this.ended=false;this.count=0;
         this.spawnProgressMs=0;this.upgradeProgressMs=0;this.stage=0;this.celebrations=0;this.departures=0;
     }
     Object.defineProperty(Model.prototype,'discoveryCount',{get:function(){return this.celebrations;}});
@@ -11060,19 +11059,28 @@ document.addEventListener('DOMContentLoaded', () => {
     Model.prototype.full=function(){return this.count===this.roster.length;};
     Model.prototype.nextMs=function(){return this.full()?this.upgradeMs-this.upgradeProgressMs:this.spawnMs-this.spawnProgressMs;};
     Model.prototype.refresh=function(list){var next=cleanRoster(list),has=function(n){return next.some(function(r){return r.seat===n;});};this.present=this.present.filter(has);this.queue=this.queue.filter(has);var self=this;next.forEach(function(r){if(self.present.indexOf(r.seat)<0&&self.queue.indexOf(r.seat)<0)self.queue.push(r.seat);});this.roster=next;this.count=this.present.length;};
-    Model.prototype.pause=function(){this.paused=true;this.noisyMs=0;this.resting=false;};
+    Model.prototype.pause=function(){this.paused=true;};
     Model.prototype.resume=function(){if(!this.ended)this.paused=false;};
     Model.prototype.tick=function(ms,level){
         if(this.paused||this.ended||!Number.isFinite(ms)||ms<=0)return;
         var dt=this.durationMs===null?ms:Math.min(ms,this.durationMs-this.elapsedMs);this.elapsedMs+=dt;
         if(ms<=1500&&Number.isFinite(level)){
-            if(level>this.threshold){this.resting=true;this.noisyMs+=dt;while(this.noisyMs>=this.loudGraceMs){this.noisyMs-=this.loudGraceMs;this.upgradeProgressMs=0;if(this.present.length){var seat=this.present.pop();this.queue.splice(Math.floor(this.random()*(this.queue.length+1)),0,seat);this.departures++;}this.count=this.present.length;}}
-            else {
-                this.noisyMs=0;this.resting=false;this.quietMs+=dt;var remaining=dt;
+            var remaining=dt;
+            if(level>this.threshold){
+                this.noisyMs+=dt;
+                if(!this.resting){this.resting=true;this.holdRemainingMs=2000;}
+                else this.holdRemainingMs=Math.max(0,this.holdRemainingMs-dt);
+            }else {
+                this.noisyMs=0;
+                // Only sampled time beyond the minimum stop may advance the garden.
+                remaining=Math.max(0,dt-this.holdRemainingMs);
+                this.holdRemainingMs=Math.max(0,this.holdRemainingMs-dt);
+                this.resting=this.holdRemainingMs>0;
+                this.quietMs+=remaining;
                 if(!this.full()){this.spawnProgressMs+=remaining;remaining=0;while(this.spawnProgressMs>=this.spawnMs&&this.queue.length){this.spawnProgressMs-=this.spawnMs;this.present.push(this.queue.shift());this.count=this.present.length;}if(this.full()){remaining=this.spawnProgressMs;this.spawnProgressMs=0;}}
                 if(this.full()){this.upgradeProgressMs+=remaining;while(this.upgradeProgressMs>=this.upgradeMs){this.upgradeProgressMs-=this.upgradeMs;if(this.stage<stageNames.length-1)this.stage++;else this.celebrations++;}}
             }
-        }else{this.noisyMs=0;this.resting=false;}
+        }
         if(this.durationMs!==null&&this.elapsedMs>=this.durationMs)this.ended=true;
     };
     return {Model:Model,avatarRoster:avatarRoster,cleanRoster:cleanRoster,stageNames:stageNames,STAGE_SCHEME:STAGE_SCHEME,stageMetadata:stageMetadata,recordStage:recordStage};

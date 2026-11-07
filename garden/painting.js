@@ -27,6 +27,7 @@
         scene._paintingActive=active;scene._paintingChanged=false;
         if(!scene.getAnimations)return;
         scene.getAnimations({subtree:true}).forEach(function(animation){
+            var target=animation.effect&&animation.effect.target;if(target&&target.closest&&target.closest('.garden-hud'))return;
             if(typeof CSSTransition!=='undefined'&&animation instanceof CSSTransition){if(active)animation.play();else animation.pause();}
         });
     }
