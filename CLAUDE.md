@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @65／全校版 v1.30"
+version: "GAS @65／全校版 v1.31"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "v1.30兩秒停止／夥伴保留已發布，56項瀏覽器及正式31位通過；接續課堂／真iPad試用"
+next_action: "v1.31中央提示文字固定、保留倒數與固定寬度；接續老師實際投影確認"
 updated: 2026-11-07
 ---
 

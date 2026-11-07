@@ -402,4 +402,11 @@ class Garden(unittest.TestCase):
  def test_old_loud_seconds_setting_cannot_change_fixed_two_second_policy(self):
   p=self.open(direct=True);p.evaluate("localStorage.setItem('c408_garden_settings',JSON.stringify({loud:60,spawn:1,upgrade:5}))");p.reload();p.click('#garden-demo');self.assertEqual(p.locator('#garden-loud-seconds').count(),0);p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.evaluate('window.micLevel=.1');p.clock.run_for(100);p.evaluate('window.micLevel=.001');p.clock.run_for(2100);self.assertFalse(p.is_visible('#garden-noise-feedback'));self.assertNotIn('loud',p.evaluate("JSON.parse(localStorage.getItem('c408_garden_settings'))"))
 
+ def test_center_noise_text_and_width_stay_fixed_while_countdown_remains(self):
+  p=self.open(direct=True);p.click('#garden-demo');p.fill('#garden-spawn-seconds','1');p.clock.install();p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");p.clock.run_for(4000);p.evaluate('window.micLevel=.1');p.clock.run_for(100)
+  original=p.locator('.noise-copy').inner_text();self.assertIn('放輕聲音',original);self.assertEqual(p.inner_text('#garden-noise-count'),'②')
+  rect=p.locator('.noise-copy').bounding_box();p.evaluate('window.micLevel=.001');p.clock.run_for(1000);self.assertEqual(p.inner_text('#garden-noise-count'),'①');self.assertEqual(p.locator('.noise-copy').inner_text(),original)
+  p.evaluate('window.micLevel=.1');p.clock.run_for(1500);self.assertEqual(p.locator('.noise-copy').inner_text(),original);self.assertEqual(p.inner_text('#garden-noise-count'),'…');self.assertTrue(p.is_visible('#garden-noise-count'));after=p.locator('.noise-copy').bounding_box();self.assertAlmostEqual(rect['x'],after['x'],delta=.5);self.assertAlmostEqual(rect['width'],after['width'],delta=.5);self.assertAlmostEqual(rect['y'],after['y'],delta=.5);self.assertAlmostEqual(rect['height'],after['height'],delta=.5)
+  p.evaluate('window.micLevel=.001');p.clock.run_for(100);self.assertFalse(p.is_visible('#garden-noise-feedback'))
+
 if __name__=='__main__':unittest.main()

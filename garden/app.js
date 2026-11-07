@@ -72,8 +72,8 @@
     function renderNoise(){
         var scene=$('garden-scene'),shown=phase==='running'&&!!model&&model.resting,box=$('garden-noise-feedback');
         scene.dataset.noiseStopped=shown?'true':'false';box.hidden=!shown;if(!shown){noiseKey=null;return;}
-        var valid=Number.isFinite(lastLevel),seconds=Math.ceil(model.holdRemainingMs/1000),over=valid&&lastLevel>model.threshold,key=[valid,seconds,over].join(':');
-        if(key!==noiseKey){noiseKey=key;$('garden-noise-title').textContent=!valid?'等待麥克風訊號':seconds>0?(over?'音量超標，輕聲一下':'音量已合宜，稍等一下'):'放輕聲音，花園就會繼續';$('garden-noise-detail').textContent=!valid?'訊號恢復後繼續判斷':seconds>0?'暫停 '+seconds+' 秒 · 夥伴都在這裡':'音量合宜就會繼續，進度都保留';$('garden-noise-count').textContent=seconds===2?'②':seconds===1?'①':'';$('garden-noise-count').hidden=!valid||seconds===0;}
+        var seconds=Math.ceil(model.holdRemainingMs/1000),glyph=seconds===2?'②':seconds===1?'①':'…';
+        if(glyph!==noiseKey){noiseKey=glyph;$('garden-noise-count').textContent=glyph;}
         var hud=$('garden-scene').querySelector('.garden-hud'),top=hud.offsetTop+hud.offsetHeight+8;
         var foot=Math.min.apply(null,grounded.positions.map(function(p){return p.footY;}))*scene.clientHeight-grounded.size*.88;
         var space=foot-8-top,banner=box.querySelector('.noise-banner');banner.classList.toggle('compact',space<80);
