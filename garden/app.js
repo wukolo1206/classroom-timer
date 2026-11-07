@@ -72,7 +72,7 @@
     function renderNoise(){
         var scene=$('garden-scene'),shown=phase==='running'&&!!model&&model.resting,box=$('garden-noise-feedback');
         scene.dataset.noiseStopped=shown?'true':'false';box.hidden=!shown;if(!shown){noiseKey=null;return;}
-        var seconds=Math.ceil(model.holdRemainingMs/1000),glyph=seconds>1?'②':'①';
+        var seconds=Math.ceil(model.holdRemainingMs/1000),glyph=seconds>2?'③':seconds>1?'②':'①';
         if(glyph!==noiseKey){noiseKey=glyph;$('garden-noise-count').textContent=glyph;}
         var hud=$('garden-scene').querySelector('.garden-hud'),top=hud.offsetTop+hud.offsetHeight+8;
         var foot=Math.min.apply(null,grounded.positions.map(function(p){return p.footY;}))*scene.clientHeight-grounded.size*.88;
