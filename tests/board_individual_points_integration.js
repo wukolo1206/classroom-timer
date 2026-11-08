@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const boardRoot = process.env.BOARD_WORKTREE || [path.join(__dirname, '../../board-individual-points'), path.join(__dirname, '../../小組討論畫板')].find(p => fs.existsSync(path.join(p, 'center/server/individual-settlement.js')));
+const boardRoot = process.env.BOARD_WORKTREE || [path.join(__dirname, '../../board-individual-points'), path.join(__dirname, '../../54_小組討論畫板')].find(p => fs.existsSync(path.join(p, 'center/server/individual-settlement.js')));
 assert(boardRoot, 'Set BOARD_WORKTREE to the discussion-board checkout');
 const {Session} = require(path.join(boardRoot, 'center/server/session'));
 const {fingerprint} = require(path.join(boardRoot, 'center/server/classes'));
