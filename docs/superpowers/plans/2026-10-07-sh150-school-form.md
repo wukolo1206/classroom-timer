@@ -14,7 +14,7 @@
 
 ## 1. 執行授權與現況
 
-- 工作目錄：`D:\備課ai\班級計時器`，repo：`classroom-timer`。
+- 工作目錄：`D:\備課ai\53_班級計時器`，repo：`classroom-timer`。
 - 功能範圍只含全校版 `universal.html`，不擴及 408 專用版或外部 SH150 專案。
 - 本次讀檔時 `CTU_VERSION` 已為 v1.6；最近提交為 `bbb8ad8`。執行前再確認，版本變動時直接接續現況，不用舊 v1.5 覆蓋。
 - 起初曾看到 `universal.html` 未提交異動，後續讀取時已無該異動。工作區可能由其他工具持續更新，必須重新盤點與保留現況。
@@ -371,7 +371,7 @@ Claude Code 完成時逐列記錄下列欄位，不用「全數通過」取代�
 ## 10. 可直接貼給 Claude Code 的指令
 
 ```text
-請在 D:\備課ai\班級計時器 依下列計畫實作全校版 SH150 學校 Google 表單填報：
+請在 D:\備課ai\53_班級計時器 依下列計畫實作全校版 SH150 學校 Google 表單填報：
 docs/superpowers/plans/2026-10-07-sh150-school-form.md
 
 先讀 AGENTS.md、CLAUDE.md、handoff.md、現況 universal.html、CHANGELOG.md、PITFALLS.md、DECISIONS.md 與計畫全文。此計畫以 v1.6 為讀檔基準，但請以當下版本續作，不從舊檔覆盖，不重做已完成的審查修正。保留其他人的未提交異動。

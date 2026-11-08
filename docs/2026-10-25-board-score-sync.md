@@ -11,7 +11,7 @@
 - `board-sync/board-sync.js` 是controller及GAS-only介面來源。修改後執行 `python tools/embed_board_sync.py`，維持root／gas鏡像；不可直接改嵌入區。
 - `gas/BoardScoreBridge.gs` 僅用唯讀 `pointSettings_` 與 `POINT_ROSTER` 建立context；不能改成 `getPointBundle`，後者可能寫入匯入資料。
 - GAS20個離線情境、controller模擬及mock Chrome測試通過。實際本機畫板API＋計時器google.script.run測試轉接＋教師／學生POST/SSE共10個情境通過，三尺寸無水平溢出／pageerror；超長自訂原因不建立待確認操作。
-- 跨專案證據：`D:/備課ai/小組討論畫板/docs/score-sync-review/README.md`、verification.json及截圖。
+- 跨專案證據：`D:/備課ai/54_小組討論畫板/docs/score-sync-review/README.md`、verification.json及截圖。
 - 測試只操作匿名本機資料；未連Google、VM或正式408，真iPad與正式GAS連線另驗。
 - 原有回歸139項（小組19／集點55／秩序32／408 SR8／通用SR25）通過，SH150固定fixture日期後38/38通過。原實際日期跑177項有5失敗／1錯誤，均由SH150的第6週fixture與現行第8週／星期日不同造成；修改前相同原文可重現，固定2026-10-05後六項及完整38項全過。未修改SH150產品程式；詳細證據見畫板驗收紀錄。
 

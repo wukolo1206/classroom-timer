@@ -36,7 +36,7 @@
 
 ## 四、檔案與測試
 
-本機路徑：`D:\備課ai\班級計時器\`（GitHub `wukolo1206/classroom-timer` master 已包含 `49e1afe`）
+本機路徑：`D:\備課ai\53_班級計時器\`（GitHub `wukolo1206/classroom-timer` master 已包含 `49e1afe`）
 
 - 設計：`docs/2026-10-10-seat-period-design.md`（v0.4，附錄 E 是上一輪處理紀錄）
 - 程式：`gas/Code.gs`、`index.html`（＝`gas/index.html`）、`universal.html`

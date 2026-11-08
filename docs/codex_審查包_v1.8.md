@@ -1,6 +1,6 @@
 # 程式審查請求：班級工具箱 v1.8＋SH150 學校表單填報（含 sh150-tracker 與 408 @24）
 
-你在 `D:\備課ai\班級計時器`（repo `classroom-timer`，分支 `master`）。子資料夾 `sh150-tracker\` 是**另一個 repo**（`sh150-tracker`，分支 `main`）。
+你在 `D:\備課ai\53_班級計時器`（repo `classroom-timer`，分支 `master`）。子資料夾 `sh150-tracker\` 是**另一個 repo**（`sh150-tracker`，分支 `main`）。
 請**只審查、不要修改任何檔案、不要 commit／push、不要部署、不要開啟或提交學校 Google 表單**。重點是**實際運行時可能出錯的地方**，把問題整理成下方格式回報。
 
 ## 1. 這次要看的範圍
