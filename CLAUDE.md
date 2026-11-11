@@ -4,8 +4,8 @@ category: 學科工具集
 status: 維護中
 version: "GAS @65／全校版 v1.33"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "v1.33超標後三秒安靜恢復，同一倒數期間只計一次；接續實際課堂確認"
-updated: 2026-11-08
+next_action: "SH150 408版已改為打開即跳今天週次，下次開頁確認；花園v1.33仍待實際課堂確認"
+updated: 2026-11-11
 ---
 
 # CLAUDE.md — 班級計時器
