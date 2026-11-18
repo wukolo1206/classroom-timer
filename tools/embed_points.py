@@ -8,7 +8,7 @@ def embed():
     path = ROOT / 'index.html'
     text = path.read_text(encoding='utf-8')
     assets = [('AVATAR_STYLE', 'avatars.css', 'style'), ('POINTS_STYLE', 'points.css', 'style'),
-              ('AVATAR_SCRIPT', 'avatars.js', 'script'), ('POINTS_SCRIPT', 'points.js', 'script')]
+              ('AVATAR_SNACK_SCRIPT', 'avatars_snack.js', 'script'), ('AVATAR_SCRIPT', 'avatars.js', 'script'), ('POINTS_SCRIPT', 'points.js', 'script')]
     for kind, filename, tag in assets:
         start, end = kind + '_START', kind + '_END'
         source = (ROOT / 'points' / filename).read_text(encoding='utf-8').rstrip()
@@ -17,7 +17,7 @@ def embed():
         if re.search(pattern, text, flags=re.S):
             text = re.sub(pattern, lambda _: block, text, flags=re.S)
         else:
-            anchor = '</head>' if tag == 'style' else ('<!-- POINTS_SCRIPT_START -->' if kind == 'AVATAR_SCRIPT' else '</body>\n</html>')
+            anchor = '</head>' if tag == 'style' else ('<!-- AVATAR_SCRIPT_START -->' if kind == 'AVATAR_SNACK_SCRIPT' else '<!-- POINTS_SCRIPT_START -->' if kind == 'AVATAR_SCRIPT' else '</body>\n</html>')
             assert anchor in text, 'Missing insertion anchor'
             before, after = text.split(anchor, 1) if tag == 'style' else text.rsplit(anchor, 1)
             text = before + block + '\n' + anchor + after

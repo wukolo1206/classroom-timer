@@ -108,11 +108,11 @@ test('reading legacy settings does not rewrite the stored property', () => {
   assert.equal(e.props.pointSettings,raw);
 });
 
-test('expanded avatar settings allow index 23 and reject 24', () => {
+test('avatar settings allow index 37 (snack series) and reject 38', () => {
   const e=env(), settings=JSON.parse(JSON.stringify(e.ctx.getPointBundle().settings));
-  settings.avatars['1']=23;
-  assert.equal(e.ctx.savePointSettings(settings,0).settings.avatars['1'],23);
-  settings.avatars['1']=24;
+  settings.avatars['1']=37;
+  assert.equal(e.ctx.savePointSettings(settings,0).settings.avatars['1'],37);
+  settings.avatars['1']=38;
   assert.throws(()=>e.ctx.savePointSettings(settings,1),/角色/);
 });
 
@@ -225,7 +225,7 @@ test('settings default, CAS, both signs, avatars, groups and bounded size', () =
   const s={items:[{id:'plus',label:'認真',delta:1},{id:'minus',label:'秩序',delta:-1}],avatars:{1:7},groups:[{id:'g1',name:'一組',seats:[1,2]}],muted:false};
   assert.equal(e.ctx.savePointSettings(s,0).revision,1);
   assert.throws(()=>e.ctx.savePointSettings(s,0),/衝突/);
-  [{...s,items:[s.items[0]]},{...s,avatars:{1:24}},{...s,groups:[...s.groups,{id:'g2',name:'二組',seats:[1]}]},{...s,muted:'yes'}].forEach(x=>assert.throws(()=>e.ctx.savePointSettings(x,1)));
+  [{...s,items:[s.items[0]]},{...s,avatars:{1:38}},{...s,groups:[...s.groups,{id:'g2',name:'二組',seats:[1]}]},{...s,muted:'yes'}].forEach(x=>assert.throws(()=>e.ctx.savePointSettings(x,1)));
   assert.equal(e.ctx.getPointBundle().revision,1);
 });
 test('formula text is escaped in sheet and round trips', () => {
@@ -250,28 +250,72 @@ test('server roster exactly matches authoritative index.html seatRoster', () => 
   const expected=Object.keys(roster).map(seat=>[Number(seat),roster[seat][0]]).sort((a,b)=>a[0]-b[0]);
   assert.equal(JSON.stringify(e.ctx.POINT_ROSTER),JSON.stringify(expected));
 });
-test('avatar purchase charges configured cost once, refuses low balance or stale price, undo reverses', () => {
-  const e=env(), buy=(id,idx,delta=-5,seats=[1])=>({id,type:'score',seats:score('x',1,seats).seats,itemId:'avatar:'+idx,label:'任意',delta,device:'A'});
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a0',3)),/點數不足/);
-  assert.equal(e.ctx.getPointBundle().events.length,0); assert.equal(e.rows.length,1);
-  e.ctx.commitPointBatch(score('earn',4,[1]));
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a1',3)),/點數不足/);
-  e.ctx.commitPointBatch(score('earn2',1,[1]));
-  let out=e.ctx.commitPointBatch(buy('a2',3));
-  assert.equal(total(out,1),0); const ev=out.events.find(x=>x.batchId==='a2');
-  assert.equal(ev.itemId,'avatar:3'); assert.equal(ev.label,'更換角色'); assert.equal(ev.delta,-5);
-  assert.equal(total(e.ctx.commitPointBatch(buy('a2',3)),1),0,'retry does not double charge');
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a3',24)),/換角色資料/);
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a4',3,-5,[1,2])),/換角色資料/);
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a5',3,5)),/換角色資料/);
-  out=e.ctx.commitPointBatch({type:'undo',originalBatchId:'a2',device:'A'});
-  assert.equal(total(out,1),5);
-  const s=e.ctx.getPointBundle().settings; e.ctx.savePointSettings({...s,avatarCost:3},0);
-  assert.equal(e.ctx.getPointBundle().settings.avatarCost,3);
-  assert.throws(()=>e.ctx.commitPointBatch(buy('a6',4,-5)),/改為 3 點/);
-  assert.equal(total(e.ctx.commitPointBatch(buy('a7',4,-3)),1),2);
-  assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:0},1),/1～100/);
-  assert.throws(()=>e.ctx.savePointSettings({...s,avatarCost:101},1),/1～100/);
+test('paid avatar change is retired: new avatar: events are refused', () => {
+  const e=env(), buy=(id,idx)=>({id,type:'score',seats:score('x',1,[1]).seats,itemId:'avatar:'+idx,label:'任意',delta:-5,device:'A'});
+  e.ctx.commitPointBatch(score('earn',9,[1]));
+  assert.throws(()=>e.ctx.commitPointBatch(buy('a1',3)),/換角色已改為抽頭貼/);
+  assert.equal(total(e.ctx.getPointBundle(),1),9,'points untouched');
+});
+const draw=(id,seat=1)=>({id,type:'score',seats:score('x',1,[seat]).seats,itemId:'draw',label:'x',delta:0,device:'A'});
+const grant=(id,n,seats=[1])=>({id,type:'score',seats:score('x',1,seats).seats,itemId:'ticket:'+n,label:'x',delta:0,device:'A'});
+const equip=(id,idx,seat=1)=>({id,type:'score',seats:score('x',1,[seat]).seats,itemId:'equip:'+idx,label:'x',delta:0,device:'A'});
+const collection=(e,seat=1)=>{const b=e.ctx.getPointBundle();return e.ctx.pointCollection_(b.events,b.settings,seat);};
+test('draw needs a ticket, picks server-side from the open series, costs no points, retry is idempotent', () => {
+  const e=env();
+  assert.throws(()=>e.ctx.commitPointBatch(draw('d0')),/沒有抽獎券/);
+  e.ctx.commitPointBatch(grant('g1',2));
+  assert.equal(collection(e).tickets,2);
+  let out=e.ctx.commitPointBatch(draw('d1'));
+  const ev=out.events.find(x=>x.batchId==='d1');
+  assert.match(ev.itemId,/^draw:(2[4-9]|3[0-7])$/,'default open series is snack 24-37'); assert.equal(ev.delta,0);
+  assert.equal(total(out,1),0);
+  const again=e.ctx.commitPointBatch(draw('d1'));
+  assert.equal(again.events.filter(x=>x.batchId==='d1').length,1,'retry does not draw again');
+  assert.equal(again.events.find(x=>x.batchId==='d1').itemId,ev.itemId);
+  assert.equal(collection(e).tickets,1);
+  assert.equal(collection(e).owned[Number(ev.itemId.slice(5))],true);
+  e.ctx.commitPointBatch(draw('d2')); assert.equal(collection(e).tickets,0);
+  assert.throws(()=>e.ctx.commitPointBatch(draw('d3')),/沒有抽獎券/);
+  assert.throws(()=>e.ctx.commitPointBatch({...draw('d4'),delta:1}),/分值須為 0/);
+  assert.throws(()=>e.ctx.commitPointBatch({...draw('d5'),seats:score('x',1,[1,2]).seats}),/一位學生/);
+});
+test('undoing a draw returns the ticket and removes the avatar; equip needs ownership and is free', () => {
+  const e=env();
+  e.ctx.commitPointBatch(grant('g1',1));
+  const drawn=Number(e.ctx.commitPointBatch(draw('d1')).events.find(x=>x.batchId==='d1').itemId.slice(5));
+  assert.throws(()=>e.ctx.commitPointBatch(equip('q0',5)),/尚未擁有/);
+  e.ctx.commitPointBatch(equip('q1',drawn)); assert.equal(collection(e).current,drawn);
+  e.ctx.commitPointBatch(equip('q2',1)); assert.equal(collection(e).current,1,'switching back to the starting avatar is free');
+  e.ctx.commitPointBatch(equip('q3',drawn));
+  const out=e.ctx.commitPointBatch({type:'undo',originalBatchId:'d1',device:'A'});
+  assert.equal(collection(e).tickets,1); assert.equal(!!collection(e).owned[drawn],false);
+  assert.equal(collection(e).current,1,'current falls back when its avatar is no longer owned');
+  assert.equal(total(out,1),0);
+});
+test('quiz tickets only after the cutoff (points still imported); teacher grants work for many seats', () => {
+  const e=env(), since=e.ctx.AVATAR_TICKET_SINCE.getTime(), t=n=>new Date(since+n*1000);
+  e.ctx.commitPointBatch(grant('g0',1,[1,2]));
+  assert.equal(collection(e,1).tickets,1); assert.equal(collection(e,2).tickets,1);
+  assert.throws(()=>e.ctx.commitPointBatch(grant('g9',21)),/1 到 20/);
+  e.quiz.sheets={'綜合練習成績單':[[new Date(since-5000),'408','01','游濬謙','general','國語','L1',20,95],[t(10),'408','01','游濬謙','general','國語','L2',20,95],[t(11),'408','01','游濬謙','general','國語','L3',20,50]]};
+  e.clearCache(); const out=e.ctx.getPointBundle();
+  assert.equal(out.events.filter(x=>x.itemId==='quiz_award').length,2,'points still imported for both qualifying quizzes');
+  assert.equal(collection(e,1).tickets,2,'1 teacher grant + 1 quiz after the cutoff (the older quiz gives points only)');
+  assert.equal(total(out,1),4);
+});
+test('open series controls the pool; empty pool refuses; reserved ids and bad series are rejected', () => {
+  const e=env(); e.ctx.commitPointBatch(grant('g1',3));
+  let st=e.ctx.getPointBundle().settings;
+  e.ctx.savePointSettings({...st,openSeries:['classic']},0);
+  const n=Number(e.ctx.commitPointBatch(draw('d1')).events.find(x=>x.batchId==='d1').itemId.slice(5));
+  assert.ok(n>=0&&n<=23,'classic pool only');
+  st=e.ctx.getPointBundle().settings; e.ctx.savePointSettings({...st,openSeries:[]},1);
+  assert.throws(()=>e.ctx.commitPointBatch(draw('d2')),/尚未開放/);
+  st=e.ctx.getPointBundle().settings;
+  assert.throws(()=>e.ctx.savePointSettings({...st,openSeries:['nope']},2),/開放系列/);
+  assert.throws(()=>e.ctx.savePointSettings({...st,openSeries:['snack','snack']},2),/開放系列/);
+  assert.throws(()=>e.ctx.savePointSettings({...st,items:[...st.items,{id:'draw',label:'x',delta:1}]},2),/保留字/);
+  assert.throws(()=>e.ctx.savePointSettings({...st,items:[...st.items,{id:'ticket:1',label:'x',delta:1}]},2),/保留字/);
 });
 test('auction wins after cutoff import once as deductions; old, unknown, ambiguous and outage are skipped', () => {
   const e=env(), since=e.ctx.AUCTION_IMPORT_SINCE.getTime(), t=n=>new Date(since+n*1000);

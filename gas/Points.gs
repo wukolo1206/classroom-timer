@@ -59,13 +59,52 @@ function pointTargets_(seats) {
     return target;
   }).sort(function (a,b) { return a.seat - b.seat; });
 }
+// 頭貼系列的編號範圍須與 points/avatars.js 的 series 一致（tests/points_avatars_sim.js 會核對）。
+var POINT_AVATAR_SERIES = [{id:'classic',from:0,count:24},{id:'snack',from:24,count:14}];
+var POINT_DEFAULT_OPEN_SERIES = ['snack'];
+// 測驗達標抽獎券只算這個時間之後交卷的成績（避免一次發出舊成績的券）。
+var AVATAR_TICKET_SINCE = new Date('2026-11-18T00:00:00+08:00');
+function pointAvatarCount_() {
+  var last = POINT_AVATAR_SERIES[POINT_AVATAR_SERIES.length - 1];
+  return last.from + last.count;
+}
 function pointAvatarIndex_(itemId) {
   var m = /^avatar:(\d{1,2})$/.exec(itemId || '');
   return m && Number(m[1]) <= 23 ? Number(m[1]) : null;
 }
-function pointAvatarCost_(settings) {
-  var cost = settings && settings.avatarCost;
-  return Number.isInteger(cost) && cost >= 1 && cost <= 100 ? cost : 5;
+// 舊的扣點換角色事件（avatar:N，只到 23）仍計入擁有；新的抽到 draw:N、換上 equip:N 可到全部編號。
+function pointCollectionIndex_(itemId, prefix) {
+  var m = new RegExp('^' + prefix + ':(\\d{1,2})$').exec(itemId || '');
+  return m && Number(m[1]) < pointAvatarCount_() ? Number(m[1]) : null;
+}
+function pointOpenSeries_(settings) {
+  var list = settings && Array.isArray(settings.openSeries) ? settings.openSeries : POINT_DEFAULT_OPEN_SERIES;
+  return POINT_AVATAR_SERIES.filter(function (x) { return list.indexOf(x.id) >= 0; });
+}
+function pointDrawPool_(settings) {
+  var pool = [];
+  pointOpenSeries_(settings).forEach(function (x) { for (var i = 0; i < x.count; i++) pool.push(x.from + i); });
+  return pool;
+}
+// 單一學生的收藏：擁有清單、目前角色、可用抽獎券。已被復原的事件不算。
+function pointCollection_(events, settings, seat) {
+  var undone = {}, base = settings && settings.avatars || {};
+  events.forEach(function (e) { if (e.type === 'undo') undone[e.originalBatchId] = true; });
+  var first = Number.isInteger(base[seat]) && base[seat] >= 0 && base[seat] < pointAvatarCount_() ? base[seat] : seat % 8;
+  var owned = {}, current = first, tickets = 0, draws = 0;
+  owned[first] = true;
+  events.forEach(function (e) {
+    if (e.seat !== seat || e.type !== 'score' || undone[e.batchId]) return;
+    var bought = pointAvatarIndex_(e.itemId), drawn = pointCollectionIndex_(e.itemId, 'draw'), equipped = pointCollectionIndex_(e.itemId, 'equip');
+    var grant = /^ticket:(\d{1,2})$/.exec(e.itemId || ''), quiz = /^quiz408_[a-z]+_(\d+)_\d+$/.exec(e.batchId || '');
+    if (bought !== null) { owned[bought] = true; current = bought; }
+    else if (drawn !== null) { owned[drawn] = true; draws++; }
+    else if (equipped !== null) current = equipped;
+    else if (grant) tickets += Number(grant[1]);
+    else if (e.itemId === 'quiz_award' && e.delta > 0 && quiz && Number(quiz[1]) >= AVATAR_TICKET_SINCE.getTime()) tickets++;
+  });
+  if (!owned[current]) current = first;
+  return {owned:owned, current:current, tickets:Math.max(0, tickets - draws)};
 }
 function pointBatch_(batch) {
   if (!batch || typeof batch !== 'object') pointError_('批次格式不正確');
@@ -98,12 +137,23 @@ function pointBatch_(batch) {
       if (typeof batch.delta !== 'number' || !Number.isInteger(batch.delta) || batch.delta >= 0 || batch.delta < -1000000) pointError_('拍賣扣點須為 1 到 1000000 的正整數');
       request.delta = batch.delta;
       request.label = '拍賣扣點';
+    } else if (request.itemId === 'draw' || /^(equip|ticket):\d{1,2}$/.test(request.itemId)) {
+      // 抽頭貼／換上／發券不動點數：分值固定 0。抽到哪一款由後端在鎖內決定，結果寫回 draw:N。
+      if (batch.delta !== 0) pointError_('抽頭貼、換上與發券的分值須為 0');
+      request.delta = 0;
+      if (request.itemId === 'draw') {
+        if (request.seats.length !== 1) pointError_('一次只能一位學生抽頭貼');
+        request.label = '抽頭貼';
+      } else if (request.itemId.indexOf('equip:') === 0) {
+        if (pointCollectionIndex_(request.itemId, 'equip') === null || request.seats.length !== 1) pointError_('換上頭貼資料不正確');
+        request.label = '換上頭貼';
+      } else {
+        var count = Number(request.itemId.slice(7));
+        if (count < 1 || count > 20) pointError_('發券張數須為 1 到 20');
+        request.label = '老師發抽獎券';
+      }
     } else request.delta = pointDelta_(batch.delta);
-    if (request.itemId.indexOf('avatar:') === 0) {
-      // Avatar purchase: one student, a deduction; price and balance are checked under lock.
-      if (pointAvatarIndex_(request.itemId) === null || request.seats.length !== 1 || request.delta >= 0) pointError_('換角色資料不正確');
-      request.label = '更換角色';
-    }
+    if (request.itemId.indexOf('avatar:') === 0) pointError_('換角色已改為抽頭貼；請重新整理後使用新功能');
   }
   return {request:request, device:device};
 }
@@ -167,7 +217,7 @@ function pointComplete_(sheet, data) {
   }
 }
 function pointDefaultSettings_() {
-  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false,sound:'chime',avatarCost:5};
+  return {items:[{id:'focus',label:'認真上課',delta:1},{id:'help',label:'主動幫忙',delta:1},{id:'teamwork',label:'合作',delta:1},{id:'unfinished',label:'未完成任務',delta:-1},{id:'disrupt',label:'影響秩序',delta:-1}],avatars:{},groups:[],muted:false,sound:'chime',avatarCost:5,openSeries:POINT_DEFAULT_OPEN_SERIES.slice()};
 }
 function pointSettings_() {
   var raw = PropertiesService.getDocumentProperties().getProperty(POINT_SETTINGS_KEY);
@@ -200,7 +250,8 @@ function commitPointBatch(batch) {
   try {
     var sheet = pointSheet_(), data = pointRead_(sheet), found = null;
     data.manifests.forEach(function (m) { if (m.request.id === request.id) found = m; });
-    if (found && JSON.stringify(found.request) !== JSON.stringify(request)) pointError_('批次編號內容衝突');
+    var sameDraw = found && request.itemId === 'draw' && /^draw:\d{1,2}$/.test(found.request.itemId) && JSON.stringify(Object.assign({}, found.request, {itemId:'draw'})) === JSON.stringify(request);
+    if (found && !sameDraw && JSON.stringify(found.request) !== JSON.stringify(request)) pointError_('批次編號內容衝突');
     pointComplete_(sheet,data);
     if (found) return pointBundle_(data);
     pointCommitLocked_(sheet, data, request, clean.device);
@@ -218,10 +269,14 @@ function pointCommitLocked_(sheet, data, request, device) {
     targets = originals.map(function (e) { return {seat:e.seat,name:e.name}; });
   } else targets = request.seats;
   data.events.forEach(function (e) { totals[e.seat] = (totals[e.seat] || 0) + e.delta; });
-  if (request.type === 'score' && pointAvatarIndex_(request.itemId) !== null) {
-    var cost = pointAvatarCost_(pointSettings_().settings), seat = request.seats[0].seat;
-    if (request.delta !== -cost) pointError_('換角色扣點已改為 ' + cost + ' 點，請重新整理後再換');
-    if ((totals[seat] || 0) < cost) pointError_('點數不足：換角色需要 ' + cost + ' 點，目前 ' + (totals[seat] || 0) + ' 點');
+  if (request.type === 'score' && (request.itemId === 'draw' || pointCollectionIndex_(request.itemId, 'equip') !== null)) {
+    var config = pointSettings_().settings, collection = pointCollection_(data.events, config, request.seats[0].seat);
+    if (request.itemId === 'draw') {
+      if (collection.tickets < 1) pointError_('沒有抽獎券');
+      var pool = pointDrawPool_(config);
+      if (!pool.length) pointError_('老師尚未開放任何系列，無法抽頭貼');
+      request.itemId = 'draw:' + pool[Math.floor(Math.random() * pool.length)];
+    } else if (!collection.owned[pointCollectionIndex_(request.itemId, 'equip')]) pointError_('尚未擁有這個頭貼');
   }
   var time = new Date().toISOString();
   var events = targets.map(function (target, index) {
@@ -378,10 +433,18 @@ function pointValidateSettings_(settings) {
   if (['chime','dingdong','levelup','sparkle'].indexOf(sound) < 0) pointError_('音效設定不正確');
   var avatarCost = typeof settings.avatarCost === 'undefined' ? 5 : settings.avatarCost;
   if (!Number.isInteger(avatarCost) || avatarCost < 1 || avatarCost > 100) pointError_('換角色扣點須為 1～100 的整數');
+  var openSeries = typeof settings.openSeries === 'undefined' ? POINT_DEFAULT_OPEN_SERIES.slice() : settings.openSeries;
+  if (!Array.isArray(openSeries) || openSeries.length > POINT_AVATAR_SERIES.length) pointError_('開放系列格式不正確');
+  var seriesSeen = {};
+  openSeries.forEach(function (id) {
+    if (typeof id !== 'string' || seriesSeen[id] || !POINT_AVATAR_SERIES.some(function (x) { return x.id === id; })) pointError_('開放系列不正確');
+    seriesSeen[id] = true;
+  });
   var ids = {}, positive = false, negative = false;
   var items = settings.items.map(function (item) {
     if (!item) pointError_('項目格式不正確');
     var id = pointId_(item.id), delta = pointDelta_(item.delta);
+    if (id === 'draw' || /^(avatar|equip|ticket|draw):/.test(id)) pointError_('項目編號為保留字');
     if (ids[id]) pointError_('項目編號重複'); ids[id] = true;
     if (delta > 0) positive = true; else negative = true;
     return {id:id,label:pointText_(item.label,80,'項目名稱'),delta:delta};
@@ -390,7 +453,7 @@ function pointValidateSettings_(settings) {
   var avatars = {};
   Object.keys(settings.avatars).forEach(function (key) {
     var seat = pointSeat_(Number(key)).seat, avatar = settings.avatars[key];
-    if (String(seat) !== key || !Number.isInteger(avatar) || avatar < 0 || avatar > 23) pointError_('角色格式不正確');
+    if (String(seat) !== key || !Number.isInteger(avatar) || avatar < 0 || avatar >= pointAvatarCount_()) pointError_('角色格式不正確');
     avatars[key] = avatar;
   });
   var grouped = {}, groupIds = {};
@@ -405,7 +468,7 @@ function pointValidateSettings_(settings) {
     }).sort(function (a,b) {return a-b;});
     return {id:id,name:pointText_(group.name,40,'組名'),seats:seats};
   });
-  return {items:items,avatars:avatars,groups:groups,muted:settings.muted,sound:sound,avatarCost:avatarCost};
+  return {items:items,avatars:avatars,groups:groups,muted:settings.muted,sound:sound,avatarCost:avatarCost,openSeries:openSeries};
 }
 function savePointSettings(settings, revision) {
   var clean = pointValidateSettings_(settings);

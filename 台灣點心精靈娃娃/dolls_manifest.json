@@ -1,0 +1,86 @@
+[
+  {
+    "id": "doll_01_boba",
+    "name": "珍奶寶寶",
+    "jpg": "原圖_JPG/doll_01_boba.jpg",
+    "png": "去背透明_PNG/doll_01_boba.png"
+  },
+  {
+    "id": "doll_02_xiaolongbao",
+    "name": "小籠包精靈",
+    "jpg": "原圖_JPG/doll_02_xiaolongbao.jpg",
+    "png": "去背透明_PNG/doll_02_xiaolongbao.png"
+  },
+  {
+    "id": "doll_03_pineapple_cake",
+    "name": "鳳梨酥騎士",
+    "jpg": "原圖_JPG/doll_03_pineapple_cake.jpg",
+    "png": "去背透明_PNG/doll_03_pineapple_cake.png"
+  },
+  {
+    "id": "doll_04_mango_ice",
+    "name": "芒果冰精靈",
+    "jpg": "原圖_JPG/doll_04_mango_ice.jpg",
+    "png": "去背透明_PNG/doll_04_mango_ice.png"
+  },
+  {
+    "id": "doll_05_egg_cake",
+    "name": "雞蛋糕精靈",
+    "jpg": "原圖_JPG/doll_05_egg_cake.jpg",
+    "png": "去背透明_PNG/doll_05_egg_cake.png"
+  },
+  {
+    "id": "doll_06_wheel_pie",
+    "name": "紅豆車輪餅精靈",
+    "jpg": "原圖_JPG/doll_06_wheel_pie.jpg",
+    "png": "去背透明_PNG/doll_06_wheel_pie.png"
+  },
+  {
+    "id": "doll_07_sweet_potato_ball",
+    "name": "地瓜球寶寶",
+    "jpg": "原圖_JPG/doll_07_sweet_potato_ball.jpg",
+    "png": "去背透明_PNG/doll_07_sweet_potato_ball.png"
+  },
+  {
+    "id": "doll_08_douhua",
+    "name": "芋圓精靈",
+    "jpg": "原圖_JPG/doll_08_douhua.jpg",
+    "png": "去背透明_PNG/doll_08_douhua.png"
+  },
+  {
+    "id": "doll_09_papaya_milk",
+    "name": "木瓜牛奶精靈",
+    "jpg": "原圖_JPG/doll_09_papaya_milk.jpg",
+    "png": "去背透明_PNG/doll_09_papaya_milk.png"
+  },
+  {
+    "id": "doll_10_tanghulu",
+    "name": "糖葫蘆精靈",
+    "jpg": "原圖_JPG/doll_10_tanghulu.jpg",
+    "png": "去背透明_PNG/doll_10_tanghulu.png"
+  },
+  {
+    "id": "doll_11_aiyu_lemon",
+    "name": "愛玉檸檬精靈",
+    "jpg": "原圖_JPG/doll_11_aiyu_lemon.jpg",
+    "png": "去背透明_PNG/doll_11_aiyu_lemon.png"
+  },
+  {
+    "id": "doll_12_braised_pork_rice",
+    "name": "滷肉飯寶寶",
+    "jpg": "原圖_JPG/doll_12_braised_pork_rice.jpg",
+    "png": "去背透明_PNG/doll_12_braised_pork_rice.png"
+  },
+  {
+    "id": "doll_13_popcorn_chicken",
+    "name": "鹽酥雞精靈",
+    "jpg": "原圖_JPG/doll_13_popcorn_chicken.jpg",
+    "png": "去背透明_PNG/doll_13_popcorn_chicken.png"
+  },
+  {
+    "id": "doll_14_sun_cake",
+    "name": "太陽餅精靈",
+    "jpg": "原圖_JPG/doll_14_sun_cake.jpg",
+    "png": "去背透明_PNG/doll_14_sun_cake.png"
+  }
+]

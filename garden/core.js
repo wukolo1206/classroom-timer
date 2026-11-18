@@ -21,15 +21,24 @@
         if (!Array.isArray(list) || !list.length || list.length > 100) throw Error('沒有可用的班級夥伴');
         var seen = {};
         return list.map(function (r) {
-            if (!r || !Number.isInteger(r.seat) || r.seat < 1 || r.seat > 100 || seen[r.seat] || !Number.isInteger(r.avatar) || r.avatar < 0 || r.avatar > 23) throw Error('夥伴資料格式不正確');
+            if (!r || !Number.isInteger(r.seat) || r.seat < 1 || r.seat > 100 || seen[r.seat] || !Number.isInteger(r.avatar) || r.avatar < 0 || r.avatar > 37) throw Error('夥伴資料格式不正確');
             seen[r.seat] = true; return {seat:r.seat,avatar:r.avatar};
         }).sort(function (a,b) { return a.seat-b.seat; });
     }
     function avatarRoster(seats, base, events) {
-        var map = {}, undone = {}; base = base || {}; events = events || [];
-        seats.forEach(function (n) { map[n] = Number.isInteger(base[n]) && base[n]>=0 && base[n]<24 ? base[n] : n%8; });
+        // Same rule as Points.gs pointCollection_: avatar:N (old paid change) and equip:N set the current avatar;
+        // draw:N only adds to the collection; a current avatar that is no longer owned falls back to the starting one.
+        var map = {}, owned = {}, first = {}, undone = {}; base = base || {}; events = events || [];
+        seats.forEach(function (n) { first[n] = Number.isInteger(base[n]) && base[n]>=0 && base[n]<38 ? base[n] : n%8; map[n] = first[n]; owned[n] = {}; owned[n][first[n]] = true; });
         events.forEach(function (e) { if (e.type==='undo') undone[e.originalBatchId]=true; });
-        events.forEach(function (e) { var m = /^avatar:(\d{1,2})$/.exec(e.itemId||''); if (m && Number(m[1])<24 && e.type==='score' && !undone[e.batchId] && Object.prototype.hasOwnProperty.call(map,e.seat)) map[e.seat]=Number(m[1]); });
+        events.forEach(function (e) {
+            if (e.type!=='score' || undone[e.batchId] || !Object.prototype.hasOwnProperty.call(map,e.seat)) return;
+            var m = /^(avatar|draw|equip):(\d{1,2})$/.exec(e.itemId||''), n = m && Number(m[2]);
+            if (!m || n>=38 || (m[1]==='avatar' && n>=24)) return;
+            if (m[1]==='draw') owned[e.seat][n] = true;
+            else { if (m[1]==='avatar') owned[e.seat][n] = true; map[e.seat] = n; }
+        });
+        seats.forEach(function (n) { if (!owned[n][map[n]]) map[n] = first[n]; });
         return cleanRoster(seats.map(function (n) { return {seat:n,avatar:map[n]}; }));
     }
     function Model(options) {

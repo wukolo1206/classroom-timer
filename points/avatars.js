@@ -44,10 +44,23 @@
         // Unicorn: tall horn, rainbow forelock and cloudlike muzzle.
         '<path d="M39 28 L50 5 L59 28Z" fill="#f1d697"/><path d="M45 17 L54 20 M42 24 L57 27" stroke="#d4b771" stroke-width="2"/><path d="M24 42 L18 18 L39 29 M61 29 L82 18 L76 42" fill="#ddd9f1"/><path d="M25 29 L24 23 L34 31 M66 31 L76 23 L75 29" fill="#f1bdcf"/><path d="M20 51 Q18 23 50 24 Q82 23 80 51 L77 75 Q67 88 50 84 Q33 88 23 75Z" fill="#ece7f8"/><path d="M33 31 Q41 17 51 26 Q61 18 67 32 Q63 45 55 39 Q51 33 44 42Z" fill="#baa5e4"/><path d="M43 28 Q49 21 54 28 L51 39 L44 42Z" fill="#f2b2cf"/><path d="M54 28 Q62 22 66 31 L61 38 L55 39Z" fill="#9dcecf"/><ellipse cx="50" cy="66" rx="23" ry="16" fill="#faf5ff"/>'+face(50,49,13)+'<g fill="#a19ab4"><circle cx="42" cy="66" r="2"/><circle cx="58" cy="66" r="2"/></g>'
     ];
+    var snack = window.c408SnackAvatars || {labels: [], images: []};
+    var baseCount = labels.length;
+    var allLabels = labels.concat(snack.labels);
+    // Series are contiguous index ranges; opening a series makes its avatars drawable.
+    var series = [{id: 'classic', name: '經典夥伴', from: 0, count: baseCount}];
+    if (snack.labels.length) series.push({id: 'snack', name: '台灣點心精靈', from: baseCount, count: snack.labels.length});
+    function seriesOf(index) {
+        var n = Number(index);
+        for (var i = 0; i < series.length; i++) if (n >= series[i].from && n < series[i].from + series[i].count) return series[i].id;
+        return null;
+    }
     function svg(index) {
         var n = Number(index);
-        if (!Number.isInteger(n) || n < 0 || n >= labels.length) n = 0;
-        return '<svg viewBox="0 0 100 100" xmlns="http:/'+'/www.w3.org/2000/svg" aria-label="'+labels[n]+'" role="img">'+(n < 8 ? original(n) : shadow + bodies[n-8])+'</svg>';
+        if (!Number.isInteger(n) || n < 0 || n >= allLabels.length) n = 0;
+        var head = '<svg viewBox="0 0 100 100" xmlns="http:/'+'/www.w3.org/2000/svg" aria-label="'+allLabels[n]+'" role="img">';
+        if (n >= baseCount) return head + '<image href="' + snack.images[n - baseCount] + '" x="0" y="0" width="100" height="100"/></svg>';
+        return head + (n < 8 ? original(n) : shadow + bodies[n-8]) + '</svg>';
     }
-    window.c408PointAvatars = {labels: labels, svg: svg};
+    window.c408PointAvatars = {labels: allLabels, svg: svg, series: series, seriesOf: seriesOf, count: allLabels.length};
 })();
