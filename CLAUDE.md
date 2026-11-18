@@ -2,10 +2,10 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @65／全校版 v1.33"
+version: "GAS @66／全校版 v1.33"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "SH150 408版已改為打開即跳今天週次，下次開頁確認；花園v1.33仍待實際課堂確認"
-updated: 2026-11-11
+next_action: "教室實際試用頭貼抽獎（發券、抽、換上、復原）；拍賣系統尚未同步新頭貼；花園v1.33仍待課堂確認"
+updated: 2026-11-18
 ---
 
 # CLAUDE.md — 班級計時器

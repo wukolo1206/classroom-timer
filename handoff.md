@@ -1,3 +1,28 @@
+# 頭貼抽獎與收藏 — 2026-11-18 GAS @66／Pages ab53817
+
+## 目前狀態
+- 台灣點心精靈 14 隻（縮成 144px WebP 嵌入）加入頭貼庫，共 38 款、兩個系列。抽獎券：國語測驗達標自動給 1 張（只算 11/18 起交卷）、老師可發券（加扣點視窗「🎟 發抽獎券」、設定頁「全班各發 1 張」）；學生在集點頁自己抽，不花點數、可重複抽到；換上自己擁有的頭貼免費；設定頁可勾選目前開放抽哪個系列（預設只開台灣點心精靈）。
+- 舊的「花 5 點換角色」停用，歷史事件仍算擁有。抽獎在 Points.gs 鎖內決定，重送不重抽；復原上一筆＝券退回、頭貼收回。花園唯讀接口與 garden/core.js 已支援。
+- 已 push（origin/master ab53817）、Pages build 成功、4 個公開檔案逐一相符；GAS 沿用原 deploymentId 更新為 @66，部署數仍 2，Points.gs／GardenRoster.gs／index.html 取回後與本機一致，Private.gs 保留。設計見 docs/2026-11-18-avatar-draw-design.md。
+
+## 本次驗證
+- 後端 35 項、頭貼 38 款＋系列範圍一致、花園核心 25／唯讀 4、其他 node 模擬全過；集點頁瀏覽器 6 項新案例（抽獎、免費換上、復原、開放系列、被拒時佇列）通過。
+- 完整 Python 回歸 300 項：294 通過，6 項失敗全在 test_sh150_school_form（測 universal.html，本次未改；與 10/25 記錄的「5 失敗＋1 錯誤、依實際日期」相同，推斷為舊問題，未用固定日期重驗）。
+- 線上只做唯讀驗證（網頁 200、新介面元素存在、原碼比對）；**沒有對正式學生做試抽或發券**，所以正式環境的抽獎全流程尚未實測。
+
+## 下次接續
+- 老師重新整理 GAS 網頁，在教室用一位學生走一遍：發券→抽→換上→（需要時）復原上一筆，確認券數與頭貼正確。
+- 決定是否同步 `50_點數拍賣系統`（讓拍賣頁也顯示抽到／換上的頭貼）：要改 程式碼.js 的頭貼推導與 `tools/embed_avatars.py`（先載入 avatars_snack.js），再部署；舊版不同步也不會壞。
+- 花園 v1.33 真 iPad／麥克風課堂觀察仍待確認。
+
+## 注意事項
+- 部署順序：先 Pages（garden.html、garden/core.js、avatars_snack.js）後 GAS，否則舊花園遇到編號 24 以上會讀不進名單。
+- 頭貼系列範圍在 Points.gs `POINT_AVATAR_SERIES` 與 points/avatars.js `series` 各一份，tests/points_avatars_sim.js 核對；新增頭貼圖：`python tools/build_snack_avatars.py` → `python tools/embed_points.py`（會同步 gas/index.html）。
+- 回退：原 deploymentId 指回 @65；備份（含 Private.gs，不可進 Git）在 C:/Users/wu/.codex/private-backups/avatar-draw-release-20261118。已有學生抽到／換上的新頭貼後再回退，舊版花園會讀不到那些學生的名單。
+- 本次不是收工；沒有整機備份，SH150 子專案未動。
+
+---
+
 # SH150 408版週次修正 — 2026-11-11（GAS仍@65）
 
 ## 目前狀態
