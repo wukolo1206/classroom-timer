@@ -1,3 +1,11 @@
+# 注意：測驗抽獎券門檻（GAS @67）的改動已被一起 commit — 2026-11-19 16:54
+
+- 另一個工作階段尚未 commit 的「測驗抽獎券門檻提高為 +2 分數＋5、改寫 ticket:1」改動（gas/Points.gs、gas/index.html、index.html、points/points.js、tests/points_backend_sim.js、DECISIONS.md 一段）被我以 `git commit -a` 誤併入 **92eaada**（訊息寫成「歷史卡片修正上線版本號」）並 push 到 GitHub。內容未改動；`node tests/points_backend_sim.js` 36 項通過。老師決定維持現狀。
+- **正式 GAS 未因此部署**：要上線 @67 仍需 `clasp push && clasp deploy --deploymentId <原ID>`。GitHub Pages 的 index.html 已含新券規則；若 GAS 尚未 @67，16:40 後交卷的券數在 Pages 版與後端會暫時不一致。
+- 接手那份工作時：不需要再 commit 這 5 個檔案（已在 92eaada），直接從部署與 CHANGELOG 接續。
+
+---
+
 # 測驗抽獎券門檻提高 — 2026-11-19 GAS @67
 
 ## 目前狀態

@@ -632,3 +632,11 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **原因**：只在 `open()` 加了「關閉 3D」的 init script，`cloud_pair()` 與另一處自建的 browser context 沒加；那些測試用 3D 開啟花園，再以假時鐘 `run_for(38000)` 推進，每格都是軟體算圖，等於卡死。headless Chromium 沒加 GPU 參數也有 WebGL，所以 3D 真的會啟動。
 **解法**：抽成常數 `FLAT`，所有 `new_context` 都 `add_init_script(FLAT)`；長時間測試改用 `pytest -v` 輸出到檔案，可看出停在哪一項。
 **未來避免**：改預設值時，搜尋測試裡所有 `new_context`／`new_page` 入口一起處理；背景測試不要用 `| grep | head` 包住（跑完才有輸出，卡住時看不出進度）。
+---
+
+## `git commit -a` 把別人的進行中改動一起推上去（2026-11-19）
+
+**現象**：歷史卡片修正上線後補 CHANGELOG 版本號時用 `git commit -qam`，把另一個工作階段尚未 commit 的測驗抽獎券改動（5 個檔案＋DECISIONS 一段）一起 commit 並 push（92eaada）。
+**原因**：同一個 repo 有其他工具／視窗同時在改；20 分鐘前 `git status` 乾淨不代表 commit 當下乾淨，`-a` 會收進所有已追蹤檔案的修改。
+**解法**：確認內容與測試（36 項過）後，老師決定維持現狀，在 handoff 記錄。
+**未來避免**：一律 `git add <指定檔案>` 再 commit，不用 `-a`／`add -A`（收工流程的 add -A 也要先看 `git status` 確認每個檔案都是自己這次的改動）；commit 前再跑一次 `git status --short`。
