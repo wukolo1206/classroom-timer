@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#cfe7e4">
+  <meta name="referrer" content="no-referrer">
+  <title>3D 花園試作</title>
+  <style>
+    :root{--ink:#2f4a35;--soft:#5d7a5f;--card:rgba(255,253,240,.9);--line:#dfe6cc;--btn:#33593b;--warm:#e88a3c}
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:#cfe7e4;color:var(--ink);font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;overflow:hidden}
+    #g3-canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+    #g3-canvas:active{cursor:grabbing}
+    .g3-panel{position:fixed;left:16px;top:16px;max-width:min(420px,calc(100% - 32px));background:var(--card);border-radius:18px;padding:14px 16px;box-shadow:0 8px 30px rgba(60,80,50,.15);backdrop-filter:blur(6px)}
+    .g3-panel h1{margin:0 0 2px;font-size:18px;letter-spacing:.06em}
+    .g3-panel p{margin:0 0 10px;font-size:13px;color:var(--soft);line-height:1.5}
+    .g3-row{display:flex;flex-wrap:wrap;gap:8px}
+    .g3-row button{border:0;border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;font-weight:600;background:#eef2df;color:var(--ink);cursor:pointer;min-height:40px}
+    .g3-row button.primary{background:var(--btn);color:#fff}
+    .g3-row button[aria-pressed="true"]{background:var(--btn);color:#fff}
+    .g3-stats{position:fixed;right:16px;top:16px;background:var(--card);border-radius:14px;padding:10px 14px;font-size:13px;color:var(--soft);font-variant-numeric:tabular-nums;text-align:right;box-shadow:0 8px 30px rgba(60,80,50,.12)}
+    .g3-stats b{display:block;font-size:22px;color:var(--ink)}
+    .g3-banner{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--card);border-radius:999px;padding:10px 22px;font-size:17px;font-weight:700;letter-spacing:.08em;box-shadow:0 8px 30px rgba(60,80,50,.15);white-space:nowrap}
+    body[data-paused="true"] .g3-banner{background:#fff1e2;color:#a4561c;outline:3px solid var(--warm)}
+    @media (max-width:640px){.g3-panel{top:auto;bottom:76px}.g3-stats{top:12px;right:12px}}
+  </style>
+</head>
+<body data-paused="false">
+  <canvas id="g3-canvas" aria-label="3D 班級祕密花園試作：池塘映光"></canvas>
+  <section class="g3-panel" aria-label="試作控制">
+    <h1>3D 花園試作 · 池塘映光</h1>
+    <p>只做一個階段＋頭貼立牌，用來看效果和流暢度；正式花園不受影響。可用手指／滑鼠左右拖曳轉動視角。</p>
+    <div class="g3-row">
+      <button id="g3-add" class="primary">＋ 迎來一位夥伴</button>
+      <button id="g3-pause" aria-pressed="false">模擬超標（暫停）</button>
+      <button id="g3-orbit" aria-pressed="true">鏡頭環繞</button>
+      <button id="g3-quality" aria-pressed="false">省電畫質</button>
+      <button id="g3-save">保存 PNG</button>
+    </div>
+  </section>
+  <div class="g3-stats" aria-live="off"><b id="g3-fps">--</b>每秒畫面數（FPS）<br><span id="g3-info">準備中…</span></div>
+  <div class="g3-banner" id="g3-banner" role="status">花園正在等大家</div>
+  <script src="points/avatars_snack.js"></script>
+  <script src="points/avatars.js"></script>
+  <script type="module" src="garden3d/preview.js"></script>
+</body>
+</html>

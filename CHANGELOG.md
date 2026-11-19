@@ -1,3 +1,8 @@
+## 3D 花園試作頁（2026-11-19，獨立頁、正式花園未動）
+- 新增 `garden3d-preview.html`＋`garden3d/preview.js`：Three.js r160（MIT，本機 `vendor/three/`）低多邊形「池塘映光」單一階段——起伏草地、樹／松、拱橋、池塘睡蓮與波光、花圃、雲、蝴蝶；頭貼做成壓克力立牌（永遠面向鏡頭、四種動作、出場彈跳＋光圈、陰影依頭貼形狀）。
+- 控制：迎來夥伴（最多 12）、模擬超標暫停（全部動作與鏡頭凍結）、鏡頭環繞（減少動態偏好時預設關）、左右拖曳轉視角、省電畫質（DPR 1、關陰影）、保存 PNG、FPS 顯示。
+- 驗證：Playwright（軟體算圖）寬螢幕／iPad 直式截圖無頁面錯誤，暫停凍結、省電切換、PNG 下載皆正常；FPS 需實機量測。
+
 ## Pages a5058bd — 花園防快取版本號（2026-11-19）
 - 老師反映花園無法開始：推斷是舊快取的 garden/core.js（只收頭貼 0～23）遇到學生換上點心精靈（24 以上），整份名單被判格式錯誤。
 - 新增 `tools/stamp_garden.py`：garden.html 載入的 15 個 js／css 加上內容雜湊 `?v=`；`garden/build.txt` 記錄版本，garden.html 開頭以 no-store 比對，舊頁面自動帶 `?b=` 重新載入一次（保留 #channel，不會無限重載）。未動 GAS、universal.html。

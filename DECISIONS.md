@@ -437,3 +437,10 @@
 **原因：** 只有 Pages 端可改；從 GAS 開花園的網址寫在 launcher.js，會連帶改 universal.html（已分享他校）並需重新部署 GAS。內容雜湊只在檔案真的改變時才變，重跑不會產生差異。
 **棄選方案：** 手動遞增版本號（容易忘）；launcher 加時間戳參數（要動 universal.html 與 GAS）；Service Worker（過重）。
 **生效版本：** Pages 2026-11-19，GAS 仍 @66。
+
+## 3D 花園試作先用程式產生的低多邊形幾何
+
+**選擇：** 試作不下載外部模型包，樹、橋、池塘、花都用 three.js 基本幾何＋flatShading 產生；three.js 放本機 vendor，不走 CDN。頭貼用面向鏡頭的立牌（CanvasTexture），點心精靈直接用 WebP data URL、經典款用 SVG data URL，避免 blob SVG 在 Safari 汙染 canvas。
+**原因：** 先判斷效果與 iPad 效能，不必處理授權與檔案大小；教室網路不穩時仍可開。
+**棄選方案：** 直接改正式花園；先導入 Kenney／Quaternius／KayKit 模型（若試作通過再評估，需逐包確認授權）；OrbitControls（只需左右轉，自寫較輕）。
+**生效版本：** 試作頁 2026-11-19，正式花園維持 SVG。
