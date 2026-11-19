@@ -7,7 +7,7 @@
     var roster=[], model=null, media=null, openingMedia=null, phase='idle', demo=false, fresh=false, pending=null, requestSeq=0, operation=0, tickTimer=null, lastTick=0, silentMs=0, archived=false, renderKey=null;
     var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,upgrade:30},lastLevel=null,wildlifeKey='',discoveries=new window.GardenDiscoveries.Session(),discovery=null;
     var lifeView=new window.GardenLife.View($('garden-visitors'),$('garden-blooms'),$('garden-meadow')),reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)'),grounded=null,finishedArt=null,saving=false,archiveSaved=false;
-    var g3=null,finishedArt3d=null,g3Quality=null,use3d=read('renderer3d',false)===true;
+    var g3=null,finishedArt3d=null,g3Quality=null,use3d=read('renderer3d',source==='c408')===true; // 408 defaults to 3D; the shared universal garden stays 2D unless ticked
     window.GardenPainting.mount($('garden-scene'));
     function read(key,fallback){try{var v=JSON.parse(localStorage.getItem(prefix+key));return v===null?fallback:v;}catch(e){return fallback;}}
     function write(key,value){try{localStorage.setItem(prefix+key,JSON.stringify(value));return true;}catch(e){message('這台瀏覽器無法保存收藏；本次仍可繼續。',true);return false;}}

@@ -24,7 +24,7 @@ class Garden(unittest.TestCase):
   cls.browser.close();cls.pw.stop();cls.server.shutdown();cls.server.server_close()
  def open(self,width=1366,direct=False):
   ctx=self.browser.new_context(viewport={'width':width,'height':768});self.addCleanup(ctx.close)
-  ctx.add_init_script(FAKE);page=ctx.new_page();page.errors=[];page.on('pageerror',lambda e:page.errors.append(str(e)))
+  ctx.add_init_script(FAKE);ctx.add_init_script("if(!localStorage.getItem('c408_garden_renderer3d'))localStorage.setItem('c408_garden_renderer3d','false')");page=ctx.new_page();page.errors=[];page.on('pageerror',lambda e:page.errors.append(str(e)))
   page.goto(self.url+'garden.html');self.assertEqual(page.title(),'班級祕密花園')
   if not direct:page.select_option('#garden-session-mode','timed')
   return page

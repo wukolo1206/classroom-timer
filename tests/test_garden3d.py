@@ -237,20 +237,30 @@ class Garden3D(unittest.TestCase):
         self.assertEqual(p.locator('#g3-stages button').count(), 8)
         self.assertEqual(p.errors, [])
 
-    def test_default_is_2d_and_toggle_persists(self):
+    def test_408_defaults_to_3d_and_unticking_is_remembered(self):
         p = self.open()
-        p.wait_for_function("window.Garden3D !== undefined")
-        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
-        self.assertTrue(p.locator('#garden-3d').is_hidden())
-        self.assertEqual(p.locator('#garden-3d canvas').count(), 0)
-        p.check('#garden-3d-toggle')
-        self.assertEqual(p.get_attribute('body', 'data-renderer'), '3d')
-        self.assertEqual(p.locator('#garden-3d canvas').count(), 1)
-        p.reload()
         p.wait_for_function("window.Garden3D !== undefined && document.body.dataset.renderer === '3d'")
         self.assertTrue(p.is_checked('#garden-3d-toggle'))
+        self.assertEqual(p.locator('#garden-3d canvas').count(), 1)
         p.uncheck('#garden-3d-toggle')
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
         self.assertEqual(p.locator('#garden-3d canvas').count(), 0)
+        p.reload()
+        p.wait_for_function("window.Garden3D !== undefined")
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
+        self.assertFalse(p.is_checked('#garden-3d-toggle'))
+        p.check('#garden-3d-toggle')
+        self.assertEqual(p.locator('#garden-3d canvas').count(), 1)
+        self.assertEqual(p.errors, [])
+
+    def test_shared_universal_garden_stays_2d_by_default(self):
+        p = self.open('garden.html?source=universal')
+        p.wait_for_function("window.Garden3D !== undefined")
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
+        self.assertFalse(p.is_checked('#garden-3d-toggle'))
+        self.assertTrue(p.locator('#garden-3d').is_hidden())
+        p.check('#garden-3d-toggle')
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '3d')
         self.assertEqual(p.errors, [])
 
     def test_without_webgl_toggle_is_disabled(self):
