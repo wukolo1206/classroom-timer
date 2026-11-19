@@ -1,3 +1,27 @@
+# 3D 花園第五、六期上線 — 2026-11-19 Pages cfea64d（GAS 仍 @66）
+
+## 目前狀態
+- 第五期：garden3d/perf.js 量 FPS（暖機 2 秒、取樣 4 秒），<24 自動省電（DPR 1、關陰影），省電仍 <16 在 3D 說明列建議改平面（不自動切換）；結果記 localStorage renderer3dTier。
+- 第六期：408（c408）未設定過的瀏覽器預設 3D，取消勾選會記住；全校通用版（universal）維持預設平面（老師選定）。
+- 3D 花園一～六期全部完成上線，網址不變。
+
+## 本次驗證
+- node：perf 4、layout 5、garden core／life／activities／discoveries 通過。
+- Playwright：test_garden3d.py 15 項＋test_garden.py 59 項，74 passed（16 分鐘）。
+- 線上：檔案一致；408 預設 3D 且已勾選；universal 預設平面；SwiftShader 下 FPS 約 12 → 自動省電並顯示建議；無錯誤。**真 iPad 仍未實測**（硬體加速下 FPS 應高很多）。
+
+## 下次接續
+- 老師課堂看 408 預設 3D：說明列有沒有出現「已自動改用省電畫質」或「建議改用平面」，記下裝置型號。
+- 拍賣系統尚未同步新頭貼；歷史卡片 `<24` 頭貼過濾仍未修。
+
+## 注意事項
+- tests/test_garden.py 專測平面版：所有 new_context 都要 `add_init_script(FLAT)`（408 預設 3D，漏加會用 3D＋假時鐘卡死）。
+- 背景跑長測試用 `pytest -v > 檔案`，不要 `| grep | head`（卡住時看不到進度）。
+- 改 garden 載入的 js／css 或 garden3d/*.js 後，push 前跑 `python tools/stamp_garden.py`。
+- 不要把 universal 改成預設 3D（他校裝置未知，老師已決定）。
+
+---
+
 # 3D 花園第四期上線 — 2026-11-19 Pages 2ff89ca（GAS 仍 @66）
 
 ## 目前狀態
