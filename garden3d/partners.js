@@ -1,8 +1,8 @@
 // garden3d/partners.js
 // Partner figures in the 3D garden: stable seat -> slot, arrive / leave animations, avatar swaps.
-import * as THREE from '../vendor/three/three.module.min.js';
-import { puffyFor, labelTexture } from './figures.js';
-import { generateSlots, figureScale, groundY } from './layout.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
+import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
+import { generateSlots, figureScale, groundY } from './layout.js?v=24350342a5';
 
 const MOTIONS = ['sway', 'hop', 'turn', 'float'];
 const baseGeo = new THREE.CylinderGeometry(0.48, 0.52, 0.09, 24);

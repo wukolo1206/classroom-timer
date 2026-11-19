@@ -14,8 +14,10 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGE = ROOT / 'garden.html'
+PREVIEW = ROOT / 'garden3d-preview.html'  # 3D prototype page shares the modules, so it must use the same stamped URLs
 BUILD = ROOT / 'garden' / 'build.txt'
-ASSET = re.compile(r'((?:src|href)=")((?:garden|points)/[^"?#]+)(?:\?v=[0-9a-f]+)?(")')
+ASSET = re.compile(r'((?:src|href)=")((?:garden|garden3d|points|vendor)/[^"?#]+)(?:\?v=[0-9a-f]+)?(")')
+IMPORT = re.compile(r"""((?:from|import)\s*['"])(\.{1,2}/[^'"?#]+\.js)(?:\?v=[0-9a-f]+)?(['"])""")
 BUILD_LINE = re.compile(r"var b='[0-9a-f]*'")
 CHECK = ("  <script>(function(){var b='';try{fetch('garden/build.txt?t='+Date.now(),{cache:'no-store'})"
          ".then(function(r){return r.ok?r.text():null;}).then(function(t){t=t&&t.trim();if(!t||t===b)return;"
@@ -27,7 +29,30 @@ def digest(data):
     return hashlib.sha256(data.replace(b'\r\n', b'\n')).hexdigest()[:10]
 
 
+def stamp_module(path, done):
+    """Stamp ./ and ../ imports inside an ES module with the dependency's content hash (deps first)."""
+    path = path.resolve()
+    if path in done:
+        return done[path]
+    text = path.read_bytes().decode('utf-8')
+
+    def repl(m):
+        dep = (path.parent / m.group(2)).resolve()
+        if not dep.is_file():
+            raise SystemExit('missing import: %s in %s' % (m.group(2), path))
+        return m.group(1) + m.group(2) + '?v=' + stamp_module(dep, done) + m.group(3)
+
+    if path.suffix == '.js' and 'vendor' not in path.parts:
+        new = IMPORT.sub(repl, text)
+        if new != text:
+            path.write_bytes(new.encode('utf-8'))
+            text = new
+    done[path] = digest(text.encode('utf-8'))
+    return done[path]
+
+
 def main():
+    done = {}
     html = PAGE.read_bytes().decode('utf-8')
     if "fetch('garden/build.txt" not in html:
         html = html.replace('  <link rel="stylesheet"', CHECK + '  <link rel="stylesheet"', 1)
@@ -36,7 +61,7 @@ def main():
         path = ROOT / m.group(2)
         if not path.is_file():
             raise SystemExit('missing asset: ' + m.group(2))
-        return m.group(1) + m.group(2) + '?v=' + digest(path.read_bytes()) + m.group(3)
+        return m.group(1) + m.group(2) + '?v=' + stamp_module(path, done) + m.group(3)
 
     html = ASSET.sub(stamp, html)
     build = digest(BUILD_LINE.sub("var b=''", html).encode('utf-8'))
@@ -44,6 +69,11 @@ def main():
     PAGE.write_bytes(html.encode('utf-8'))
     BUILD.write_bytes((build + '\n').encode('utf-8'))
     print('build', build, '·', len(ASSET.findall(html)), 'assets stamped')
+    if PREVIEW.is_file():
+        prev = PREVIEW.read_bytes().decode('utf-8')
+        new = ASSET.sub(stamp, prev)
+        if new != prev:
+            PREVIEW.write_bytes(new.encode('utf-8'))
 
 
 if __name__ == '__main__':

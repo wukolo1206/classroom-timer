@@ -1,7 +1,7 @@
 // 3D garden world: low-poly scene built from code, revealed stage by stage
 // (follows docs/design/garden-eight-stages-v0.1.md: one main change per stage, fixed upper limits).
-import * as THREE from '../vendor/three/three.module.min.js';
-import { POND, BEDS, pondE, groundY } from './layout.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
+import { POND, BEDS, pondE, groundY } from './layout.js?v=24350342a5';
 
 export const STAGE_NAMES = ['夥伴入園', '花圃甦醒', '綠意成蔭', '蝴蝶來訪', '池塘映光', '祕密花園', '晚霞時光', '月光成畫'];
 

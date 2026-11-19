@@ -1,8 +1,8 @@
 // garden3d/stage3d.js
 // Production 3D garden controller: owns renderer, camera and loop; app.js pushes state via setState().
-import * as THREE from '../vendor/three/three.module.min.js';
-import { createWorld } from './world.js';
-import { Partners } from './partners.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
+import { createWorld } from './world.js?v=95c341bd22';
+import { Partners } from './partners.js?v=ad37211d1e';
 
 export function createGarden3D(container, options = {}) {
   const canvas = document.createElement('canvas');

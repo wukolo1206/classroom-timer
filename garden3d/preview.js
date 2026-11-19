@@ -1,8 +1,8 @@
 // 3D garden prototype — all 8 stages + puffy partner figures. Standalone; the production garden is untouched.
-import * as THREE from '../vendor/three/three.module.min.js';
-import { createWorld, STAGE_NAMES } from './world.js';
-import { generateSlots, figureScale } from './layout.js';
-import { puffyFor, labelTexture } from './figures.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
+import { createWorld, STAGE_NAMES } from './world.js?v=95c341bd22';
+import { generateSlots, figureScale } from './layout.js?v=24350342a5';
+import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
 
 const $ = (id) => document.getElementById(id);
 const A = window.c408PointAvatars;

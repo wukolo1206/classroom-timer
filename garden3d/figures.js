@@ -1,5 +1,5 @@
 // Avatar figures for the 3D garden: puffy "soft vinyl" figures grown from each avatar's silhouette.
-import * as THREE from '../vendor/three/three.module.min.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 
 const A = window.c408PointAvatars;
 
