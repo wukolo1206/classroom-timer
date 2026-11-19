@@ -10,6 +10,10 @@ FAKE = """(() => {
  window.AudioContext=class {constructor(){this.state='running';}resume(){return Promise.resolve();}close(){return Promise.resolve();}createMediaStreamSource(){return {connect(){}};}createBiquadFilter(){return {frequency:{value:0},connect(){}};}createAnalyser(){return {fftSize:2048,getFloatTimeDomainData(b){b.fill(window.micLevel);}};}};
 })();"""
 
+# This suite tests the 2D garden. The 408 garden now defaults to 3D, so keep 3D off unless a test set it;
+# every browser context here must add FLAT (a 3D garden under a fake clock renders thousands of software frames).
+FLAT = "if(!localStorage.getItem('c408_garden_renderer3d'))localStorage.setItem('c408_garden_renderer3d','false')"
+
 class Garden(unittest.TestCase):
  @classmethod
  def setUpClass(cls):
@@ -24,7 +28,7 @@ class Garden(unittest.TestCase):
   cls.browser.close();cls.pw.stop();cls.server.shutdown();cls.server.server_close()
  def open(self,width=1366,direct=False):
   ctx=self.browser.new_context(viewport={'width':width,'height':768});self.addCleanup(ctx.close)
-  ctx.add_init_script(FAKE);ctx.add_init_script("if(!localStorage.getItem('c408_garden_renderer3d'))localStorage.setItem('c408_garden_renderer3d','false')");page=ctx.new_page();page.errors=[];page.on('pageerror',lambda e:page.errors.append(str(e)))
+  ctx.add_init_script(FAKE);ctx.add_init_script(FLAT);page=ctx.new_page();page.errors=[];page.on('pageerror',lambda e:page.errors.append(str(e)))
   page.goto(self.url+'garden.html');self.assertEqual(page.title(),'班級祕密花園')
   if not direct:page.select_option('#garden-session-mode','timed')
   return page
@@ -63,7 +67,7 @@ class Garden(unittest.TestCase):
     self.assertTrue(all(b['x']>=scene['x']-1 and b['right']<=scene['x']+scene['width']+1 for b in boxes))
     self.assertEqual(p.errors,[])
  def cloud_pair(self,delay=0):
-  ctx=self.browser.new_context(viewport={'width':1366,'height':768});self.addCleanup(ctx.close);ctx.add_init_script(FAKE)
+  ctx=self.browser.new_context(viewport={'width':1366,'height':768});self.addCleanup(ctx.close);ctx.add_init_script(FAKE);ctx.add_init_script(FLAT)
   launcher=(ROOT/'garden/launcher.js').read_text(encoding='utf-8')
   harness='''<button data-garden-launch="c408">open</button><script>
    window.calls=0;window.currentAvatar=8;window.rosterDelay=DELAY;
@@ -121,7 +125,7 @@ class Garden(unittest.TestCase):
   p.evaluate("() => {Object.defineProperty(document,'hidden',{configurable:true,value:false});AudioContext.prototype.resume=()=>Promise.resolve();}")
   p.click('#garden-start');p.wait_for_function("document.body.dataset.phase==='running'");self.assertEqual(p.inner_text('#garden-clock'),'01:00')
  def test_local_scoring_avatar_changes_and_undo_are_read_without_writes(self):
-  ctx=self.browser.new_context();self.addCleanup(ctx.close);ctx.add_init_script(FAKE)
+  ctx=self.browser.new_context();self.addCleanup(ctx.close);ctx.add_init_script(FAKE);ctx.add_init_script(FLAT)
   scripts=(ROOT/'garden/core.js').read_text(encoding='utf-8')+'\n'+(ROOT/'garden/launcher.js').read_text(encoding='utf-8')
   harness='<button data-garden-launch="c408">open</button><script>var seatRoster={1:["Test A"],3:["Test B"],8:["Test C"]};localStorage.setItem("c408_points_local/state",JSON.stringify({bundle:{settings:{avatars:{1:8}},events:[]},pending:[]}));</script><script>'+scripts+'</script>'
   ctx.route('**/garden-local-test',lambda r:r.fulfill(body=harness,content_type='text/html'))

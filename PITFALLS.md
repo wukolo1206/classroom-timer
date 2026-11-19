@@ -624,3 +624,11 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **原因**：測試只檢查 PNG 寬度與比例，兩種路徑都滿足。
 **解法**：stage3d 的 debug() 回傳 captures 計數，測試斷言即時保存 +1、結束凍結 +2、結束畫面保存不再增加。
 **未來避免**：驗證「走哪條路徑」時用可觀測的呼叫計數或專屬標記，不用輸出外觀推斷；先確認測試在實作前會失敗。
+---
+
+## 408 預設 3D 後，平面版測試卡住近一小時（2026-11-19）
+
+**現象**：第六期改成 408 預設 3D 後，tests/test_garden.py 跑到約第 9 分鐘就停住，近一小時沒有結束，三個 headless 瀏覽器一直佔著 CPU。
+**原因**：只在 `open()` 加了「關閉 3D」的 init script，`cloud_pair()` 與另一處自建的 browser context 沒加；那些測試用 3D 開啟花園，再以假時鐘 `run_for(38000)` 推進，每格都是軟體算圖，等於卡死。headless Chromium 沒加 GPU 參數也有 WebGL，所以 3D 真的會啟動。
+**解法**：抽成常數 `FLAT`，所有 `new_context` 都 `add_init_script(FLAT)`；長時間測試改用 `pytest -v` 輸出到檔案，可看出停在哪一項。
+**未來避免**：改預設值時，搜尋測試裡所有 `new_context`／`new_page` 入口一起處理；背景測試不要用 `| grep | head` 包住（跑完才有輸出，卡住時看不出進度）。
