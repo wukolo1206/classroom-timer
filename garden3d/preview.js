@@ -1,15 +1,17 @@
 // 3D garden prototype — all 8 stages + puffy partner figures. Standalone; the production garden is untouched.
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
-import { createWorld, STAGE_NAMES } from './world.js?v=95c341bd22';
+import { createWorld, STAGE_NAMES } from './world.js?v=22c4b0b85a';
 import { generateSlots, figureScale } from './layout.js?v=24350342a5';
 import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
-import { createProp, disposeProp } from './props.js?v=ac4f7668e4';
+import { createProp, disposeProp } from './props.js?v=d606433c39';
 
 const $ = (id) => document.getElementById(id);
 const A = window.c408PointAvatars;
 const canvas = $('g3-canvas');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const life = window.GardenLife ? new window.GardenLife.Life() : null; // same activity engine as the real garden
+const discoveries = window.GardenDiscoveries ? new window.GardenDiscoveries.Session() : null;
+let discovery = null, discoveryCount = 0;
 const MAX_PARTNERS = 31, FIG_SCALE = figureScale(MAX_PARTNERS);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -108,12 +110,13 @@ addEventListener('resize', resize);
 const easeOutBack = (t) => { const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 function applyLifeFrame(ms) {
   if (!life || !standees.length) return;
-  const states = life.frame(standees.map((g) => ({ seat: g.userData.seat })), ms, { width: 1200, columns: 8, size: 60, rowPitch: 140, height: 600, rows: 4 }, !paused, reducedMotion, null);
+  const states = life.frame(standees.map((g) => ({ seat: g.userData.seat })), ms, { width: 1200, columns: 8, size: 60, rowPitch: 140, height: 600, rows: 4 }, !paused, reducedMotion, discovery);
   states.forEach((s) => {
     const g = standees.find((o) => o.userData.seat === s.seat); if (!g) return; const u = g.userData;
     const x = u.slotX + (s.x / 48) * 0.45 * FIG_SCALE / 0.82, z = u.slotZ + (s.y / 6) * 0.18 * FIG_SCALE / 0.82;
     g.position.set(x, groundY(x, z), z); u.walking = s.activity === 'walking'; u.facing = s.facing;
-    if (s.activity !== u.activity) { u.activity = s.activity; if (u.prop) { g.remove(u.prop); disposeProp(u.prop); } u.prop = createProp(s.activity); if (u.prop) g.add(u.prop); }
+    if (s.activity !== u.activity || (s.variant || 0) !== u.variant) { u.activity = s.activity; u.variant = s.variant || 0; if (u.prop) { g.remove(u.prop); disposeProp(u.prop); } u.prop = createProp(s.activity, s.variant); if (u.prop) g.add(u.prop); }
+    u.presenting = !!s.presenting;
   });
 }
 let frames = 0, fpsAt = performance.now();
@@ -125,7 +128,7 @@ function frame(now) {
   applyLifeFrame(dt * 1000);
   standees.forEach((g) => {
     const u = g.userData, age = clock - u.born, k = clock * 2 + u.phase, b = u.body;
-    g.scale.setScalar(FIG_SCALE * (age < 0.7 ? Math.max(0.001, easeOutBack(age / 0.7)) : 1));
+    g.scale.setScalar(FIG_SCALE * (u.presenting ? 1.1 : 1) * (age < 0.7 ? Math.max(0.001, easeOutBack(age / 0.7)) : 1));
     b.rotation.set(0, 0, 0); b.position.y = 0.08;
     if (u.prop && u.prop.userData.animate && !reducedMotion) u.prop.userData.animate(clock + u.phase);
     if (u.walking && !reducedMotion) { b.rotation.y = u.facing * 0.6; b.position.y = 0.08 + Math.abs(Math.sin(k * 2.2)) * 0.12; return; }
@@ -151,10 +154,19 @@ function frame(now) {
 // ---------- buttons ----------
 $('g3-add').onclick = () => { addStandee().catch((e) => say(e.message)); };
 $('g3-all').onclick = async () => { while (await addStandee()) { /* fill to 31 */ } say('全員 ' + standees.length + ' 位到齊'); };
+$('g3-discover').onclick = () => {
+  if (!discoveries) return;
+  stopAuto(); if (world.stage < 7) goStage(7, true);
+  discoveryCount++;
+  discovery = discoveries.sync(discoveryCount, standees.map((g) => g.userData.seat));
+  world.setTheme(discovery.themeId, reducedMotion);
+  say('新發現 ' + discovery.count + '：' + discovery.themeName + ' · ' + discovery.activityName);
+};
 $('g3-auto').onclick = function () {
   if (autoTimer) { stopAuto(); return; }
   this.setAttribute('aria-pressed', 'true');
-  standees.splice(0).forEach((g) => scene.remove(g)); nextSeat = 1; goStage(0, true); say('自動播放：夥伴陸續入園…');
+  standees.splice(0).forEach((g) => scene.remove(g)); nextSeat = 1; goStage(0, true);
+  if (discoveries) { discoveries.reset(); discovery = null; discoveryCount = 0; world.setTheme('bridge', true); } say('自動播放：夥伴陸續入園…');
   autoTimer = setTimeout(autoStep, 600);
 };
 $('g3-pause').onclick = function () {
