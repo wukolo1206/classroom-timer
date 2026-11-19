@@ -7,7 +7,7 @@
     var roster=[], model=null, media=null, openingMedia=null, phase='idle', demo=false, fresh=false, pending=null, requestSeq=0, operation=0, tickTimer=null, lastTick=0, silentMs=0, archived=false, renderKey=null;
     var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,upgrade:30},lastLevel=null,wildlifeKey='',discoveries=new window.GardenDiscoveries.Session(),discovery=null;
     var lifeView=new window.GardenLife.View($('garden-visitors'),$('garden-blooms'),$('garden-meadow')),reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)'),grounded=null,finishedArt=null,saving=false,archiveSaved=false;
-    var g3=null,finishedArt3d=null,use3d=read('renderer3d',false)===true;
+    var g3=null,finishedArt3d=null,g3Quality=null,use3d=read('renderer3d',false)===true;
     window.GardenPainting.mount($('garden-scene'));
     function read(key,fallback){try{var v=JSON.parse(localStorage.getItem(prefix+key));return v===null?fallback:v;}catch(e){return fallback;}}
     function write(key,value){try{localStorage.setItem(prefix+key,JSON.stringify(value));return true;}catch(e){message('這台瀏覽器無法保存收藏；本次仍可繼續。',true);return false;}}
@@ -81,13 +81,15 @@
         banner.style.top=(top+Math.max(0,Math.min(18,(space-banner.offsetHeight)/2)))+'px';
     }
     function g3State(){return {visible:model?model.visible():[],rosterSize:roster.length||31,stage:model?model.stage:0,active:$('garden-scene').dataset.lifeActive==='true',reduced:reducedMotion.matches,idle:!model,life:lifeView.lastStates||[],discovery:discovery?{count:discovery.count,themeId:discovery.themeId}:null};}
+    function apply3dNote(){var api=window.Garden3D,ok=!!(api&&api.supported),on=use3d&&ok,saver=(g3Quality&&g3Quality.tier==='saver')||read('renderer3dTier','high')==='saver';
+        $('garden-3d-note').textContent=!api?'正在檢查這台裝置能否使用 3D…':!ok?'這台裝置不支援 3D，使用平面花園。':!on?'勾選後改用 3D 花園。':'3D 模式：保存花園畫會存 3D 畫面。'+(saver?'已自動改用省電畫質。':'')+(g3Quality&&g3Quality.slow?'這台裝置跑 3D 較吃力，建議取消勾選改用平面花園。':'');}
     function apply3d(){
         var api=window.Garden3D,ok=!!(api&&api.supported),on=use3d&&ok,box=$('garden-3d');
         $('garden-3d-toggle').checked=on;$('garden-3d-toggle').disabled=!ok;
-        $('garden-3d-note').textContent=!api?'正在檢查這台裝置能否使用 3D…':!ok?'這台裝置不支援 3D，使用平面花園。':on?'3D 模式：保存花園畫會存 3D 畫面。':'勾選後改用 3D 花園。';
+        apply3dNote();
         document.body.dataset.renderer=on?'3d':'2d';box.hidden=!on;
-        if(on&&!g3){try{g3=api.create(box,{reducedMotion:reducedMotion.matches});}catch(e){g3=null;use3d=false;write('renderer3d',false);message('3D 花園無法啟動，已改用平面花園。',true);apply3d();return;}}
-        if(!on&&g3){g3.dispose();g3=null;}
+        if(on&&!g3){try{g3=api.create(box,{reducedMotion:reducedMotion.matches,initialTier:read('renderer3dTier','high'),onQuality:function(d){g3Quality=d;write('renderer3dTier',d.tier);apply3dNote();}});}catch(e){g3=null;use3d=false;write('renderer3d',false);message('3D 花園無法啟動，已改用平面花園。',true);apply3d();return;}}
+        if(!on&&g3){g3.dispose();g3=null;g3Quality=null;apply3dNote();}
         if(g3)g3.setState(g3State());
     }
     function render(dt){

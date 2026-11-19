@@ -3,6 +3,7 @@
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { createWorld } from './world.js?v=22c4b0b85a';
 import { Partners } from './partners.js?v=79d83b2810';
+import { PerfMonitor } from './perf.js?v=f9fd4ce548';
 
 export function createGarden3D(container, options = {}) {
   const canvas = document.createElement('canvas');
@@ -14,10 +15,22 @@ export function createGarden3D(container, options = {}) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
   const world = createWorld(scene);
+  // Quality tier: measured from real frame times; 'saver' = DPR 1 and no shadows (see perf.js).
+  const monitor = new PerfMonitor(Object.assign({ initialTier: options.initialTier }, options.perf));
+  let tier = null;
+  function applyTier(next) {
+    if (next === tier) return;
+    tier = next;
+    renderer.setPixelRatio(tier === 'saver' ? 1 : Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.shadowMap.enabled = tier !== 'saver';
+    scene.traverse((o) => { if (o.isDirectionalLight) o.castShadow = tier !== 'saver'; if (o.material) [].concat(o.material).forEach((m) => { m.needsUpdate = true; }); });
+    if (resizeReady) resize();
+  }
+  let resizeReady = false;
+  applyTier(monitor.tier);
   const target = new THREE.Vector3(0.2, 1.3, 2.0);
   const home = new THREE.Vector3(target.x, 0, target.z + 13);
   const partners = new Partners(scene, home);
@@ -46,7 +59,10 @@ export function createGarden3D(container, options = {}) {
   }
 
   function frame(t) {
-    const real = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
+    const rawMs = t - last;
+    const real = Math.min(0.05, Math.max(0, rawMs / 1000)); last = t;
+    const decision = monitor.tick(rawMs);
+    if (decision) { applyTier(decision.tier); if (options.onQuality) options.onQuality(decision); }
     const dt = state.active ? real : 0; // noise / teacher pause / no signal / ended: everything holds still
     clock += dt;
     world.update(dt, renderer);
@@ -80,6 +96,7 @@ export function createGarden3D(container, options = {}) {
 
   const ro = new ResizeObserver(resize);
   ro.observe(container);
+  resizeReady = true;
   resize();
   renderer.setAnimationLoop(frame);
 
@@ -87,6 +104,6 @@ export function createGarden3D(container, options = {}) {
     setState,
     capture,
     dispose() { renderer.setAnimationLoop(null); ro.disconnect(); partners.reset(); renderer.dispose(); canvas.remove(); },
-    debug() { return { stage: world.stage, mood: world.mood, clock, theme: world.theme, captures, labelsVisible: partners.labelsVisible, partners: partners.debug() }; },
+    debug() { return { stage: world.stage, mood: world.mood, clock, theme: world.theme, captures, labelsVisible: partners.labelsVisible, quality: { tier, fps: monitor.fps, slow: monitor.slow, done: monitor.done, shadows: renderer.shadowMap.enabled, pixelRatio: renderer.getPixelRatio() }, partners: partners.debug() }; },
   };
 }

@@ -202,6 +202,35 @@ class Garden3D(unittest.TestCase):
         self.assertIn('存 3D 畫面', p.inner_text('#garden-3d-note'))
         self.assertEqual(p.errors, [])
 
+    def test_low_fps_switches_to_saver_and_reports_slow(self):
+        p = self.open()
+        p.wait_for_function('window.Garden3D !== undefined')
+        r = p.evaluate("""async () => { %s
+          const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:400px'; document.body.appendChild(box);
+          const seen = [];
+          const g = window.Garden3D.create(box, { reducedMotion: true, onQuality: (d) => seen.push([d.tier, d.slow]), perf: { warmupMs: 100, sampleMs: 300, minFps: 1000, floorFps: 1000 } });
+          g.setState({ visible: [], rosterSize: 31, stage: 0, active: true, reduced: true, idle: false });
+          await until(() => g.debug().quality.slow, 20000);
+          const q = g.debug().quality; g.dispose();
+          return { seen, q };
+        }""" % UNTIL)
+        self.assertEqual(r['seen'], [['saver', False], ['saver', True]])
+        self.assertEqual((r['q']['tier'], r['q']['shadows'], r['q']['pixelRatio']), ('saver', False, 1))
+        self.assertEqual(p.errors, [])
+
+    def test_app_remembers_saver_tier_and_shows_hint(self):
+        # SwiftShader renders only a few fps, so the real monitor drops to saver and flags the device as slow.
+        p = self.open(enable=True)
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.wait_for_function("window.__gardenDebug3d().quality.done", timeout=60000)
+        self.assertIn('省電', p.inner_text('#garden-3d-note'))
+        self.assertIn('平面', p.inner_text('#garden-3d-note'))
+        self.assertEqual(p.evaluate("localStorage.getItem('c408_garden_renderer3dTier')"), '"saver"')
+        p.reload()
+        p.wait_for_function("document.body.dataset.renderer === '3d' && window.__gardenDebug3d()")
+        self.assertEqual(p.evaluate('window.__gardenDebug3d().quality.tier'), 'saver')
+        self.assertEqual(p.errors, [])
+
     def test_preview_page_still_loads(self):
         p = self.open('garden3d-preview.html')
         p.wait_for_function('window.__garden3d && __garden3d.standees.length >= 8', timeout=60000)
