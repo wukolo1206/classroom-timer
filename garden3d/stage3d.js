@@ -2,7 +2,7 @@
 // Production 3D garden controller: owns renderer, camera and loop; app.js pushes state via setState().
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { createWorld } from './world.js?v=22c4b0b85a';
-import { Partners } from './partners.js?v=99bf5b28b5';
+import { Partners } from './partners.js?v=79d83b2810';
 
 export function createGarden3D(container, options = {}) {
   const canvas = document.createElement('canvas');
@@ -58,6 +58,26 @@ export function createGarden3D(container, options = {}) {
     renderer.render(scene, camera);
   }
 
+  function dataUrlToBlob(url) {
+    const bin = atob(url.split(',')[1]), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: 'image/png' });
+  }
+  let captures = 0;
+  // One high-resolution frame as PNG. The HUD is DOM, so it is never part of the image.
+  async function capture({ seats = false, width = 1800 } = {}) {
+    captures++;
+    const css = canvas.clientWidth || container.clientWidth || 1, before = renderer.getPixelRatio();
+    partners.setLabelsVisible(!!seats);
+    renderer.setPixelRatio(Math.min(3, Math.max(1, width / css))); resize();
+    renderer.render(scene, camera);
+    const url = canvas.toDataURL('image/png'); // read before the size is restored (restoring clears the buffer)
+    partners.setLabelsVisible(true);
+    renderer.setPixelRatio(before); resize();
+    renderer.render(scene, camera);
+    return dataUrlToBlob(url);
+  }
+
   const ro = new ResizeObserver(resize);
   ro.observe(container);
   resize();
@@ -65,7 +85,8 @@ export function createGarden3D(container, options = {}) {
 
   return {
     setState,
+    capture,
     dispose() { renderer.setAnimationLoop(null); ro.disconnect(); partners.reset(); renderer.dispose(); canvas.remove(); },
-    debug() { return { stage: world.stage, mood: world.mood, clock, theme: world.theme, partners: partners.debug() }; },
+    debug() { return { stage: world.stage, mood: world.mood, clock, theme: world.theme, captures, labelsVisible: partners.labelsVisible, partners: partners.debug() }; },
   };
 }

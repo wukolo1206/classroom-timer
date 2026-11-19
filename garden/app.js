@@ -7,7 +7,7 @@
     var roster=[], model=null, media=null, openingMedia=null, phase='idle', demo=false, fresh=false, pending=null, requestSeq=0, operation=0, tickTimer=null, lastTick=0, silentMs=0, archived=false, renderKey=null;
     var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,upgrade:30},lastLevel=null,wildlifeKey='',discoveries=new window.GardenDiscoveries.Session(),discovery=null;
     var lifeView=new window.GardenLife.View($('garden-visitors'),$('garden-blooms'),$('garden-meadow')),reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)'),grounded=null,finishedArt=null,saving=false,archiveSaved=false;
-    var g3=null,use3d=read('renderer3d',false)===true;
+    var g3=null,finishedArt3d=null,use3d=read('renderer3d',false)===true;
     window.GardenPainting.mount($('garden-scene'));
     function read(key,fallback){try{var v=JSON.parse(localStorage.getItem(prefix+key));return v===null?fallback:v;}catch(e){return fallback;}}
     function write(key,value){try{localStorage.setItem(prefix+key,JSON.stringify(value));return true;}catch(e){message('這台瀏覽器無法保存收藏；本次仍可繼續。',true);return false;}}
@@ -84,7 +84,7 @@
     function apply3d(){
         var api=window.Garden3D,ok=!!(api&&api.supported),on=use3d&&ok,box=$('garden-3d');
         $('garden-3d-toggle').checked=on;$('garden-3d-toggle').disabled=!ok;
-        $('garden-3d-note').textContent=!api?'正在檢查這台裝置能否使用 3D…':!ok?'這台裝置不支援 3D，使用平面花園。':on?'3D 模式：保存的花園畫目前仍是平面版。':'勾選後改用 3D 花園。';
+        $('garden-3d-note').textContent=!api?'正在檢查這台裝置能否使用 3D…':!ok?'這台裝置不支援 3D，使用平面花園。':on?'3D 模式：保存花園畫會存 3D 畫面。':'勾選後改用 3D 花園。';
         document.body.dataset.renderer=on?'3d':'2d';box.hidden=!on;
         if(on&&!g3){try{g3=api.create(box,{reducedMotion:reducedMotion.matches});}catch(e){g3=null;use3d=false;write('renderer3d',false);message('3D 花園無法啟動，已改用平面花園。',true);apply3d();return;}}
         if(!on&&g3){g3.dispose();g3=null;}
@@ -107,7 +107,7 @@
         var list=read('history',[]);if(!Array.isArray(list))list=[];archiveSaved=write('history',[entry].concat(list).slice(0,12));
         showHistory();
     }
-    function finish(){operation++;model.ended=true;stopMedia();setPhase('ended');$('garden-finish').hidden=false;$('garden-result').textContent='一起迎來 '+model.visible().length+' / '+roster.length+' 位夥伴，累積 '+Math.floor(model.quietMs/60000)+' 分 '+Math.floor(model.quietMs%60000/1000)+' 秒合宜音量。本輪超標 '+model.noiseCount+' 次。'+(demo?'（示範花園）':'');archive();render();finishedArt={plain:window.GardenPainting.capture($('garden-scene'),false),seats:window.GardenPainting.capture($('garden-scene'),true)};message(archiveSaved?'活動結束，麥克風已關閉。可保存這幅花園畫；活動紀錄已留下摘要。':'活動結束，麥克風已關閉。瀏覽器無法儲存活動摘要，仍可保存這幅花園畫。',!archiveSaved);}
+    function finish(){operation++;model.ended=true;stopMedia();setPhase('ended');$('garden-finish').hidden=false;$('garden-result').textContent='一起迎來 '+model.visible().length+' / '+roster.length+' 位夥伴，累積 '+Math.floor(model.quietMs/60000)+' 分 '+Math.floor(model.quietMs%60000/1000)+' 秒合宜音量。本輪超標 '+model.noiseCount+' 次。'+(demo?'（示範花園）':'');archive();render();finishedArt={plain:window.GardenPainting.capture($('garden-scene'),false),seats:window.GardenPainting.capture($('garden-scene'),true)};finishedArt3d=g3?{plain:g3.capture({seats:false}),seats:g3.capture({seats:true})}:null;message(archiveSaved?'活動結束，麥克風已關閉。可保存這幅花園畫；活動紀錄已留下摘要。':'活動結束，麥克風已關閉。瀏覽器無法儲存活動摘要，仍可保存這幅花園畫。',!archiveSaved);}
     function pause(reason){if(phase!=='running'&&phase!=='opening')return;operation++;var resumable=model&&!model.ended;if(resumable)model.pause();stopMedia();setPhase(resumable?'paused':'idle');message(reason||'講解暫停中，倒數與麥克風都已暫停。');render();}
     function errorText(e){if(e&&e.name==='NotAllowedError')return '麥克風尚未允許。請在網址列的網站權限允許麥克風，再按開始。';if(e&&e.name==='NotFoundError')return '找不到麥克風，請確認這台電腦已接上麥克風。';return '無法開始：'+(e&&e.message||'請檢查麥克風是否被其他程式使用。');}
     async function acquire(resuming){
@@ -122,7 +122,7 @@
             openingMedia={stream:stream,ctx:null};var AC=window.AudioContext||window.webkitAudioContext;ctx=new AC();openingMedia.ctx=ctx;await ctx.resume();
             if(token!==operation){stream.getTracks().forEach(function(t){t.stop();});ctx.close();return;}
             var src=ctx.createMediaStreamSource(stream),hp=ctx.createBiquadFilter(),an=ctx.createAnalyser();hp.type='highpass';hp.frequency.value=100;an.fftSize=4096;src.connect(hp);hp.connect(an);
-            if(!resuming){var min=Number($('garden-minutes').value);model=new engine.Model({roster:roster,durationMs:$('garden-session-mode').value==='direct'?null:min*60000,threshold:cfg[$('garden-mode').value],spawnMs:cfg.spawn*1000,upgradeMs:cfg.upgrade*1000});archived=false;archiveSaved=false;finishedArt=null;renderKey=null;discoveries.reset();window.GardenPainting.update($('garden-scene'),0,true);lifeView.reset();wildlifeKey='';}else model.resume();
+            if(!resuming){var min=Number($('garden-minutes').value);model=new engine.Model({roster:roster,durationMs:$('garden-session-mode').value==='direct'?null:min*60000,threshold:cfg[$('garden-mode').value],spawnMs:cfg.spawn*1000,upgradeMs:cfg.upgrade*1000});archived=false;archiveSaved=false;finishedArt=null;finishedArt3d=null;renderKey=null;discoveries.reset();window.GardenPainting.update($('garden-scene'),0,true);lifeView.reset();wildlifeKey='';}else model.resume();
             media={stream:stream,ctx:ctx,an:an,buf:new Float32Array(an.fftSize)};openingMedia=null;silentMs=0;
             stream.getTracks().forEach(function(t){t.addEventListener('ended',function(){if(media)pause('麥克風已中斷，活動已暫停。確認連線後按繼續。');});});
             $('garden-welcome').hidden=true;$('garden-finish').hidden=true;setPhase('running');lastTick=performance.now();
@@ -149,12 +149,12 @@
     $('garden-class-retry').onclick=function(){$('garden-refresh').click();};
     $('garden-pause').onclick=function(){if(phase==='paused')acquire(true);else pause();};
     $('garden-end').onclick=function(){if(model&&window.confirm('結束這次活動並保留活動摘要嗎？'))finish();};
-    $('garden-again').onclick=function(){model=null;finishedArt=null;renderKey=null;discoveries.reset();lifeView.reset();setPhase('idle');$('garden-finish').hidden=true;$('garden-welcome').hidden=false;render();$('garden-start').focus();};
+    $('garden-again').onclick=function(){model=null;finishedArt=null;finishedArt3d=null;renderKey=null;discoveries.reset();lifeView.reset();setPhase('idle');$('garden-finish').hidden=true;$('garden-welcome').hidden=false;render();$('garden-start').focus();};
     function saveStatus(text){$('garden-save-status').textContent=text;$('garden-finish-save-status').textContent=text;}
     $('garden-finish-save').onclick=function(){$('garden-save').click();};
     $('garden-save').onclick=async function(){
         if(!model||saving)return;saving=true;this.disabled=true;$('garden-finish-save').disabled=true;saveStatus('正在準備花園畫…');
-        try{var include=$('garden-save-seats').checked,svg=finishedArt?finishedArt[include?'seats':'plain']:window.GardenPainting.capture($('garden-scene'),include);var blob=await window.GardenPainting.toPng(svg);window.GardenPainting.download(blob,'班級花園_'+new Date().toLocaleDateString('sv-SE')+'.png');saveStatus('已送出PNG下載，請查看這台裝置的下載項目。');}
+        try{var include=$('garden-save-seats').checked,blob;if(g3){blob=await (finishedArt3d?finishedArt3d[include?'seats':'plain']:g3.capture({seats:include}));}else{var svg=finishedArt?finishedArt[include?'seats':'plain']:window.GardenPainting.capture($('garden-scene'),include);blob=await window.GardenPainting.toPng(svg);}window.GardenPainting.download(blob,'班級花園_'+new Date().toLocaleDateString('sv-SE')+'.png');saveStatus('已送出PNG下載，請查看這台裝置的下載項目。');}
         catch(e){saveStatus('暫時無法產生圖片，請重試；目前花園仍保留，可再次保存。');}
         finally{saving=false;this.disabled=!model;$('garden-finish-save').disabled=!model;}
     };

@@ -155,6 +155,53 @@ class Garden3D(unittest.TestCase):
         self.assertLessEqual(sum(1 for _, _, pres in acts if pres), 2)
         self.assertEqual(p.errors, [])
 
+    def test_capture_png_hides_seat_labels_unless_asked(self):
+        p = self.open()
+        p.wait_for_function('window.Garden3D !== undefined')
+        r = p.evaluate("""async () => { %s
+          const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:800px;height:450px'; document.body.appendChild(box);
+          const g = window.Garden3D.create(box, { reducedMotion: true });
+          g.setState({ visible: [{ seat: 1, avatar: 3 }, { seat: 2, avatar: 25 }, { seat: 3, avatar: 13 }], rosterSize: 31, stage: 5, active: true, reduced: true, idle: false });
+          await until(() => Object.values(g.debug().partners).every((d) => d.ready));
+          const a = await g.capture({ seats: true }), b = await g.capture({ seats: false });
+          const ia = await createImageBitmap(a), ib = await createImageBitmap(b);
+          const labels = g.debug().labelsVisible, w = box.querySelector('canvas').width;
+          g.dispose();
+          return { ta: a.type, sa: a.size, sb: b.size, wa: ia.width, wb: ib.width, labels, w };
+        }""" % UNTIL)
+        self.assertEqual(r['ta'], 'image/png')
+        self.assertGreaterEqual(r['wa'], 1600); self.assertEqual(r['wa'], r['wb'])
+        self.assertNotEqual(r['sa'], r['sb'])
+        self.assertTrue(r['labels'])
+        self.assertLess(r['w'], 1600)  # live canvas back to normal resolution
+        self.assertEqual(p.errors, [])
+
+    def test_save_button_downloads_3d_png_live_and_after_finish(self):
+        p = self.open(enable=True)
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.select_option('#garden-session-mode', 'timed')
+        p.click('#garden-demo'); p.fill('#garden-minutes', '5'); p.fill('#garden-spawn-seconds', '1')
+        p.clock.install(); p.click('#garden-start')
+        p.wait_for_function("document.body.dataset.phase === 'running'")
+        p.clock.run_for(3000)
+        captures = []
+        for button in ['#garden-save', None]:
+            if button is None:
+                p.on('dialog', lambda d: d.accept()); p.click('#garden-end'); button = '#garden-finish-save'
+            with p.expect_download() as info:
+                p.click(button)
+            data = Path(info.value.path()).read_bytes()
+            self.assertTrue(info.value.suggested_filename.startswith('班級花園_'))
+            self.assertEqual(data[:8], b'\x89PNG\r\n\x1a\n')
+            w, h = int.from_bytes(data[16:20], 'big'), int.from_bytes(data[20:24], 'big')
+            self.assertGreaterEqual(w, 1600)
+            captures.append(p.evaluate('window.__gardenDebug3d().captures'))
+        # live save = 1 capture; finish freezes plain + seats (2), the finish-screen save reuses them (no new capture)
+        self.assertEqual(captures, [1, 3])
+        self.assertIn('已送出', p.inner_text('#garden-save-status'))
+        self.assertIn('存 3D 畫面', p.inner_text('#garden-3d-note'))
+        self.assertEqual(p.errors, [])
+
     def test_preview_page_still_loads(self):
         p = self.open('garden3d-preview.html')
         p.wait_for_function('window.__garden3d && __garden3d.standees.length >= 8', timeout=60000)

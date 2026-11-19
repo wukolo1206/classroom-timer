@@ -22,7 +22,10 @@ export class Partners {
     this.capacity = 31;
     this.slots = generateSlots(31);
     this.scale = figureScale(31);
+    this.labelsVisible = true;
   }
+
+  setLabelsVisible(v) { this.labelsVisible = v; this.items.forEach((it) => { it.label.visible = v; }); }
 
   setCapacity(n) {
     const cap = Math.max(31, Math.min(100, Math.floor(n) || 31));
@@ -92,7 +95,7 @@ export class Partners {
     const base = new THREE.Mesh(baseGeo, baseMat);
     base.position.y = 0.04; base.castShadow = base.receiveShadow = true;
     const label = new THREE.Mesh(labelGeo, new THREE.MeshBasicMaterial({ map: labelTexture(String(seat).padStart(2, '0') + '號'), transparent: true }));
-    label.position.set(0, 0.16, 0.56); label.rotation.x = -0.35;
+    label.position.set(0, 0.16, 0.56); label.rotation.x = -0.35; label.visible = this.labelsVisible;
     body.position.y = 0.08;
     group.add(base, body, label);
     const it = { seat, avatar: null, slot, group, body, label, figure: null, motion: MOTIONS[seat % 4], phase: seat * 0.7, changedAt: instant ? -99 : now, leaving: false, activity: null, prop: null, ox: 0, oz: 0, facing: 1, variant: 0, presenting: false, ring: null };
