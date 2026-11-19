@@ -244,6 +244,13 @@ class Garden(unittest.TestCase):
   self.assertEqual(p.locator('.garden-butterfly').count(),3);self.assertEqual(p.locator('.garden-star').count(),12);self.assertEqual(p.locator('.garden-firefly').count(),5)
   plants=p.locator('.garden-flower').count();p.clock.run_for(60000)
   self.assertEqual(p.locator('.garden-flower').count(),plants);self.assertEqual(p.locator('.garden-star').count(),12);self.assertIn('新發現',p.inner_text('#garden-stage-label'));self.assertEqual(p.errors,[])
+ def test_history_cards_show_snack_avatars_and_skip_invalid_ones(self):
+  ctx=self.browser.new_context(viewport={'width':1366,'height':768});self.addCleanup(ctx.close);ctx.add_init_script(FAKE);ctx.add_init_script(FLAT)
+  ctx.add_init_script("""localStorage.setItem('c408_garden_history',JSON.stringify([{at:'2026-11-19T08:00:00.000Z',visitors:[{seat:1,avatar:3},{seat:2,avatar:25},{seat:3,avatar:37},{seat:4,avatar:38},{seat:5,avatar:-1}],quietMs:60000,total:31,demo:false,stage:2}]))""")
+  p=ctx.new_page();p.errors=[];p.on('pageerror',lambda e:p.errors.append(str(e)));p.goto(self.url+'garden.html')
+  p.click('#garden-history-button')
+  self.assertEqual(p.locator('#garden-history .history-avatars svg').count(),3)
+  self.assertEqual(p.errors,[])
  def test_history_labels_legacy_four_stages_without_remapping(self):
   p=self.open();p.evaluate("localStorage.setItem('c408_garden_history',JSON.stringify([{at:'2026-11-01',visitors:[],stage:3},{at:'2026-11-02',visitors:[]},{at:'2026-11-03',visitors:[],schema:2,stageScheme:'garden-painting-8-v1',stageIndex:7,stageTotal:8,stageName:'月光成畫'}]))")
   p.reload();p.click('#garden-history-button');cards=p.locator('#garden-history article')
