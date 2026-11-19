@@ -599,3 +599,12 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **未來避免**：即時取樣數字留在音量尺；主要提醒字句保持穩定，計時欄用固定寬度且不任意移除。
 
 ---
+
+---
+
+## 頭貼範圍擴充後，舊快取花園整份名單讀不進來（2026-11-19）
+
+**現象**：學生換上台灣點心精靈後，老師的班級祕密花園按「開始」失敗。
+**原因**：線上檔案已是新版，但瀏覽器（尤其 iPad Safari／長開分頁）仍用舊的 garden/core.js，cleanRoster 只收 0～23，一個超出範圍就整份名單丟「夥伴資料格式不正確」；garden.html 的 script 沒有版本號，改版後網址不變。
+**解法**：`python tools/stamp_garden.py` 為所有資產加內容雜湊 `?v=`，並以 garden/build.txt＋no-store 檢查讓過期的 garden.html 自動重載一次。
+**未來避免**：改動 garden.html 載入的任何 js／css（含 points/avatars*.js）後，push 前一定先跑 stamp_garden.py。
