@@ -1,3 +1,27 @@
+# 3D 花園第二期上線 — 2026-11-19 Pages 1f197f6（GAS 仍 @66）
+
+## 目前狀態
+- 3D 夥伴照平面版 Life 引擎散步並輪替看花／野餐／澆水／追蝴蝶／閱讀，各有 3D 道具（garden3d/props.js）；life.js View.render 存 lastStates，app.js g3State 多帶 life。
+- 網址不變：正式仍由班級頁「音量計 → 班級祕密花園」開啟，設定區勾「3D 花園（試作）」；預設平面版。試作頁 garden3d-preview.html 也會演生活動作。
+- 計畫：docs/superpowers/plans/2026-11-19-garden3d-phase2-life.md（完成）；第一期計畫文末有三～六期路線圖。
+
+## 本次驗證
+- Playwright：test_garden3d.py 8 項（新增生活位移／換道具、3D 與平面版活動逐位相同）＋ test_garden.py 59 項全過；node layout 5 項與 garden core／life／activities／discoveries 通過。
+- 試作頁 31 位快轉 20 秒：六種活動都有人做，道具可見、不擋臉。
+- 線上 8 個檔案與本機一致；線上 garden.html 勾 3D 後夥伴野餐道具出現、無錯誤。**真 iPad 仍未實測。**
+
+## 下次接續
+- 老師課堂試用 3D（FPS、生活動作觀感、超標凍結）。
+- 第三期：月光後新發現 6 種主景（木橋池塘／噴水池／兔子石像／小鳥飲水台／花藤拱門／小風車）與 8 種道具（6 球＋播種＋移苗），接 GardenDiscoveries 的 themeId／activityId。
+- 歷史卡片 `<24` 頭貼過濾仍未修。
+
+## 注意事項
+- 改 garden 載入的 js／css 或 garden3d/*.js 後，push 前跑 `python tools/stamp_garden.py`（會改寫模組 import 的 ?v=）。
+- 3D 預設關閉（universal 他校共用 garden.html），不要改預設。
+- 3D 測試長流程用真實時間，不用假時鐘。
+
+---
+
 # 3D 花園第一期上線 — 2026-11-19 Pages 3acc785（GAS 仍 @66）
 
 ## 目前狀態
