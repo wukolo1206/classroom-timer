@@ -3,11 +3,13 @@ import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { createWorld, STAGE_NAMES } from './world.js?v=95c341bd22';
 import { generateSlots, figureScale } from './layout.js?v=24350342a5';
 import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
+import { createProp, disposeProp } from './props.js?v=ac4f7668e4';
 
 const $ = (id) => document.getElementById(id);
 const A = window.c408PointAvatars;
 const canvas = $('g3-canvas');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const life = window.GardenLife ? new window.GardenLife.Life() : null; // same activity engine as the real garden
 const MAX_PARTNERS = 31, FIG_SCALE = figureScale(MAX_PARTNERS);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -41,7 +43,7 @@ async function addStandee() {
   label.position.set(0, 0.16, 0.56); label.rotation.x = -0.35; g.add(label);
   // face the audience (camera home position) so orbit / drag reveals the figure's thickness
   g.rotation.y = Math.atan2(target.x - x, target.z + 13 - z);
-  g.userData = { body, motion: ['sway', 'hop', 'turn', 'float'][seat % 4], born: clock, phase: seat * 0.7 };
+  g.userData = { body, motion: ['sway', 'hop', 'turn', 'float'][seat % 4], born: clock, phase: seat * 0.7, seat, slotX: x, slotZ: z, activity: null, prop: null, walking: false, facing: 1 };
   g.scale.setScalar(0.001); scene.add(g); standees.push(g);
   puff(x, g.position.y, z);
   say(String(seat).padStart(2, '0') + '號 ' + A.labels[avatar] + ' 來到花園了！');
@@ -104,16 +106,29 @@ canvas.addEventListener('pointercancel', () => { dragX = null; });
 addEventListener('resize', resize);
 
 const easeOutBack = (t) => { const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+function applyLifeFrame(ms) {
+  if (!life || !standees.length) return;
+  const states = life.frame(standees.map((g) => ({ seat: g.userData.seat })), ms, { width: 1200, columns: 8, size: 60, rowPitch: 140, height: 600, rows: 4 }, !paused, reducedMotion, null);
+  states.forEach((s) => {
+    const g = standees.find((o) => o.userData.seat === s.seat); if (!g) return; const u = g.userData;
+    const x = u.slotX + (s.x / 48) * 0.45 * FIG_SCALE / 0.82, z = u.slotZ + (s.y / 6) * 0.18 * FIG_SCALE / 0.82;
+    g.position.set(x, groundY(x, z), z); u.walking = s.activity === 'walking'; u.facing = s.facing;
+    if (s.activity !== u.activity) { u.activity = s.activity; if (u.prop) { g.remove(u.prop); disposeProp(u.prop); } u.prop = createProp(s.activity); if (u.prop) g.add(u.prop); }
+  });
+}
 let frames = 0, fpsAt = performance.now();
 function frame(now) {
   const real = Math.min(0.05, (now - last) / 1000); last = now;
   const dt = paused ? 0 : real;
   clock += dt;
   world.update(dt, renderer);
+  applyLifeFrame(dt * 1000);
   standees.forEach((g) => {
     const u = g.userData, age = clock - u.born, k = clock * 2 + u.phase, b = u.body;
     g.scale.setScalar(FIG_SCALE * (age < 0.7 ? Math.max(0.001, easeOutBack(age / 0.7)) : 1));
     b.rotation.set(0, 0, 0); b.position.y = 0.08;
+    if (u.prop && u.prop.userData.animate && !reducedMotion) u.prop.userData.animate(clock + u.phase);
+    if (u.walking && !reducedMotion) { b.rotation.y = u.facing * 0.6; b.position.y = 0.08 + Math.abs(Math.sin(k * 2.2)) * 0.12; return; }
     if (u.motion === 'sway') b.rotation.z = Math.sin(k) * 0.07;
     else if (u.motion === 'hop') b.position.y = 0.08 + Math.abs(Math.sin(k * 0.9)) * 0.16;
     else if (u.motion === 'turn') b.rotation.y = Math.sin(k * 0.5) * 0.5;
@@ -167,5 +182,6 @@ renderer.setAnimationLoop(frame);
 window.__garden3d = {
   world, standees, addStandee, goStage, renderer,
   setDrag: (v) => { drag = v; }, setOrbit: (v) => { orbit = v; }, setPaused: (v) => { if (paused !== v) $('g3-pause').click(); },
+  lifeTick: (ms) => { for (let t = 0; t < ms; t += 100) applyLifeFrame(100); },
   fastForward: (sec) => { for (let i = 0; i < sec * 20; i++) world.update(0.05, renderer); clock += sec; },
 };
