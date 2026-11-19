@@ -608,3 +608,11 @@ Claude 全域 `CLAUDE.md`、`/handoff` skill 本體 —— **沒有任何一個�
 **原因**：線上檔案已是新版，但瀏覽器（尤其 iPad Safari／長開分頁）仍用舊的 garden/core.js，cleanRoster 只收 0～23，一個超出範圍就整份名單丟「夥伴資料格式不正確」；garden.html 的 script 沒有版本號，改版後網址不變。
 **解法**：`python tools/stamp_garden.py` 為所有資產加內容雜湊 `?v=`，並以 garden/build.txt＋no-store 檢查讓過期的 garden.html 自動重載一次。
 **未來避免**：改動 garden.html 載入的任何 js／css（含 points/avatars*.js）後，push 前一定先跑 stamp_garden.py。
+---
+
+## 3D 花園測試用假時鐘會慢到十幾分鐘（2026-11-19）
+
+**現象**：tests/test_garden3d.py 的全班到齊測試用 `p.clock.install()`＋`run_for(38000)`，單項跑超過 6 分鐘，而且只升到第 1 階段就斷言失敗。
+**原因**：Playwright 假時鐘會依模擬時間觸發 requestAnimationFrame（約每秒 60 次），每格都是 SwiftShader 軟體算圖 31 位公仔＋陰影，CPU 跟不上。
+**解法**：長流程改用真實時間 `wait_for_function(... stage === 7, timeout=180000)`，軟體算圖每秒只畫幾格，約 3 分鐘完成；短流程（5 秒內）仍可用假時鐘。
+**未來避免**：3D 測試不要用假時鐘推進超過幾秒；需要長時間的情境用真實時間或直接呼叫 `Garden3D.create().setState()`。

@@ -12,3 +12,8 @@
 @media(min-width:761px){.meter-heading strong{font-size:36px}.garden-meter p{font-size:13px}}
 
 .garden-welcome button{margin:4px;max-width:100%}.garden-welcome #garden-welcome-start{display:block;margin:14px auto 7px}.garden-welcome #garden-demo{font-size:12px;background:transparent;border-color:#dce4ce;color:#7d896a}
+.garden-3d{position:absolute;inset:0;z-index:4;pointer-events:none;border-radius:inherit;overflow:hidden}
+.garden-3d[hidden]{display:none}
+.garden-3d-canvas{display:block;width:100%;height:100%}
+.garden-3d-toggle{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.garden-3d-note{font-size:.85em;color:#6b7d68}

@@ -7,6 +7,7 @@
     var roster=[], model=null, media=null, openingMedia=null, phase='idle', demo=false, fresh=false, pending=null, requestSeq=0, operation=0, tickTimer=null, lastTick=0, silentMs=0, archived=false, renderKey=null;
     var cfg={minutes:10,study:50,discuss:65,session:'direct',spawn:15,upgrade:30},lastLevel=null,wildlifeKey='',discoveries=new window.GardenDiscoveries.Session(),discovery=null;
     var lifeView=new window.GardenLife.View($('garden-visitors'),$('garden-blooms'),$('garden-meadow')),reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)'),grounded=null,finishedArt=null,saving=false,archiveSaved=false;
+    var g3=null,use3d=read('renderer3d',false)===true;
     window.GardenPainting.mount($('garden-scene'));
     function read(key,fallback){try{var v=JSON.parse(localStorage.getItem(prefix+key));return v===null?fallback:v;}catch(e){return fallback;}}
     function write(key,value){try{localStorage.setItem(prefix+key,JSON.stringify(value));return true;}catch(e){message('這台瀏覽器無法保存收藏；本次仍可繼續。',true);return false;}}
@@ -79,6 +80,16 @@
         var space=foot-8-top,banner=box.querySelector('.noise-banner');banner.classList.toggle('compact',space<80);
         banner.style.top=(top+Math.max(0,Math.min(18,(space-banner.offsetHeight)/2)))+'px';
     }
+    function g3State(){return {visible:model?model.visible():[],rosterSize:roster.length||31,stage:model?model.stage:0,active:$('garden-scene').dataset.lifeActive==='true',reduced:reducedMotion.matches,idle:!model};}
+    function apply3d(){
+        var api=window.Garden3D,ok=!!(api&&api.supported),on=use3d&&ok,box=$('garden-3d');
+        $('garden-3d-toggle').checked=on;$('garden-3d-toggle').disabled=!ok;
+        $('garden-3d-note').textContent=!api?'正在檢查這台裝置能否使用 3D…':!ok?'這台裝置不支援 3D，使用平面花園。':on?'3D 模式：保存的花園畫目前仍是平面版。':'勾選後改用 3D 花園。';
+        document.body.dataset.renderer=on?'3d':'2d';box.hidden=!on;
+        if(on&&!g3){try{g3=api.create(box,{reducedMotion:reducedMotion.matches});}catch(e){g3=null;use3d=false;write('renderer3d',false);message('3D 花園無法啟動，已改用平面花園。',true);apply3d();return;}}
+        if(!on&&g3){g3.dispose();g3=null;}
+        if(g3)g3.setState(g3State());
+    }
     function render(dt){
         discovery=discoveries.sync(model?model.discoveryCount:0,model?model.visible().map(function(r){return r.seat;}):[]);
         $('garden-count').textContent=(model?model.visible().length:0)+' / '+roster.length;
@@ -87,7 +98,7 @@
         var mood=phase==='running'?(model&&model.resting?'resting':'growing'):phase==='paused'?'paused':'idle';
         $('garden-scene').dataset.mood=mood;
         $('garden-caption').textContent=phase==='ended'?'今天的專注，已成為花園的一部分':phase==='paused'?'老師說明中，夥伴休息一下':phase==='running'?(silentMs>=3000?'花園正在等麥克風的聲音':model.resting?'花園先停一下，夥伴都在這裡':model.full()?(model.stage===7?discovery.count?'新發現 '+discovery.count+'：'+discovery.activityName:'月光花園完成，新的日常即將開始':'全員到齊，一起讓花園升級'):'花園正在慢慢成長'):'花園正在等大家';
-        layoutVisitors();renderVisitors();renderLife(dt);renderUpgrades(dt);window.GardenPainting.setActive($('garden-scene'),$('garden-scene').dataset.lifeActive==='true');renderFeedback();renderNoise();renderWelcome();
+        layoutVisitors();renderVisitors();renderLife(dt);renderUpgrades(dt);window.GardenPainting.setActive($('garden-scene'),$('garden-scene').dataset.lifeActive==='true');renderFeedback();renderNoise();renderWelcome();if(g3)g3.setState(g3State());
     }
     function archive(){
         if(archived||!model)return;archived=true;
@@ -162,5 +173,8 @@
     $('garden-session-mode').value=cfg.session;['spawn','upgrade'].forEach(function(k){$('garden-'+k+'-seconds').value=cfg[k];});
     var cached=read('roster',null);if(cached)try{roster=engine.cleanRoster(cached.roster);$('garden-source').textContent='上次載入的夥伴 · '+roster.length+' 位。開始前請更新以取得目前頭像。';}catch(e){}
     if(hasParent())requestRoster().catch(function(e){if(!e.cancelled)message(e.message,true);render();});
-    setPhase('idle');render();showHistory();
+    $('garden-3d-toggle').onchange=function(){use3d=this.checked;write('renderer3d',use3d);apply3d();};
+    window.addEventListener('garden3d-ready',apply3d);
+    window.__gardenDebug3d=function(){return g3?g3.debug():null;};
+    setPhase('idle');render();showHistory();apply3d();
 }());

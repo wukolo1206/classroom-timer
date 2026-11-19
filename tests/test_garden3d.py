@@ -78,6 +78,69 @@ class Garden3D(unittest.TestCase):
         self.assertEqual(p.locator('#g3-stages button').count(), 8)
         self.assertEqual(p.errors, [])
 
+    def test_default_is_2d_and_toggle_persists(self):
+        p = self.open()
+        p.wait_for_function("window.Garden3D !== undefined")
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
+        self.assertTrue(p.locator('#garden-3d').is_hidden())
+        self.assertEqual(p.locator('#garden-3d canvas').count(), 0)
+        p.check('#garden-3d-toggle')
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '3d')
+        self.assertEqual(p.locator('#garden-3d canvas').count(), 1)
+        p.reload()
+        p.wait_for_function("window.Garden3D !== undefined && document.body.dataset.renderer === '3d'")
+        self.assertTrue(p.is_checked('#garden-3d-toggle'))
+        p.uncheck('#garden-3d-toggle')
+        self.assertEqual(p.locator('#garden-3d canvas').count(), 0)
+        self.assertEqual(p.errors, [])
+
+    def test_without_webgl_toggle_is_disabled(self):
+        p = self.open(webgl=False, enable=True)
+        p.wait_for_function("window.Garden3D !== undefined")
+        self.assertTrue(p.is_disabled('#garden-3d-toggle'))
+        self.assertEqual(p.get_attribute('body', 'data-renderer'), '2d')
+        self.assertIn('不支援', p.inner_text('#garden-3d-note'))
+        self.assertEqual(p.errors, [])
+
+    def test_partners_follow_arrivals_and_freeze_on_teacher_pause(self):
+        p = self.open(enable=True)
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.select_option('#garden-session-mode', 'timed')
+        p.click('#garden-demo'); p.fill('#garden-minutes', '5'); p.fill('#garden-spawn-seconds', '1')
+        p.clock.install(); p.click('#garden-start')
+        p.wait_for_function("document.body.dataset.phase === 'running'")
+        p.clock.run_for(5500)
+        visible = int(p.inner_text('#garden-count').split('/')[0])
+        dbg = p.evaluate('window.__gardenDebug3d()')
+        self.assertGreaterEqual(visible, 4)
+        self.assertEqual(len(dbg['partners']), visible)
+        self.assertGreater(dbg['clock'], 0)
+        p.click('#garden-pause')
+        held = p.evaluate('window.__gardenDebug3d().clock')
+        p.clock.run_for(3000)
+        self.assertEqual(p.evaluate('window.__gardenDebug3d().clock'), held)
+        self.assertEqual(p.errors, [])
+
+    def test_full_class_reaches_moonlight_and_new_garden_resets(self):
+        # Real time instead of p.clock: a faked clock fires ~60 rAF frames per simulated second, and every
+        # frame is a full software (SwiftShader) render of 31 figures — minutes of CPU. Real time renders far fewer frames.
+        p = self.open(width=800, enable=True)
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.select_option('#garden-session-mode', 'direct')
+        p.click('#garden-demo'); p.fill('#garden-spawn-seconds', '1'); p.fill('#garden-upgrade-seconds', '5')
+        p.click('#garden-start')
+        p.wait_for_function("document.body.dataset.phase === 'running'")
+        p.wait_for_function("window.__gardenDebug3d() && window.__gardenDebug3d().stage === 7", timeout=180000)
+        dbg = p.evaluate('window.__gardenDebug3d()')
+        self.assertEqual(dbg['stage'], 7)
+        self.assertEqual(len(dbg['partners']), 31)
+        p.on('dialog', lambda d: d.accept())
+        p.click('#garden-end'); p.click('#garden-again')
+        dbg = p.evaluate('window.__gardenDebug3d()')
+        self.assertEqual(dbg['stage'], 0)
+        self.assertEqual(len(dbg['partners']), 0)
+        self.assertEqual(p.errors, [])
+
 
 if __name__ == '__main__':
     unittest.main()
