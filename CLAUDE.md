@@ -2,9 +2,9 @@
 project: 班級紀錄器
 category: 學科工具集
 status: 維護中
-version: "GAS @66／全校版 v1.33／3D 花園第二期"
+version: "GAS @66／全校版 v1.33／3D 花園第三期"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "課堂實測 3D 花園（真 iPad FPS、生活動作、超標凍結）；通過後做第三期（月光後新發現主景與道具）；拍賣系統尚未同步新頭貼"
+next_action: "課堂實測 3D 花園（真 iPad FPS、生活動作、新發現）；第四期：3D 畫作保存 PNG；拍賣系統尚未同步新頭貼"
 updated: 2026-11-19
 ---
 
