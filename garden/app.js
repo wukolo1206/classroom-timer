@@ -80,7 +80,7 @@
         var space=foot-8-top,banner=box.querySelector('.noise-banner');banner.classList.toggle('compact',space<80);
         banner.style.top=(top+Math.max(0,Math.min(18,(space-banner.offsetHeight)/2)))+'px';
     }
-    function g3State(){return {visible:model?model.visible():[],rosterSize:roster.length||31,stage:model?model.stage:0,active:$('garden-scene').dataset.lifeActive==='true',reduced:reducedMotion.matches,idle:!model,life:lifeView.lastStates||[]};}
+    function g3State(){return {visible:model?model.visible():[],rosterSize:roster.length||31,stage:model?model.stage:0,active:$('garden-scene').dataset.lifeActive==='true',reduced:reducedMotion.matches,idle:!model,life:lifeView.lastStates||[],discovery:discovery?{count:discovery.count,themeId:discovery.themeId}:null};}
     function apply3d(){
         var api=window.Garden3D,ok=!!(api&&api.supported),on=use3d&&ok,box=$('garden-3d');
         $('garden-3d-toggle').checked=on;$('garden-3d-toggle').disabled=!ok;

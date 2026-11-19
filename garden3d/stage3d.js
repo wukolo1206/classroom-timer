@@ -1,8 +1,8 @@
 // garden3d/stage3d.js
 // Production 3D garden controller: owns renderer, camera and loop; app.js pushes state via setState().
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
-import { createWorld } from './world.js?v=95c341bd22';
-import { Partners } from './partners.js?v=18f723bf4e';
+import { createWorld } from './world.js?v=22c4b0b85a';
+import { Partners } from './partners.js?v=99bf5b28b5';
 
 export function createGarden3D(container, options = {}) {
   const canvas = document.createElement('canvas');
@@ -30,6 +30,7 @@ export function createGarden3D(container, options = {}) {
     const s = Object.assign({}, state, next);
     if (s.idle && (!state.idle || first)) { partners.reset(); world.setStage(0, true); }
     if (s.stage !== world.stage) world.setStage(s.stage, first || s.reduced || Math.abs(s.stage - world.stage) > 1);
+    world.setTheme((s.discovery && s.discovery.themeId) || 'bridge', first || s.reduced || s.idle);
     partners.setCapacity(s.rosterSize);
     partners.sync(s.visible, nowS(), first || s.reduced);
     if (s.life) partners.applyLife(s.life);
@@ -65,6 +66,6 @@ export function createGarden3D(container, options = {}) {
   return {
     setState,
     dispose() { renderer.setAnimationLoop(null); ro.disconnect(); partners.reset(); renderer.dispose(); canvas.remove(); },
-    debug() { return { stage: world.stage, mood: world.mood, clock, partners: partners.debug() }; },
+    debug() { return { stage: world.stage, mood: world.mood, clock, theme: world.theme, partners: partners.debug() }; },
   };
 }

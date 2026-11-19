@@ -3,12 +3,13 @@
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
 import { generateSlots, figureScale, groundY } from './layout.js?v=24350342a5';
-import { createProp, disposeProp } from './props.js?v=ac4f7668e4';
+import { createProp, disposeProp } from './props.js?v=d606433c39';
 
 const MOTIONS = ['sway', 'hop', 'turn', 'float'];
 const baseGeo = new THREE.CylinderGeometry(0.48, 0.52, 0.09, 24);
 const baseMat = new THREE.MeshStandardMaterial({ color: '#eadcc0', roughness: 0.6 });
 const labelGeo = new THREE.PlaneGeometry(0.66, 0.23);
+const ringGeo = new THREE.RingGeometry(0.56, 0.7, 32); // glow under the (max 2) discovery presenters
 // Life engine offsets are pixels (|x| <= 48, |y| <= 6); map them to a small walk around the seat.
 const WALK_X = 0.45, WALK_Z = 0.18;
 const easeOutBack = (t) => { const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
@@ -71,12 +72,18 @@ export class Partners {
       it.oz = Math.max(-1, Math.min(1, (s.y || 0) / 6)) * WALK_Z;
       it.facing = s.facing < 0 ? -1 : 1;
       this.place(it);
-      if (s.activity !== it.activity) {
-        it.activity = s.activity;
+      if (s.activity !== it.activity || (s.variant || 0) !== it.variant) {
+        it.activity = s.activity; it.variant = s.variant || 0;
         if (it.prop) { it.group.remove(it.prop); disposeProp(it.prop); it.prop = null; }
-        const prop = createProp(s.activity);
+        const prop = createProp(s.activity, it.variant);
         if (prop) { it.prop = prop; it.group.add(prop); }
       }
+      it.presenting = !!s.presenting;
+      if (it.presenting && !it.ring) {
+        it.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: '#ffe9a8', transparent: true, opacity: 0.8, depthWrite: false }));
+        it.ring.rotation.x = -Math.PI / 2; it.ring.position.y = 0.03; it.group.add(it.ring);
+      }
+      if (it.ring) it.ring.visible = it.presenting;
     });
   }
 
@@ -88,7 +95,7 @@ export class Partners {
     label.position.set(0, 0.16, 0.56); label.rotation.x = -0.35;
     body.position.y = 0.08;
     group.add(base, body, label);
-    const it = { seat, avatar: null, slot, group, body, label, figure: null, motion: MOTIONS[seat % 4], phase: seat * 0.7, changedAt: instant ? -99 : now, leaving: false, activity: null, prop: null, ox: 0, oz: 0, facing: 1 };
+    const it = { seat, avatar: null, slot, group, body, label, figure: null, motion: MOTIONS[seat % 4], phase: seat * 0.7, changedAt: instant ? -99 : now, leaving: false, activity: null, prop: null, ox: 0, oz: 0, facing: 1, variant: 0, presenting: false, ring: null };
     this.items.set(seat, it);
     this.place(it);
     group.scale.setScalar(instant ? this.scale : 0.0001);
@@ -112,6 +119,7 @@ export class Partners {
     if (!it) return;
     this.scene.remove(it.group);
     if (it.prop) disposeProp(it.prop);
+    if (it.ring) it.ring.material.dispose();
     it.label.material.map.dispose(); it.label.material.dispose();
     this.items.delete(seat);
   }
@@ -130,6 +138,7 @@ export class Partners {
       const grow = reduced || age >= 0.7 ? 1 : Math.max(0.0001, easeOutBack(age / 0.7));
       it.group.scale.setScalar(this.scale * grow);
       b.rotation.set(0, 0, 0); b.position.y = 0.08;
+      if (it.ring && it.ring.visible) it.ring.material.opacity = reduced ? 0.8 : 0.55 + 0.3 * Math.sin(clock * 4);
       if (reduced) return;
       const k = clock * 2 + it.phase;
       if (it.prop && it.prop.userData.animate) it.prop.userData.animate(clock + it.phase);
@@ -143,7 +152,7 @@ export class Partners {
 
   debug() {
     const out = {};
-    this.items.forEach((it, seat) => { if (!it.leaving) out[seat] = { avatar: it.avatar, slot: it.slot, x: it.group.position.x, z: it.group.position.z, ready: !!it.figure, activity: it.activity, prop: !!it.prop, slotX: this.slots[it.slot][0], slotZ: this.slots[it.slot][1] }; });
+    this.items.forEach((it, seat) => { if (!it.leaving) out[seat] = { avatar: it.avatar, slot: it.slot, x: it.group.position.x, z: it.group.position.z, ready: !!it.figure, activity: it.activity, prop: !!it.prop, presenting: it.presenting, variant: it.variant, slotX: this.slots[it.slot][0], slotZ: this.slots[it.slot][1] }; });
     return out;
   }
 }

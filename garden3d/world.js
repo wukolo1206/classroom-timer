@@ -2,6 +2,7 @@
 // (follows docs/design/garden-eight-stages-v0.1.md: one main change per stage, fixed upper limits).
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { POND, BEDS, pondE, groundY } from './layout.js?v=24350342a5';
+import { createFixture, disposeFixture, FIXTURE_IDS } from './fixtures3d.js?v=7f8e32f3fd';
 
 export const STAGE_NAMES = ['夥伴入園', '花圃甦醒', '綠意成蔭', '蝴蝶來訪', '池塘映光', '祕密花園', '晚霞時光', '月光成畫'];
 
@@ -139,15 +140,16 @@ export function createWorld(scene) {
     scene.add(g); reveal(g, 3, { until: 7, delay: i * 0.8 }); return g;
   });
 
+  const pondGroup = new THREE.Group(); scene.add(pondGroup); // pond + bridge: sinks away when a discovery scene takes its place
   // ---------- stage 5: pond (water rises out of the reserved hollow) ----------
   const waterMat = new THREE.MeshStandardMaterial({ color: '#8fcbd6', roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.93 });
   const water = new THREE.Mesh(new THREE.CircleGeometry(1, 48), waterMat);
   water.rotation.x = -Math.PI / 2; water.scale.set(POND.rx * 1.02, POND.rz * 1.02, 1); water.position.set(POND.x, -0.02, POND.z); water.receiveShadow = true;
-  scene.add(water); reveal(water, 4, { kind: 'rise', depth: 0.4, dur: 2.5 });
+  pondGroup.add(water); reveal(water, 4, { kind: 'rise', depth: 0.4, dur: 2.5 });
   for (let i = 0; i < 30; i++) {
     const t = (i / 30) * Math.PI * 2 + rand() * 0.1, rr = 1.06 + rand() * 0.06, x = POND.x + Math.cos(t) * POND.rx * rr, z = POND.z + Math.sin(t) * POND.rz * rr;
     const s = mesh(new THREE.DodecahedronGeometry(0.16 + rand() * 0.16, 0), mat(rand() > 0.5 ? '#cfc8b4' : '#bdb6a1'));
-    s.position.set(x, groundY(x, z) + 0.04, z); s.rotation.set(rand() * 3, rand() * 3, 0); s.scale.y = 0.7; scene.add(s);
+    s.position.set(x, groundY(x, z) + 0.04, z); s.rotation.set(rand() * 3, rand() * 3, 0); s.scale.y = 0.7; pondGroup.add(s);
     reveal(s, 4, { delay: 0.6 + i * 0.05, dur: 0.6 });
   }
   const sparkles = [];
@@ -155,16 +157,16 @@ export function createWorld(scene) {
     const sp = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, depthWrite: false }));
     sp.rotation.x = -Math.PI / 2; sp.userData.phase = rand() * 6;
     const t = rand() * 6.28, r = Math.sqrt(rand()) * 0.75; sp.position.set(POND.x + Math.cos(t) * POND.rx * r, 0.0, POND.z + Math.sin(t) * POND.rz * r);
-    scene.add(sp); sparkles.push(sp);
+    pondGroup.add(sp); sparkles.push(sp);
   }
   let pondP = 0; reveal(null, 4, { delay: 2, dur: 1.5, apply: (p) => { pondP = p; } });
   function lily(x, z, flower, delay) {
     const pad = mesh(new THREE.CircleGeometry(0.34, 12, 0.4, Math.PI * 2 - 0.5), mat('#7fae69'), { cast: false });
-    pad.rotation.x = -Math.PI / 2; pad.rotation.z = rand() * 6; pad.position.set(x, 0.0, z); scene.add(pad); reveal(pad, 4, { delay, dur: 0.8 });
+    pad.rotation.x = -Math.PI / 2; pad.rotation.z = rand() * 6; pad.position.set(x, 0.0, z); pondGroup.add(pad); reveal(pad, 4, { delay, dur: 0.8 });
     if (!flower) return;
     const g = new THREE.Group(); g.position.set(x, 0.02, z);
     for (let i = 0; i < 7; i++) { const p = mesh(new THREE.ConeGeometry(0.07, 0.26, 4), mat('#f4a9c0')); p.position.set(Math.cos(i * 0.9) * 0.07, 0.1, Math.sin(i * 0.9) * 0.07); p.rotation.set(Math.sin(i * 0.9) * 0.6, 0, -Math.cos(i * 0.9) * 0.6); g.add(p); }
-    const c = mesh(new THREE.SphereGeometry(0.05, 6, 4), mat('#ffd56b')); c.position.y = 0.1; g.add(c); scene.add(g); reveal(g, 4, { delay: delay + 0.6 });
+    const c = mesh(new THREE.SphereGeometry(0.05, 6, 4), mat('#ffd56b')); c.position.y = 0.1; g.add(c); pondGroup.add(g); reveal(g, 4, { delay: delay + 0.6 });
   }
   lily(5.8, 1.2, true, 2.2); lily(6.4, 0.3, false, 2.0); lily(2.9, 1.5, false, 2.4); lily(5.4, -0.9, false, 2.6);
 
@@ -182,7 +184,7 @@ export function createWorld(scene) {
       bridge.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.04, 5), dark));
       for (let i = 0; i <= 6; i++) { const p = arc(i / 6), post = mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.56, 6), dark); post.position.set(p.x + dx, p.y + 0.25, p.z); bridge.add(post); }
     });
-    scene.add(bridge); reveal(bridge, 5, { kind: 'rise', depth: 1.4, dur: 2.4 });
+    pondGroup.add(bridge); reveal(bridge, 5, { kind: 'rise', depth: 1.4, dur: 2.4 });
   }
 
   // ---------- sky objects: sun, clouds, moon, stars, fireflies ----------
@@ -212,8 +214,30 @@ export function createWorld(scene) {
     f.userData = { bd: BEDS[i % 4], phase: rand() * 6 }; scene.add(f); fireflies.push(f);
   }
   const moonPath = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 3.2), new THREE.MeshBasicMaterial({ color: '#fff3cf', transparent: true, opacity: 0, depthWrite: false }));
-  moonPath.rotation.x = -Math.PI / 2; moonPath.position.set(POND.x - 1.2, 0.01, POND.z - 0.2); scene.add(moonPath);
+  moonPath.rotation.x = -Math.PI / 2; moonPath.position.set(POND.x - 1.2, 0.01, POND.z - 0.2); pondGroup.add(moonPath);
   let nightP = 0; reveal(null, 7, { dur: 6, apply: (p) => { nightP = p; } });
+
+  // ---------- discoveries: primary scene in the pond's place (6 s of quiet time to cross-fade, like garden/fixtures.js) ----------
+  const lawn = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshStandardMaterial({ color: '#a9c47c', roughness: 1, transparent: true, opacity: 0, depthWrite: false }));
+  lawn.rotation.x = -Math.PI / 2; lawn.scale.set(POND.rx * 1.18, POND.rz * 1.22, 1); lawn.position.set(POND.x, 0.05, POND.z); lawn.receiveShadow = true; lawn.visible = false; scene.add(lawn);
+  let themeId = 'bridge', fixture = null, outgoing = null, fadeP = 1;
+  function applyTheme() {
+    const bridgeVis = themeId === 'bridge' ? fadeP : (outgoing && outgoing.id === 'bridge' ? 1 - fadeP : 0);
+    pondGroup.position.y = -2.2 * (1 - bridgeVis); pondGroup.visible = bridgeVis > 0.001;
+    lawn.material.opacity = 1 - bridgeVis; lawn.visible = bridgeVis < 0.999;
+    if (fixture) fixture.scale.setScalar(Math.max(0.0001, easeOut(fadeP)));
+    if (outgoing && outgoing.obj) outgoing.obj.scale.setScalar(Math.max(0.0001, 1 - fadeP));
+    if (fadeP >= 1 && outgoing) { if (outgoing.obj) { scene.remove(outgoing.obj); disposeFixture(outgoing.obj); } outgoing = null; }
+  }
+  function setTheme(id, instant) {
+    if (id !== 'bridge' && FIXTURE_IDS.indexOf(id) < 0) id = 'bridge';
+    if (id === themeId) { if (instant && fadeP < 1) { fadeP = 1; applyTheme(); } return; }
+    if (outgoing && outgoing.obj) { scene.remove(outgoing.obj); disposeFixture(outgoing.obj); }
+    outgoing = { id: themeId, obj: fixture };
+    themeId = id; fixture = createFixture(id);
+    if (fixture) { fixture.position.set(POND.x, 0.04, POND.z); fixture.rotation.y = -0.28; scene.add(fixture); }
+    fadeP = instant ? 1 : 0; applyTheme();
+  }
 
   // ---------- mood (light & colour) ----------
   const cA = new THREE.Color(), cB = new THREE.Color();
@@ -255,6 +279,8 @@ export function createWorld(scene) {
     const moodTarget = stage >= 7 ? 2 : stage >= 6 ? 1 : 0;
     if (mood !== moodTarget) { const step = dt / 6; mood = mood < moodTarget ? Math.min(moodTarget, mood + step) : Math.max(moodTarget, mood - step); }
     applyMood(renderer);
+    if (fadeP < 1 && dt > 0) { fadeP = Math.min(1, fadeP + dt / 6); applyTheme(); }
+    if (fixture && fixture.userData.animate) fixture.userData.animate(clock);
     const t = clock;
     swayers.forEach((c) => { c.rotation.z = Math.sin(t * 0.8 + c.userData.phase) * 0.035; });
     clouds.forEach((g, i) => { g.position.x += dt * (0.25 + i * 0.05); if (g.position.x > 40) g.position.x = -40; });
@@ -280,5 +306,5 @@ export function createWorld(scene) {
       reveals.forEach((r) => { r.p = stage >= r.from && stage < r.until ? 1 : 0; applyReveal(r); });
     }
   }
-  return { groundY, POND, update, setStage, get stage() { return stage; }, get mood() { return mood; } };
+  return { groundY, POND, update, setStage, setTheme, get stage() { return stage; }, get mood() { return mood; }, get theme() { return { themeId, fade: fadeP }; } };
 }

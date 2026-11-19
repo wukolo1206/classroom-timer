@@ -1,6 +1,6 @@
 // garden3d/fixtures3d.js
 // Primary scenes that take the pond's place after moonlight (same ids as garden/fixtures.js).
-import * as THREE from '../vendor/three/three.module.min.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 
 const M = (color, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, flatShading: true }, extra));
 const mesh = (geo, mat, cast = true) => { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = true; return m; };

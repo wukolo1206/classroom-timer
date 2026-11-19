@@ -1,7 +1,7 @@
 // garden3d/bridge.js
 // Loaded as <script type="module"> after garden/app.js. If this module fails to load (old browser),
 // window.Garden3D stays undefined and the garden simply stays 2D.
-import { createGarden3D } from './stage3d.js?v=63392d8838';
+import { createGarden3D } from './stage3d.js?v=4fd47d20f9';
 
 function webglOk() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); }

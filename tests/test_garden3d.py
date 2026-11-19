@@ -84,14 +84,14 @@ class Garden3D(unittest.TestCase):
           const base = g.debug().partners[1];
           g.setState({ life: [{ seat: 1, activity: 'picnic', x: 48, y: 6, facing: 1 }, { seat: 2, activity: 'butterfly', x: 0, y: 0, facing: -1 }] });
           const a = g.debug().partners;
-          g.setState({ life: [{ seat: 1, activity: 'reading', x: 0, y: 0, facing: 1 }, { seat: 2, activity: 'basketball', x: 0, y: 0, facing: 1 }] });
+          g.setState({ life: [{ seat: 1, activity: 'reading', x: 0, y: 0, facing: 1 }, { seat: 2, activity: 'mystery', x: 0, y: 0, facing: 1 }] });
           const b = g.debug().partners;
           g.dispose();
           return { dx: a[1].x - base.slotX, dz: a[1].z - base.slotZ, a1: a[1].activity, a1p: a[1].prop, a2: a[2].activity, a2p: a[2].prop,
                    b1: b[1].activity, b1p: b[1].prop, b2: b[2].activity, b2p: b[2].prop, backX: b[1].x - base.slotX };
         }""" % UNTIL)
         self.assertEqual((r['a1'], r['a1p'], r['a2'], r['a2p']), ('picnic', True, 'butterfly', True))
-        self.assertEqual((r['b1'], r['b1p'], r['b2'], r['b2p']), ('reading', True, 'basketball', False))
+        self.assertEqual((r['b1'], r['b1p'], r['b2'], r['b2p']), ('reading', True, 'mystery', False))
         self.assertAlmostEqual(r['dx'], 0.45, places=2)
         self.assertAlmostEqual(r['dz'], 0.18, places=2)
         self.assertAlmostEqual(r['backX'], 0.0, places=2)
@@ -110,6 +110,49 @@ class Garden3D(unittest.TestCase):
         self.assertGreaterEqual(len(pairs), 4)
         for a3, a2 in pairs:
             self.assertEqual(a3, a2)
+        self.assertEqual(p.errors, [])
+
+    def test_every_discovery_prop_and_scene_builds(self):
+        p = self.open()
+        p.wait_for_function('window.Garden3D !== undefined')
+        r = p.evaluate("""async () => { %s
+          const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:400px'; document.body.appendChild(box);
+          const g = window.Garden3D.create(box, { reducedMotion: true });
+          g.setState({ visible: [{ seat: 1, avatar: 3 }], rosterSize: 31, stage: 7, active: true, reduced: true, idle: false, life: [] });
+          const props = {}, scenes = {};
+          for (const id of ['basketball', 'soccer', 'volleyball', 'tennis', 'baseball', 'badminton', 'sowing', 'planting']) {
+            g.setState({ life: [{ seat: 1, activity: id, variant: 2, presenting: true, x: 0, y: 0, facing: 1 }] });
+            const d = g.debug().partners[1]; props[id] = d.prop && d.presenting && d.variant === 2;
+          }
+          ['fountain', 'rabbit', 'birdbath', 'arch', 'windmill', 'bridge'].forEach((id, i) => {
+            g.setState({ discovery: { count: i + 1, themeId: id } });
+            const t = g.debug().theme; scenes[id] = t.themeId === id && t.fade === 1;
+          });
+          g.setState({ life: [{ seat: 1, activity: 'flowers', x: 0, y: 0, facing: 1 }] });
+          const after = g.debug().partners[1].presenting;
+          g.dispose();
+          return { props, scenes, after };
+        }""" % UNTIL)
+        self.assertTrue(all(r['props'].values()), r['props'])
+        self.assertTrue(all(r['scenes'].values()), r['scenes'])
+        self.assertFalse(r['after'])
+        self.assertEqual(p.errors, [])
+
+    def test_first_discovery_shows_fountain_in_3d(self):
+        # Real time + reduced motion (scene swaps instantly); see PITFALLS about fake clocks with 3D.
+        p = self.open(width=800, enable=True)
+        p.emulate_media(reduced_motion='reduce')
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.select_option('#garden-session-mode', 'direct')
+        p.click('#garden-demo'); p.fill('#garden-spawn-seconds', '1'); p.fill('#garden-upgrade-seconds', '5')
+        p.click('#garden-start')
+        p.wait_for_function("document.body.dataset.phase === 'running'")
+        p.wait_for_function("window.__gardenDebug3d() && window.__gardenDebug3d().theme.themeId === 'fountain'", timeout=300000)
+        d = p.evaluate('window.__gardenDebug3d()')
+        self.assertEqual(d['theme']['fade'], 1)
+        acts = [(v['activity'], v['prop'], v['presenting']) for v in d['partners'].values()]
+        self.assertTrue(any(a == 'basketball' and pr for a, pr, _ in acts), acts)
+        self.assertLessEqual(sum(1 for _, _, pres in acts if pres), 2)
         self.assertEqual(p.errors, [])
 
     def test_preview_page_still_loads(self):
