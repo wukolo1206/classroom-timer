@@ -303,6 +303,32 @@ test('quiz tickets only after the cutoff (points still imported); teacher grants
   assert.equal(collection(e,1).tickets,2,'1 teacher grant + 1 quiz after the cutoff (the older quiz gives points only)');
   assert.equal(total(out,1),4);
 });
+test('after the ticket-rule cutoff a quiz ticket needs plus2+5 (default 95, per-student, max 100) and is its own ticket:1 event', () => {
+  const e=env(), since=e.ctx.QUIZ_TICKET_RULE_SINCE.getTime(), t=n=>new Date(since+n*1000);
+  e.quiz.sheets={
+    '集點加點標準':[['02','李晨睿',60,70,'x'],['03','王柏勛','',98,'x']],
+    '綜合練習成績單':[[new Date(since-1000),'408','01','游濬謙','general','國語','L1',20,90],
+      [t(1),'408','01','游濬謙','general','國語','L2',20,94],
+      [t(2),'408','01','游濬謙','general','國語','L3',20,95],
+      [t(3),'408','02','李晨睿','general','國語','L3',20,75],
+      [t(4),'408','02','李晨睿','general','國語','L3',20,74],
+      [t(5),'408','03','王柏勛','general','國語','L3',20,99],
+      [t(6),'408','03','王柏勛','general','國語','L3',20,100],
+      [t(7),'408','01','游濬謙','general','國語','L4',19,100]]};
+  let out=e.ctx.getPointBundle();
+  assert.deepEqual(out.events.filter(x=>x.itemId==='quiz_award').map(x=>[x.seat,x.delta]),[[1,2],[1,2],[1,2],[2,2],[2,2],[3,2],[3,2]],'points unchanged');
+  const tk=out.events.filter(x=>x.itemId==='ticket:1');
+  assert.deepEqual(tk.map(x=>[x.seat,x.batchId,x.delta]),[[1,'quizticket408_general_'+t(2).getTime()+'_1',0],[2,'quizticket408_general_'+t(3).getTime()+'_2',0],[3,'quizticket408_general_'+t(6).getTime()+'_3',0]]);
+  assert.equal(tk[0].label,'測驗抽獎券：綜合練習 L3 95分');
+  assert.equal(collection(e,1).tickets,2,'90 before the rule cutoff keeps its old-rule ticket + 95 after it');
+  assert.equal(collection(e,2).tickets,1); assert.equal(collection(e,3).tickets,1,'plus2 98 -> needs 100');
+  e.clearCache(); out=e.ctx.getPointBundle();
+  assert.equal(out.events.filter(x=>x.itemId==='ticket:1').length,3,'idempotent');
+  assert.equal(total(out,1),6);
+  assert.throws(()=>e.ctx.commitPointBatch({...score('x'),id:'quizticket408_a_1_1'}),/保留字/);
+  assert.equal(e.ctx.pointQuizTicket_(20,95),true); assert.equal(e.ctx.pointQuizTicket_(20,94.9),false); assert.equal(e.ctx.pointQuizTicket_(19,100),false);
+  assert.equal(e.ctx.pointQuizTicket_(20,100,{plus1:90,plus2:100}),true); assert.equal(e.ctx.pointQuizTicket_(20,99,{plus1:90,plus2:97}),false);
+});
 test('open series controls the pool; empty pool refuses; reserved ids and bad series are rejected', () => {
   const e=env(); e.ctx.commitPointBatch(grant('g1',3));
   let st=e.ctx.getPointBundle().settings;

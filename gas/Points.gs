@@ -64,6 +64,10 @@ var POINT_AVATAR_SERIES = [{id:'classic',from:0,count:24},{id:'snack',from:24,co
 var POINT_DEFAULT_OPEN_SERIES = ['snack'];
 // 測驗達標抽獎券只算這個時間之後交卷的成績（避免一次發出舊成績的券）。
 var AVATAR_TICKET_SINCE = new Date('2026-11-18T00:00:00+08:00');
+// 2026-11-19 起抽獎券門檻提高：要達「+2 點分數再加 5 分」（預設 95，最高 100）。
+// 這之後交的卷，quiz_award 本身不再算券，改由匯入時另寫一筆 ticket:1（編號 quizticket408_…）；之前的卷照舊（已發的券不收回）。
+var QUIZ_TICKET_RULE_SINCE = new Date('2026-11-19T16:40:00+08:00');
+var QUIZ_TICKET_BONUS = 5;
 function pointAvatarCount_() {
   var last = POINT_AVATAR_SERIES[POINT_AVATAR_SERIES.length - 1];
   return last.from + last.count;
@@ -101,7 +105,7 @@ function pointCollection_(events, settings, seat) {
     else if (drawn !== null) { owned[drawn] = true; draws++; }
     else if (equipped !== null) current = equipped;
     else if (grant) tickets += Number(grant[1]);
-    else if (e.itemId === 'quiz_award' && e.delta > 0 && quiz && Number(quiz[1]) >= AVATAR_TICKET_SINCE.getTime()) tickets++;
+    else if (e.itemId === 'quiz_award' && e.delta > 0 && quiz && Number(quiz[1]) >= AVATAR_TICKET_SINCE.getTime() && Number(quiz[1]) < QUIZ_TICKET_RULE_SINCE.getTime()) tickets++;
   });
   if (!owned[current]) current = first;
   return {owned:owned, current:current, tickets:Math.max(0, tickets - draws)};
@@ -118,7 +122,7 @@ function pointBatch_(batch) {
     return {request:{id:'undo:' + original, type:type, originalBatchId:original}, device:device};
   }
   var id = pointId_(batch.id);
-  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('scaffold408_') === 0 || id.indexOf('boardind:') === 0 || id.indexOf('boardgrp:') === 0) pointError_('編號為保留字');
+  if (id.indexOf('undo:') === 0 || id.indexOf('manifest:') === 0 || id.indexOf('auction408_') === 0 || id.indexOf('quiz408_') === 0 || id.indexOf('quizticket408_') === 0 || id.indexOf('scaffold408_') === 0 || id.indexOf('boardind:') === 0 || id.indexOf('boardgrp:') === 0) pointError_('編號為保留字');
   var request = {id:id, type:type, seats:pointTargets_(batch.seats), device:device};
   if (type === 'balance') {
     if (!batch.totals || typeof batch.totals !== 'object' || Array.isArray(batch.totals) || Object.keys(batch.totals).length !== request.seats.length) pointError_('總分設定須與學生清單一致');
@@ -318,6 +322,12 @@ function pointQuizDelta_(total, score, rule) {
   rule = rule || {plus1:80, plus2:90};
   return score >= rule.plus2 ? 2 : score >= rule.plus1 ? 1 : 0;
 }
+// 抽獎券門檻（與測驗平台 quizPointAward_ 的 ticket 相同）：20 題以上，且分數 ≥ min(100, +2 分數 + 5)。
+function pointQuizTicket_(total, score, rule) {
+  if (!(total >= 20)) return false;
+  rule = rule || {plus1:80, plus2:90};
+  return score >= Math.min(100, rule.plus2 + QUIZ_TICKET_BONUS);
+}
 function pointQuizRules_(ss) {
   var sheet = ss.getSheetByName('集點加點標準'), out = {};
   if (!sheet || sheet.getLastRow() < 2) return out;
@@ -352,7 +362,8 @@ function pointQuizAwards_() {
       if (!time || time < QUIZ_IMPORT_SINCE || String(r[1]).trim() !== '408' || !Number.isInteger(seat) || !system || !delta) return;
       var scope = String(shown[i][6]).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 30);
       out.push({id:'quiz408_' + system + '_' + time.getTime() + '_' + seat, seat:seat, delta:delta,
-        label:('測驗加點：' + (QUIZ_SYSTEM_LABELS[system] || system) + (scope ? ' ' + scope : '') + ' ' + Math.round(score) + '分').slice(0, 80)});
+        label:('測驗加點：' + (QUIZ_SYSTEM_LABELS[system] || system) + (scope ? ' ' + scope : '') + ' ' + Math.round(score) + '分').slice(0, 80),
+        ticket: time >= QUIZ_TICKET_RULE_SINCE && pointQuizTicket_(total, score, rules[seat])});
     });
   });
   return out;
@@ -366,11 +377,19 @@ function pointImportQuiz_(sheet, data) {
   var done = {};
   data.manifests.forEach(function (m) { done[m.request.id] = true; });
   awards.forEach(function (a) {
-    if (done[a.id]) return;
+    var ticketId = a.id.replace(/^quiz408_/, 'quizticket408_');
+    if (done[a.id] && (!a.ticket || done[ticketId])) return;
     var target;
     try { target = pointSeat_(a.seat); } catch (err) { return; }
-    pointCommitLocked_(sheet, data, {id:a.id,type:'score',seats:[target],itemId:'quiz_award',label:a.label,delta:a.delta}, 'quiz408');
-    done[a.id] = true;
+    if (!done[a.id]) {
+      pointCommitLocked_(sheet, data, {id:a.id,type:'score',seats:[target],itemId:'quiz_award',label:a.label,delta:a.delta}, 'quiz408');
+      done[a.id] = true;
+    }
+    // 達抽獎券門檻：另寫一筆 0 分的 ticket:1（與老師發券同一種事件，券數推導不用另寫）
+    if (a.ticket && !done[ticketId]) {
+      pointCommitLocked_(sheet, data, {id:ticketId,type:'score',seats:[target],itemId:'ticket:1',label:('測驗抽獎券：' + a.label.replace(/^測驗加點：/, '')).slice(0, 80),delta:0}, 'quiz408');
+      done[ticketId] = true;
+    }
   });
 }
 // 名單編號 scaffold408_<單元>_<關卡>_s<座號>，與中心 server/points-export.js 一致；不可改，否則會重複加點。
