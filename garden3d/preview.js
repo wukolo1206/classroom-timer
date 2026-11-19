@@ -1,13 +1,14 @@
 // 3D garden prototype — all 8 stages + puffy partner figures. Standalone; the production garden is untouched.
 import * as THREE from '../vendor/three/three.module.min.js';
 import { createWorld, STAGE_NAMES } from './world.js';
+import { generateSlots, figureScale } from './layout.js';
 import { puffyFor, labelTexture } from './figures.js';
 
 const $ = (id) => document.getElementById(id);
 const A = window.c408PointAvatars;
 const canvas = $('g3-canvas');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const MAX_PARTNERS = 31, FIG_SCALE = 0.82;
+const MAX_PARTNERS = 31, FIG_SCALE = figureScale(MAX_PARTNERS);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -17,7 +18,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
 const world = createWorld(scene);
-const { groundY, slots } = world;
+const { groundY } = world;
+const slots = generateSlots(MAX_PARTNERS);
 
 // ---------- partners ----------
 const standees = [];

@@ -1,6 +1,7 @@
 // 3D garden world: low-poly scene built from code, revealed stage by stage
 // (follows docs/design/garden-eight-stages-v0.1.md: one main change per stage, fixed upper limits).
 import * as THREE from '../vendor/three/three.module.min.js';
+import { POND, BEDS, pondE, groundY } from './layout.js';
 
 export const STAGE_NAMES = ['夥伴入園', '花圃甦醒', '綠意成蔭', '蝴蝶來訪', '池塘映光', '祕密花園', '晚霞時光', '月光成畫'];
 
@@ -50,15 +51,6 @@ export function createWorld(scene) {
   scene.add(sunLight, sunLight.target);
 
   // ---------- terrain ----------
-  const POND = { x: 4.4, z: 0.6, rx: 3.4, rz: 2.2 };
-  const pondE = (x, z) => ((x - POND.x) / POND.rx) ** 2 + ((z - POND.z) / POND.rz) ** 2;
-  function groundY(x, z) {
-    const r = Math.hypot(x, z), k = Math.min(1, Math.max(0, (r - 7) / 12));
-    let h = (0.16 * Math.sin(x * 0.45) * Math.cos(z * 0.38) + 0.08 * Math.sin(x * 1.1 + z * 0.7)) * (0.35 + 0.65 * k) + k * k * 1.6;
-    const e = pondE(x, z);
-    if (e < 1.25) h = h * Math.max(0, (e - 1) / 0.25) - 0.28 * Math.min(1, (1.25 - e) / 0.35);
-    return h;
-  }
   {
     const geo = new THREE.PlaneGeometry(90, 90, 70, 70); geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
@@ -80,7 +72,6 @@ export function createWorld(scene) {
   });
 
   // ---------- flower beds: 8 sprouts from stage 1, four beds bloom at stage 2 ----------
-  const BEDS = [[-4.2, 5.7, 1.25], [-7.0, 0.4, 1.3], [5.4, 5.7, 1.2], [1.2, -2.7, 1.2]];
   const FLOWER_COLS = ['#fff3d6', '#f7c2a8', '#cbb8ec'].map((c) => new THREE.Color(c));
   const headGeo = new THREE.IcosahedronGeometry(0.13, 0), stemGeo = new THREE.ConeGeometry(0.05, 0.24, 4), leafGeo = new THREE.SphereGeometry(0.07, 5, 3);
   const headMat = new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.8 }), stemMat = mat('#7aa45e');
@@ -250,19 +241,6 @@ export function createWorld(scene) {
     moon.material.opacity = night; moonHalo.material.opacity = night * 0.8; moon.visible = moonHalo.visible = night > 0.01;
   }
 
-  // ---------- slots for up to 31 partners (staggered rows, off the pond / bridge / path) ----------
-  const slots = (() => {
-    // partners stay on the meadow (left / centre / front strip); the pond corner, path and flower beds stay clear
-    const out = [];
-    for (let row = 0; row < 9; row++) for (let col = 0; col < 13; col++) {
-      const x = -9.4 + col * 1.5 + (row % 2) * 0.75 + (rand() - 0.5) * 0.25, z = -1.6 + row * 1.12 + (rand() - 0.5) * 0.2;
-      if (z > 7.2 || !(x < 1.3 || (z > 4.9 && x < 8.2))) continue;
-      if (pondE(x, z) < 2.2 || (Math.abs(x - 0.45) < 0.7 && z > 1.2)) continue;
-      if (BEDS.some((bd) => Math.hypot(x - bd[0], z - bd[1]) < bd[2] * 0.85)) continue;
-      out.push([x, z, Math.hypot(x + 0.8, (z - 3.4) * 1.1) + rand() * 5]);
-    }
-    return out.sort((a, b) => a[2] - b[2]).map((s) => [s[0], s[1]]);
-  })();
 
   // ---------- per-frame ----------
   function update(dt, renderer) {
@@ -302,5 +280,5 @@ export function createWorld(scene) {
       reveals.forEach((r) => { r.p = stage >= r.from && stage < r.until ? 1 : 0; applyReveal(r); });
     }
   }
-  return { groundY, POND, slots, update, setStage, get stage() { return stage; }, get mood() { return mood; } };
+  return { groundY, POND, update, setStage, get stage() { return stage; }, get mood() { return mood; } };
 }
