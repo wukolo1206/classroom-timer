@@ -1,4 +1,4 @@
-## Pages（合併後填 commit）— 3D 花園開關（第一期）（2026-11-19）
+## Pages 3acc785 — 3D 花園開關（第一期）（2026-11-19）
 - 正式花園設定區新增「3D 花園（試作）」勾選：預設平面版不變；勾選後在 #garden-scene 疊一張 WebGL 畫布（z-index 4，HUD／歡迎框在上），平面版照常在下層運作，PNG 保存與活動紀錄不變。選擇記在 localStorage（c408_／ctu_ 前綴 renderer3d）。
 - 3D 跟著正式進度：8 階段依 model.stage、夥伴依 model.visible() 入園／休息離開／換頭貼（座號固定座位）；data-life-active 不為 true 時整個 3D 時鐘凍結；新花園立即回第 1 階段；減少動態偏好時不轉鏡頭、不跳動。31～100 位自動縮放排位，不站池塘／小徑／花圃。不支援 WebGL 時勾選停用。
 - 新增 garden3d/layout.js、partners.js、stage3d.js、bridge.js；stamp_garden.py 也為 ES 模組 import 與試作頁加內容雜湊。

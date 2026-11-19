@@ -1,3 +1,31 @@
+# 3D 花園第一期上線 — 2026-11-19 Pages 3acc785（GAS 仍 @66）
+
+## 目前狀態
+- 正式花園設定區新增「3D 花園（試作）」勾選，預設平面版；勾選後 3D 畫布疊在平面版上（z-index 4），跟著 model.stage／model.visible()，合宜音量才動，超標／暫停／無訊號／結束全凍結，新花園回第 1 階段。選擇記在瀏覽器 localStorage（renderer3d）。
+- 夥伴為膨膨立體公仔（頭貼輪廓長厚度），31～100 位自動排位，不站池塘／小徑／花圃。8 階段依設計稿 v0.1。
+- 試作頁 garden3d-preview.html 仍在（階段切換、自動播放、FPS 顯示），與正式版共用模組。
+- 今天稍早另修：花園防快取（a5058bd）——舊快取 core.js 讀不進點心精靈頭貼導致花園無法開始。
+- 計畫：docs/superpowers/plans/2026-11-19-garden3d-production.md（第一期完成；二～六期見文末路線圖）。
+
+## 本次驗證
+- node：garden3d layout 5 項、garden core／life／activities／discoveries／roster、points_avatars 全過。
+- Playwright：tests/test_garden3d.py 6 項（開關記憶、無 WebGL 停用、夥伴跟隨＋暫停凍結、全班到第 8 階段＋新花園重置、換頭貼＋100 位排位、試作頁）＋ test_garden.py 59 項全過。
+- 線上：11 個檔案與本機一致、22 個帶版本號網址皆 200；線上 garden.html 勾 3D 後示範夥伴入園、無頁面錯誤。
+- **真 iPad／教室電腦尚未實測 FPS。**
+
+## 下次接續
+- 老師課堂試用：勾 3D → 開始 → 故意大聲確認凍結 → 全員到齊看升級 → 結束開新花園回第 1 階段；卡頓就取消勾選並記裝置型號。
+- 通過後寫第二期計畫（3D 夥伴散步／看花／野餐／澆水／閱讀＋道具）。
+- 歷史卡片只顯示編號 0～23 頭貼（garden/app.js showHistory 的 `<24` 過濾）尚未修。
+
+## 注意事項
+- 改 garden.html 載入的任何 js／css、或 garden3d/*.js 後，push 前一定跑 `python tools/stamp_garden.py`（現在也會改寫 garden3d 模組內的 import ?v=，並同步試作頁）。
+- garden.html 也給 universal 他校使用；3D 預設關閉，不要改成預設開啟（第六期再議）。
+- 3D 測試不要用 Playwright 假時鐘推進長時間（每格都是軟體算圖，會慢到十幾分鐘）；長流程用真實時間。
+- 保存 PNG 在 3D 模式下仍是平面版畫（第四期處理）。
+
+---
+
 # 頭貼抽獎與收藏 — 2026-11-18 GAS @66／Pages ab53817
 
 ## 目前狀態
