@@ -2,7 +2,7 @@
 // Production 3D garden controller: owns renderer, camera and loop; app.js pushes state via setState().
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { createWorld } from './world.js?v=95c341bd22';
-import { Partners } from './partners.js?v=ad37211d1e';
+import { Partners } from './partners.js?v=18f723bf4e';
 
 export function createGarden3D(container, options = {}) {
   const canvas = document.createElement('canvas');
@@ -32,6 +32,7 @@ export function createGarden3D(container, options = {}) {
     if (s.stage !== world.stage) world.setStage(s.stage, first || s.reduced || Math.abs(s.stage - world.stage) > 1);
     partners.setCapacity(s.rosterSize);
     partners.sync(s.visible, nowS(), first || s.reduced);
+    if (s.life) partners.applyLife(s.life);
     state = s; first = false;
   }
 

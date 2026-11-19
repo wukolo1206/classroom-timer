@@ -72,6 +72,46 @@ class Garden3D(unittest.TestCase):
         self.assertEqual(r['canvases'], 0)
         self.assertEqual(p.errors, [])
 
+    def test_life_states_move_partners_and_swap_props(self):
+        p = self.open()
+        p.wait_for_function('window.Garden3D !== undefined')
+        r = p.evaluate("""async () => { %s
+          const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:400px'; document.body.appendChild(box);
+          const g = window.Garden3D.create(box, { reducedMotion: false });
+          const vis = [{ seat: 1, avatar: 3 }, { seat: 2, avatar: 25 }];
+          g.setState({ visible: vis, rosterSize: 31, stage: 0, active: true, reduced: false, idle: false, life: [] });
+          await until(() => g.debug().partners[1] && g.debug().partners[1].ready);
+          const base = g.debug().partners[1];
+          g.setState({ life: [{ seat: 1, activity: 'picnic', x: 48, y: 6, facing: 1 }, { seat: 2, activity: 'butterfly', x: 0, y: 0, facing: -1 }] });
+          const a = g.debug().partners;
+          g.setState({ life: [{ seat: 1, activity: 'reading', x: 0, y: 0, facing: 1 }, { seat: 2, activity: 'basketball', x: 0, y: 0, facing: 1 }] });
+          const b = g.debug().partners;
+          g.dispose();
+          return { dx: a[1].x - base.slotX, dz: a[1].z - base.slotZ, a1: a[1].activity, a1p: a[1].prop, a2: a[2].activity, a2p: a[2].prop,
+                   b1: b[1].activity, b1p: b[1].prop, b2: b[2].activity, b2p: b[2].prop, backX: b[1].x - base.slotX };
+        }""" % UNTIL)
+        self.assertEqual((r['a1'], r['a1p'], r['a2'], r['a2p']), ('picnic', True, 'butterfly', True))
+        self.assertEqual((r['b1'], r['b1p'], r['b2'], r['b2p']), ('reading', True, 'basketball', False))
+        self.assertAlmostEqual(r['dx'], 0.45, places=2)
+        self.assertAlmostEqual(r['dz'], 0.18, places=2)
+        self.assertAlmostEqual(r['backX'], 0.0, places=2)
+        self.assertEqual(p.errors, [])
+
+    def test_3d_activities_match_the_2d_garden(self):
+        p = self.open(enable=True)
+        p.wait_for_function("document.body.dataset.renderer === '3d'")
+        p.select_option('#garden-session-mode', 'timed')
+        p.click('#garden-demo'); p.fill('#garden-minutes', '5'); p.fill('#garden-spawn-seconds', '1')
+        p.clock.install(); p.click('#garden-start')
+        p.wait_for_function("document.body.dataset.phase === 'running'")
+        p.clock.run_for(6000)
+        pairs = p.evaluate("""() => { const d = window.__gardenDebug3d().partners;
+          return Object.keys(d).map((s) => [d[s].activity, (document.querySelector('.garden-visitor[data-seat="' + s + '"]') || {}).dataset?.activity]); }""")
+        self.assertGreaterEqual(len(pairs), 4)
+        for a3, a2 in pairs:
+            self.assertEqual(a3, a2)
+        self.assertEqual(p.errors, [])
+
     def test_preview_page_still_loads(self):
         p = self.open('garden3d-preview.html')
         p.wait_for_function('window.__garden3d && __garden3d.standees.length >= 8', timeout=60000)

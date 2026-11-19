@@ -3,11 +3,14 @@
 import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 import { puffyFor, labelTexture } from './figures.js?v=84a4a7c24a';
 import { generateSlots, figureScale, groundY } from './layout.js?v=24350342a5';
+import { createProp, disposeProp } from './props.js?v=ac4f7668e4';
 
 const MOTIONS = ['sway', 'hop', 'turn', 'float'];
 const baseGeo = new THREE.CylinderGeometry(0.48, 0.52, 0.09, 24);
 const baseMat = new THREE.MeshStandardMaterial({ color: '#eadcc0', roughness: 0.6 });
 const labelGeo = new THREE.PlaneGeometry(0.66, 0.23);
+// Life engine offsets are pixels (|x| <= 48, |y| <= 6); map them to a small walk around the seat.
+const WALK_X = 0.45, WALK_Z = 0.18;
 const easeOutBack = (t) => { const c = 1.7; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
 
 export class Partners {
@@ -37,9 +40,10 @@ export class Partners {
   }
 
   place(it) {
-    const [x, z] = this.slots[it.slot];
+    const [sx, sz] = this.slots[it.slot], k = this.scale / 0.82; // big classes: shorter walks so neighbours never touch
+    const x = sx + it.ox * k, z = sz + it.oz * k;
     it.group.position.set(x, groundY(x, z), z);
-    it.group.rotation.y = Math.atan2(this.home.x - x, this.home.z - z);
+    it.group.rotation.y = Math.atan2(this.home.x - sx, this.home.z - sz);
   }
 
   // list: [{seat, avatar}] = model.visible(); now: wall-clock seconds; instant: skip arrive/leave animation
@@ -58,6 +62,24 @@ export class Partners {
     });
   }
 
+  // states: garden/life.js Life.frame() output for this frame (same engine as the 2D garden)
+  applyLife(states) {
+    (states || []).forEach((s) => {
+      const it = this.items.get(s.seat);
+      if (!it || it.leaving) return;
+      it.ox = Math.max(-1, Math.min(1, (s.x || 0) / 48)) * WALK_X;
+      it.oz = Math.max(-1, Math.min(1, (s.y || 0) / 6)) * WALK_Z;
+      it.facing = s.facing < 0 ? -1 : 1;
+      this.place(it);
+      if (s.activity !== it.activity) {
+        it.activity = s.activity;
+        if (it.prop) { it.group.remove(it.prop); disposeProp(it.prop); it.prop = null; }
+        const prop = createProp(s.activity);
+        if (prop) { it.prop = prop; it.group.add(prop); }
+      }
+    });
+  }
+
   add(seat, avatar, slot, now, instant) {
     const group = new THREE.Group(), body = new THREE.Group();
     const base = new THREE.Mesh(baseGeo, baseMat);
@@ -66,7 +88,7 @@ export class Partners {
     label.position.set(0, 0.16, 0.56); label.rotation.x = -0.35;
     body.position.y = 0.08;
     group.add(base, body, label);
-    const it = { seat, avatar: null, slot, group, body, label, figure: null, motion: MOTIONS[seat % 4], phase: seat * 0.7, changedAt: instant ? -99 : now, leaving: false };
+    const it = { seat, avatar: null, slot, group, body, label, figure: null, motion: MOTIONS[seat % 4], phase: seat * 0.7, changedAt: instant ? -99 : now, leaving: false, activity: null, prop: null, ox: 0, oz: 0, facing: 1 };
     this.items.set(seat, it);
     this.place(it);
     group.scale.setScalar(instant ? this.scale : 0.0001);
@@ -89,6 +111,7 @@ export class Partners {
     const it = this.items.get(seat);
     if (!it) return;
     this.scene.remove(it.group);
+    if (it.prop) disposeProp(it.prop);
     it.label.material.map.dispose(); it.label.material.dispose();
     this.items.delete(seat);
   }
@@ -109,6 +132,8 @@ export class Partners {
       b.rotation.set(0, 0, 0); b.position.y = 0.08;
       if (reduced) return;
       const k = clock * 2 + it.phase;
+      if (it.prop && it.prop.userData.animate) it.prop.userData.animate(clock + it.phase);
+      if (it.activity === 'walking') { b.rotation.y = it.facing * 0.6; b.position.y = 0.08 + Math.abs(Math.sin(k * 2.2)) * 0.12; return; }
       if (it.motion === 'sway') b.rotation.z = Math.sin(k) * 0.07;
       else if (it.motion === 'hop') b.position.y = 0.08 + Math.abs(Math.sin(k * 0.9)) * 0.16;
       else if (it.motion === 'turn') b.rotation.y = Math.sin(k * 0.5) * 0.5;
@@ -118,7 +143,7 @@ export class Partners {
 
   debug() {
     const out = {};
-    this.items.forEach((it, seat) => { if (!it.leaving) out[seat] = { avatar: it.avatar, slot: it.slot, x: it.group.position.x, z: it.group.position.z, ready: !!it.figure }; });
+    this.items.forEach((it, seat) => { if (!it.leaving) out[seat] = { avatar: it.avatar, slot: it.slot, x: it.group.position.x, z: it.group.position.z, ready: !!it.figure, activity: it.activity, prop: !!it.prop, slotX: this.slots[it.slot][0], slotZ: this.slots[it.slot][1] }; });
     return out;
   }
 }

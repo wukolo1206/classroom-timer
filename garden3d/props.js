@@ -1,6 +1,6 @@
 // garden3d/props.js
 // 3D props for partner activities (same ids as garden/life.js). Unknown ids (phase-3 discoveries) -> null.
-import * as THREE from '../vendor/three/three.module.min.js';
+import * as THREE from '../vendor/three/three.module.min.js?v=3e690ac7d1';
 
 const M = (color, extra) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.8, flatShading: true }, extra));
 const mats = { pot: M('#c9825a'), stem: M('#6f9d55'), wood: M('#b07a4f'), teal: M('#6fb3b8', { roughness: 0.5 }), page: M('#fbf6e6'), cover: M('#7d9bd1'), water: M('#a8dcef', { transparent: true, opacity: 0.85 }), wing: M('#f6c0d4', { side: THREE.DoubleSide }) };
