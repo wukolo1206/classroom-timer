@@ -1,3 +1,28 @@
+# 3D 花園第四期上線 — 2026-11-19 Pages 2ff89ca（GAS 仍 @66）
+
+## 目前狀態
+- 3D 模式「保存花園畫（PNG）」存 3D 畫面：stage3d.capture()（寬約 1800 px、依「畫作包含座號」切換號碼牌、HUD 不入圖）；finish() 凍結 finishedArt3d 兩版，結束畫面保存直接重用。平面模式保存不變。
+- 第一～四期皆上線，網址不變，正式花園設定區勾「3D 花園（試作）」，預設平面版。剩第五期（依 FPS 自動降畫質）、第六期（預設值）。
+- 計畫：docs/superpowers/plans/2026-11-19-garden3d-phase4-png.md（完成）。
+
+## 本次驗證
+- Playwright：test_garden3d.py 12 項（新增截圖含／不含座號、保存按鈕即時與結束後走 3D 截圖）＋ test_garden.py 59 項全過；node 測試全過。
+- 實看 31 位月夜小風車存檔（1800×1000，含／不含座號）。
+- 線上：檔案一致；線上正式花園 3D 保存下載 1800 px PNG、走 3D 截圖、無錯誤。**真 iPad 仍未實測。**
+
+## 下次接續
+- 老師課堂試用 3D 全流程（FPS、生活動作、新發現、保存 3D 畫）。
+- 第五期：前幾秒量 FPS，過低自動切省電（DPR 1、關陰影），仍低則提示改回平面。
+- 歷史卡片 `<24` 頭貼過濾仍未修。
+
+## 注意事項
+- 改 garden 載入的 js／css 或 garden3d/*.js 後，push 前跑 `python tools/stamp_garden.py`。
+- 3D 預設關閉（universal 他校共用），不要改預設。
+- capture() 必須在還原 pixelRatio 前同步 toDataURL（還原會清空畫布）。
+- 測試「保存走 3D」用 debug().captures 計數判斷；平面版 PNG 尺寸與比例跟 3D 相近，不能用尺寸區分。
+
+---
+
 # 3D 花園第三期上線 — 2026-11-19 Pages 58f4eb7（GAS 仍 @66）
 
 ## 目前狀態
