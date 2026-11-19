@@ -4,7 +4,7 @@ category: 學科工具集
 status: 維護中
 version: "GAS @66／全校版 v1.33"
 url: https://script.google.com/macros/s/<見 gas/weburl.txt，已 gitignore>/exec
-next_action: "推送花園防快取版本號（tools/stamp_garden.py）後確認花園可開始；教室實際試用頭貼抽獎（發券、抽、換上、復原）；拍賣系統尚未同步新頭貼；花園v1.33仍待課堂確認"
+next_action: "教室重開花園確認可開始（已上線防快取 a5058bd）；教室實際試用頭貼抽獎（發券、抽、換上、復原）；拍賣系統尚未同步新頭貼；花園v1.33仍待課堂確認"
 updated: 2026-11-19
 ---
 

@@ -1,4 +1,4 @@
-## Pages（未推送）— 花園防快取版本號（2026-11-19）
+## Pages a5058bd — 花園防快取版本號（2026-11-19）
 - 老師反映花園無法開始：推斷是舊快取的 garden/core.js（只收頭貼 0～23）遇到學生換上點心精靈（24 以上），整份名單被判格式錯誤。
 - 新增 `tools/stamp_garden.py`：garden.html 載入的 15 個 js／css 加上內容雜湊 `?v=`；`garden/build.txt` 記錄版本，garden.html 開頭以 no-store 比對，舊頁面自動帶 `?b=` 重新載入一次（保留 #channel，不會無限重載）。未動 GAS、universal.html。
 - 測試：test_garden.py 59 項通過；瀏覽器實測版本一致不重載、過期重載一次、已帶 b 不再重載，無頁面錯誤。
